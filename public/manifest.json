@@ -1,0 +1,18 @@
+{
+  "name": "Chat App",
+  "short_name": "ChatApp",
+  "description": "Modern Real-time Chat Application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#18181b",
+  "theme_color": "#18181b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

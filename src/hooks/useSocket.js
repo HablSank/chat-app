@@ -1,0 +1,120 @@
+import { useEffect, useRef, useCallback } from 'react'
+import { io } from 'socket.io-client'
+import { useAuth } from '../context/AuthContext'
+
+const SOCKET_URL = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:3001`
+  : 'http://localhost:3001'
+
+/**
+ * Manages a singleton Socket.IO connection for the app lifetime.
+ *
+ * Callbacks are stored in refs so the socket event listeners never go stale
+ * even when the parent component re-renders with new closure values.
+ *
+ * @param {object} handlers
+ * @param {function} handlers.onMessage      - called with a chat:private_message payload
+ * @param {function} handlers.onTyping       - called with { from, conversationId } when contact starts typing
+ * @param {function} handlers.onStopTyping   - called with { from, conversationId } when contact stops typing
+ * @param {function} handlers.onNewConversation - called when a new conversation is created
+ * @param {function} handlers.onRequestAction - called when a request is accepted or rejected
+ * @param {function} handlers.onReactionUpdate - called when a message reaction changes
+ * @param {function} handlers.onMessagesRead   - called when messages are marked read
+ * @param {function} handlers.onMessagesDelivered - called when messages are delivered
+ * @param {function} handlers.onPresenceUpdate    - called when a user presence changes
+ *
+ * @returns {{ sendMessage, sendTyping, sendStopTyping, joinPrivateRoom, sendReaction, sendMarkRead }}
+ */
+export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation, onRequestAction, onReactionUpdate, onMessagesRead, onMessagesDelivered, onPresenceUpdate }) {
+  const { user } = useAuth()
+  const socketRef          = useRef(null)
+  const onMessageRef       = useRef(onMessage)
+  const onTypingRef        = useRef(onTyping)
+  const onStopTypingRef    = useRef(onStopTyping)
+  const onNewConvRef       = useRef(onNewConversation)
+  const onRequestActRef    = useRef(onRequestAction)
+  const onReactionRef      = useRef(onReactionUpdate)
+  const onMessagesReadRef  = useRef(onMessagesRead)
+  const onMessagesDeliveredRef = useRef(onMessagesDelivered)
+  const onPresenceUpdateRef = useRef(onPresenceUpdate)
+
+  // Sync refs each render
+  useEffect(() => { onMessageRef.current      = onMessage        }, [onMessage])
+  useEffect(() => { onTypingRef.current       = onTyping         }, [onTyping])
+  useEffect(() => { onStopTypingRef.current   = onStopTyping     }, [onStopTyping])
+  useEffect(() => { onNewConvRef.current      = onNewConversation }, [onNewConversation])
+  useEffect(() => { onRequestActRef.current   = onRequestAction  }, [onRequestAction])
+  useEffect(() => { onReactionRef.current     = onReactionUpdate }, [onReactionUpdate])
+  useEffect(() => { onMessagesReadRef.current = onMessagesRead   }, [onMessagesRead])
+  useEffect(() => { onMessagesDeliveredRef.current = onMessagesDelivered }, [onMessagesDelivered])
+  useEffect(() => { onPresenceUpdateRef.current = onPresenceUpdate }, [onPresenceUpdate])
+
+  // Create the socket once on mount, tear down on unmount
+  useEffect(() => {
+    if (!user) return
+
+    const socket = io(SOCKET_URL, { autoConnect: true })
+    socketRef.current = socket
+
+    socket.on('connect', () => {
+      console.log('[socket] connected:', socket.id)
+      socket.emit('user:join', user.id)
+    })
+
+    socket.on('connect_error', (err) => {
+      console.error('[socket] connection error:', err.message)
+    })
+
+    socket.on('chat:private_message', (payload) => onMessageRef.current?.(payload))
+    socket.on('user:typing',          (data)    => onTypingRef.current?.(data))
+    socket.on('user:stop_typing',     (data)    => onStopTypingRef.current?.(data))
+    socket.on('conversation:new',     (data)    => onNewConvRef.current?.(data))
+    socket.on('chat:request_action',  (data)    => onRequestActRef.current?.(data))
+    socket.on('chat:reaction_update', (data)    => onReactionRef.current?.(data))
+    socket.on('chat:messages_read',   (data)    => onMessagesReadRef.current?.(data))
+    socket.on('chat:messages_delivered',(data)  => onMessagesDeliveredRef.current?.(data))
+    socket.on('user:presence_update', (data)    => onPresenceUpdateRef.current?.(data))
+
+    return () => socket.disconnect()
+  }, [user]) // Reconnect if user changes
+
+  /** Join a private room */
+  const joinPrivateRoom = useCallback((conversationId) => {
+    socketRef.current?.emit('join_private_room', conversationId)
+  }, [])
+
+  /** Emit a private message event to the server */
+  const sendMessage = useCallback((payload) => {
+    socketRef.current?.emit('chat:private_message', payload)
+  }, [])
+
+  /** Emit an emoji reaction */
+  const sendReaction = useCallback((messageId, emoji, userId, conversationId) => {
+    socketRef.current?.emit('chat:react_message', { messageId, emoji, userId, conversationId })
+  }, [])
+
+  /** Mark all messages in a conversation as read */
+  const sendMarkRead = useCallback((conversationId, readerId) => {
+    socketRef.current?.emit('chat:mark_read', { conversationId, readerId })
+  }, [])
+
+  /** Tell the server the current user started typing to a specific conversation */
+  const sendTyping = useCallback((conversationId) => {
+    if (!user) return
+    socketRef.current?.emit('user:typing', {
+      from: user.id,
+      conversationId,
+    })
+  }, [user])
+
+  /** Tell the server the current user stopped typing */
+  const sendStopTyping = useCallback((conversationId) => {
+    if (!user) return
+    socketRef.current?.emit('user:stop_typing', {
+      from: user.id,
+      conversationId,
+    })
+  }, [user])
+
+  return { sendMessage, sendTyping, sendStopTyping, joinPrivateRoom, sendReaction, sendMarkRead }
+}
