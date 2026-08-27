@@ -1,22 +1,38 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, LogOut, MessageSquare, Settings, Users, Edit } from 'lucide-react'
+import { Search, LogOut, MessageSquare, Settings, Users, Edit, Download } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { decryptMessage } from '../utils/crypto'
 import { getApiUrl } from '../config/api'
 import ChatItem from './ChatItem'
 import ProfileSettings from './ProfileSettings'
 import CreateGroupModal from './CreateGroupModal'
+import PWAInstallBanner from './PWAInstallBanner'
+import IOSInstallGuideModal from './IOSInstallGuideModal'
 
 export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const { user, token, logout } = useAuth()
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const [query, setQuery] = useState('')
   const [conversations, setConversations] = useState([])
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [showIOSGuide, setShowIOSGuide] = useState(false)
   const searchInputRef = useRef(null)
+
+  const handleInstallPWA = async () => {
+    if (isIOS) {
+      setShowIOSGuide(true)
+    } else {
+      const res = await promptInstall()
+      if (res.isIOS) {
+        setShowIOSGuide(true)
+      }
+    }
+  }
 
   // Auto-trigger profile edit modal for first-time signups
   useEffect(() => {
@@ -208,6 +224,19 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Install PWA button (Hidden when running standalone) */}
+            {!isInstalled && isInstallable && (
+              <motion.button
+                id="sidebar-install-pwa-btn"
+                onClick={handleInstallPWA}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 transition-colors cursor-pointer"
+                title="Install Ping! App"
+              >
+                <Download size={16} />
+              </motion.button>
+            )}
             {/* Create Group button */}
             <motion.button
               id="sidebar-create-group-btn"
@@ -253,6 +282,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             </motion.button>
           </div>
         </div>
+
+        {/* ── PWA Install Prompt Banner ───────────────── */}
+        <PWAInstallBanner />
 
         {/* ── Search Bar ──────────────────────────────── */}
         <div className="px-4 pb-3 flex-shrink-0">
@@ -375,6 +407,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           )}
         </div>
       </div>
+      <IOSInstallGuideModal isOpen={showIOSGuide} onClose={() => setShowIOSGuide(false)} />
     </>
   )
 }

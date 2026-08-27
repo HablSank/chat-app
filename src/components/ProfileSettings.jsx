@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Camera, Loader2, CheckCircle, ChevronDown, Check } from 'lucide-react'
+import { X, Camera, Loader2, CheckCircle, ChevronDown, Check, Download, Smartphone } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
+import IOSInstallGuideModal from './IOSInstallGuideModal'
 
 const STATUS_OPTIONS = [
   { value: 'online', label: 'Online', color: 'bg-emerald-400' },
@@ -45,6 +47,20 @@ export default function ProfileSettings({ isOpen, onClose }) {
   const [error, setError]             = useState('')
   const [isSaved, setIsSaved]         = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
+  const [showIOSGuide, setShowIOSGuide]     = useState(false)
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+
+  const handleInstallClick = async () => {
+    if (isIOS) {
+      setShowIOSGuide(true)
+    } else {
+      const res = await promptInstall()
+      if (res.isIOS) {
+        setShowIOSGuide(true)
+      }
+    }
+  }
 
   const fileInputRef = useRef(null)
   const dropdownRef = useRef(null)
@@ -354,6 +370,29 @@ export default function ProfileSettings({ isOpen, onClose }) {
                   </div>
                 </div>
 
+                {/* Install PWA section (Hidden if already in standalone mode) */}
+                {!isInstalled && isInstallable && (
+                  <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-950/60 to-zinc-800/80 border border-indigo-500/20 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+                        <Smartphone size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-zinc-200 truncate">Install Aplikasi Ping!</p>
+                        <p className="text-[10px] text-zinc-400 truncate">Akses cepat layar penuh</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleInstallClick}
+                      className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white text-xs font-semibold rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>Install</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Error message */}
                 {error && (
                   <motion.p
@@ -398,6 +437,7 @@ export default function ProfileSettings({ isOpen, onClose }) {
           </div>
         </div>
       )}
+      <IOSInstallGuideModal isOpen={showIOSGuide} onClose={() => setShowIOSGuide(false)} />
     </AnimatePresence>
   )
 }
