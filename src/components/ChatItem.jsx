@@ -1,11 +1,10 @@
 import { motion } from 'framer-motion'
-import { Users, Lock } from 'lucide-react'
+import { Users } from 'lucide-react'
 
 export default function ChatItem({ contact, isSelected, onClick, isNew }) {
   const { name, avatar, lastMessage, timestamp, unreadCount, presence, isOnline, statusEmoji, isGroup, participantsCount, status } = contact
 
   const isAccepted = isGroup || status === 'accepted'
-  const displayAvatar = isAccepted ? avatar : 'https://api.dicebear.com/7.x/shapes/svg?seed=locked'
   const effectivePresence = presence || (isOnline ? 'online' : 'offline')
 
   const getPresenceColor = (p) => {
@@ -31,10 +30,10 @@ export default function ChatItem({ contact, isSelected, onClick, isNew }) {
         ${isSelected ? 'bg-zinc-800' : 'bg-transparent'}
       `}
     >
-      {/* Avatar with online dot, group badge, or privacy lock */}
+      {/* Avatar with online dot or group badge */}
       <div className="relative flex-shrink-0">
         <img
-          src={displayAvatar}
+          src={avatar}
           alt={name}
           className="w-11 h-11 rounded-full bg-zinc-700 object-cover"
         />
@@ -45,14 +44,7 @@ export default function ChatItem({ contact, isSelected, onClick, isNew }) {
           >
             <Users size={9} />
           </span>
-        ) : !isAccepted ? (
-          <span
-            title="Privacy Locked"
-            className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-zinc-400 shadow-sm"
-          >
-            <Lock size={8} />
-          </span>
-        ) : (
+        ) : isAccepted && (
           effectivePresence && effectivePresence !== 'offline' && (
             <span
               aria-label={effectivePresence}

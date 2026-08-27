@@ -39,7 +39,6 @@ export default function ChatHeader({
   const menuRef = useRef(null)
 
   const isAccepted = contact.isGroup || contact.status === 'accepted'
-  const displayAvatar = isAccepted ? contact.avatar : 'https://api.dicebear.com/7.x/shapes/svg?seed=locked'
 
   // Close dropdown menu when clicking outside
   useEffect(() => {
@@ -89,7 +88,7 @@ export default function ChatHeader({
         >
           <div className="relative flex-shrink-0">
             <img
-              src={displayAvatar}
+              src={contact.avatar}
               alt={contact.name}
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-zinc-700 object-cover group-hover:opacity-90 transition-opacity"
             />
@@ -97,14 +96,7 @@ export default function ChatHeader({
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-indigo-600 border-2 border-zinc-900 flex items-center justify-center text-white">
                 <Users size={8} />
               </span>
-            ) : !isAccepted ? (
-              <span
-                title="Privacy Locked"
-                className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-zinc-400 shadow-sm"
-              >
-                <Lock size={8} />
-              </span>
-            ) : (
+            ) : isAccepted && (
               (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (
                 <span
                   className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${

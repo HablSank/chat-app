@@ -107,18 +107,14 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
                   {/* Avatar with Cutout Effect */}
                   <div className="-mt-12 mb-4 flex items-end justify-between">
                     <div
-                      className={`w-24 h-24 rounded-full overflow-hidden bg-zinc-800 border-4 border-zinc-900 shadow-xl relative ${isLocked ? 'cursor-default' : 'cursor-pointer group'}`}
+                      className="w-24 h-24 rounded-full overflow-hidden bg-zinc-800 border-4 border-zinc-900 shadow-xl relative cursor-pointer group"
                       onClick={() => {
-                        if (!isLocked && profile?.avatar) setLightboxSrc(profile.avatar)
+                        if (profile?.avatar) setLightboxSrc(profile.avatar)
                       }}
-                      title={!isLocked && profile?.avatar ? 'Click to view full photo' : ''}
+                      title={profile?.avatar ? 'Click to view full photo' : ''}
                     >
                       {isLoading ? (
                         <div className="w-full h-full bg-zinc-800 animate-pulse" />
-                      ) : isLocked ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800 text-zinc-400">
-                          <Lock size={28} className="text-zinc-400 mb-0.5" />
-                        </div>
                       ) : profile?.avatar ? (
                         <img
                           src={profile.avatar}
@@ -138,7 +134,7 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
                         <>
                           <Lock size={12} className="text-amber-400" />
                           <span className="text-xs font-medium text-amber-400">
-                            Locked Profile
+                            Menunggu Persetujuan
                           </span>
                         </>
                       ) : (
