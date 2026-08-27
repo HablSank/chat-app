@@ -12,7 +12,7 @@ import PWAInstallBanner from './PWAInstallBanner'
 import IOSInstallGuideModal from './IOSInstallGuideModal'
 
 export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
-  const { user, token, logout } = useAuth()
+  const { user, token, logout, isProfileOpen, setIsProfileOpen } = useAuth()
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const [query, setQuery] = useState('')
   const [conversations, setConversations] = useState([])
@@ -22,6 +22,18 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const [showIOSGuide, setShowIOSGuide] = useState(false)
   const searchInputRef = useRef(null)
+
+  // Sync modal state with AuthContext isProfileOpen
+  useEffect(() => {
+    if (isProfileOpen) {
+      setIsSettingsOpen(true)
+    }
+  }, [isProfileOpen])
+
+  const handleCloseSettings = () => {
+    setIsSettingsOpen(false)
+    setIsProfileOpen?.(false)
+  }
 
   const handleInstallPWA = async () => {
     if (isIOS) {
@@ -39,8 +51,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     if (sessionStorage.getItem('ping_first_time_signup') === 'true') {
       sessionStorage.removeItem('ping_first_time_signup')
       setIsSettingsOpen(true)
+      setIsProfileOpen?.(true)
     }
-  }, [])
+  }, [setIsProfileOpen])
 
   // Fetch conversations
   useEffect(() => {
@@ -172,7 +185,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   return (
     <>
-      <ProfileSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <ProfileSettings isOpen={isSettingsOpen} onClose={handleCloseSettings} />
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}

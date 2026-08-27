@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   useEffect(() => {
     // Check localStorage for existing session
@@ -67,6 +68,7 @@ export function AuthProvider({ children }) {
       
       setToken(data.token)
       setUser(data.user)
+      setIsProfileOpen(false) // Standard logins land directly on chat view
       return { success: true }
     } catch (err) {
       return { success: false, error: err.message }
@@ -95,6 +97,7 @@ export function AuthProvider({ children }) {
       
       setToken(data.token)
       setUser(data.user)
+      setIsProfileOpen(true) // Automatically prompt new users to configure profile
       return { success: true }
     } catch (err) {
       return { success: false, error: err.message }
@@ -106,6 +109,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('chat_user')
     setToken(null)
     setUser(null)
+    setIsProfileOpen(false)
   }
 
   const updateUser = (updatedUser) => {
@@ -115,7 +119,19 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isProfileOpen,
+        setIsProfileOpen,
+        login,
+        register,
+        logout,
+        updateUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
