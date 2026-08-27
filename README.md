@@ -17,6 +17,7 @@
     <img src="https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
     <img src="https://img.shields.io/badge/Socket.io-4-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.io" />
     <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
+    <img src="https://img.shields.io/badge/Security-E2EE_Encrypted-green?style=for-the-badge&logo=shieldsdotio&logoColor=white" alt="E2EE Security" />
   </p>
 </div>
 
@@ -28,10 +29,16 @@
 * 🟢 **Dynamic Presence & Status:** Live status tracking (`Online`, `Away`, `Busy`, `Offline`) with real-time sync across clients.
 * 📱 **PWA Ready:** Installable directly as a native-like Desktop/Mobile app complete with custom PWA manifest.
 * 📷 **Optimistic Uploads:** Instantly render image and media uploads without UI blocking.
+* 🔏 **End-to-End Encryption (E2EE):** Private messages are encrypted on the client side before transmission, ensuring maximum privacy and data confidentiality.
 * 🔒 **Secure Auth:** JWT-based authentication with persistent user sessions and profile metadata storage.
 * 📌 **Pinned Messages & Media:** Pin important conversations, share images, and stream voice notes seamlessly.
 * 🎨 **Sleek Dark Mode UI:** Designed with a clean, dark-themed interface tuned for high contrast and readability.
 
+
+## 🔒 Security & Privacy
+
+* **End-to-End Encryption (E2EE):** All message payloads are encrypted locally on the sender's device using cryptographic keys before sending over Socket.IO, ensuring nobody (not even the server/database) can read raw text messages.
+* **Session Protection:** Auth tokens are safely stored with JWT and secure cookie policies to prevent unauthorized session hijacking.
 ---
 
 ## 🛠️ Tech Stack
