@@ -94,8 +94,23 @@ export default function ChatHeader({
                 <Users size={8} />
               </span>
             ) : (
-              (contact.isOnline || contact.presence === 'online') && (
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-zinc-900 animate-pulse" />
+              (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (
+                <span
+                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
+                    contact.presence === 'idle' || contact.presence === 'away'
+                      ? 'bg-amber-400'
+                      : contact.presence === 'dnd' || contact.presence === 'busy'
+                      ? 'bg-red-400'
+                      : 'bg-emerald-400 animate-pulse'
+                  }`}
+                  title={
+                    contact.presence === 'idle' || contact.presence === 'away'
+                      ? 'Away'
+                      : contact.presence === 'dnd' || contact.presence === 'busy'
+                      ? 'Busy'
+                      : 'Online'
+                  }
+                />
               )
             )}
           </div>
@@ -117,29 +132,33 @@ export default function ChatHeader({
               <p className="text-xs text-zinc-400 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
                 {groupMemberNames}
               </p>
+            ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (contact.presence === 'idle' || contact.presence === 'away') ? (
+              <div className="flex items-center gap-1.5 text-xs truncate">
+                <span className="flex items-center gap-1 text-amber-400 font-medium truncate">
+                  <span className="truncate">Away</span>
+                  {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
+                </span>
+              </div>
+            ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (contact.presence === 'dnd' || contact.presence === 'busy') ? (
+              <div className="flex items-center gap-1.5 text-xs truncate">
+                <span className="flex items-center gap-1 text-red-400 font-medium truncate">
+                  <span className="truncate">Busy</span>
+                  {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
+                </span>
+              </div>
+            ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) ? (
+              <div className="flex items-center gap-1.5 text-xs truncate">
+                <span className="flex items-center gap-1 text-emerald-400 font-medium truncate">
+                  <span className="truncate">Online</span>
+                  {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
+                </span>
+              </div>
             ) : (
               <div className="flex items-center gap-1.5 text-xs truncate">
-                {contact.isOnline || contact.presence === 'online' ? (
-                  <span className="flex items-center gap-1 text-emerald-400 font-medium truncate">
-                    <span className="truncate">Online</span>
-                    {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
-                  </span>
-                ) : contact.presence === 'idle' ? (
-                  <span className="flex items-center gap-1 text-amber-400 font-medium truncate">
-                    <span className="truncate">Away</span>
-                    {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
-                  </span>
-                ) : contact.presence === 'dnd' ? (
-                  <span className="flex items-center gap-1 text-red-400 font-medium truncate">
-                    <span className="truncate">Do Not Disturb</span>
-                    {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
-                  </span>
-                ) : (
-                  <span className="text-zinc-400 truncate">
-                    {formatLastSeen ? formatLastSeen(contact.lastSeen) : 'Offline'}
-                    {contact.statusEmoji && <span className="ml-1">{contact.statusEmoji}</span>}
-                  </span>
-                )}
+                <span className="text-zinc-400 truncate">
+                  {formatLastSeen ? formatLastSeen(contact.lastSeen) : 'Offline'}
+                  {contact.statusEmoji && <span className="ml-1">{contact.statusEmoji}</span>}
+                </span>
               </div>
             )}
           </div>

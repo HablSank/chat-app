@@ -26,12 +26,12 @@ const userSchema = new mongoose.Schema(
     },
     presence: {
       type: String,
-      enum: ['online', 'idle', 'dnd', 'offline'],
+      enum: ['online', 'idle', 'away', 'dnd', 'busy', 'offline'],
       default: 'offline',
     },
     lastActivePresence: {
       type: String,
-      enum: ['online', 'idle', 'dnd'],
+      enum: ['online', 'idle', 'away', 'dnd', 'busy'],
       default: 'online',
     },
     statusEmoji: {

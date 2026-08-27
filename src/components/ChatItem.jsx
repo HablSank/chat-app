@@ -2,14 +2,18 @@ import { motion } from 'framer-motion'
 import { Users } from 'lucide-react'
 
 export default function ChatItem({ contact, isSelected, onClick, isNew }) {
-  const { name, avatar, lastMessage, timestamp, unreadCount, presence, statusEmoji, isGroup, participantsCount } = contact
+  const { name, avatar, lastMessage, timestamp, unreadCount, presence, isOnline, statusEmoji, isGroup, participantsCount } = contact
+
+  const effectivePresence = presence || (isOnline ? 'online' : 'offline')
 
   const getPresenceColor = (p) => {
     switch (p) {
       case 'online': return 'bg-emerald-400'
-      case 'idle': return 'bg-yellow-400'
-      case 'dnd': return 'bg-red-400'
-      default: return 'bg-zinc-500' // fallback offline or unknown
+      case 'idle':
+      case 'away': return 'bg-yellow-400'
+      case 'dnd':
+      case 'busy': return 'bg-red-400'
+      default: return 'bg-zinc-500'
     }
   }
 
@@ -40,10 +44,10 @@ export default function ChatItem({ contact, isSelected, onClick, isNew }) {
             <Users size={9} />
           </span>
         ) : (
-          presence && presence !== 'offline' && (
+          effectivePresence && effectivePresence !== 'offline' && (
             <span
-              aria-label={presence}
-              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-900 ${getPresenceColor(presence)}`}
+              aria-label={effectivePresence}
+              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-900 ${getPresenceColor(effectivePresence)}`}
             />
           )
         )}

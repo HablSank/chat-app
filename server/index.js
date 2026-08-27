@@ -962,6 +962,7 @@ app.use((err, req, res, next) => {
 })
 
 // ── Socket.IO Real-time Logic ────────────────────────────────────────────────
+// Track Map<userId, Set<socketId>> to avoid flapping when user reconnects or has multiple tabs
 const connectedUsers = new Map()
 
 io.on('connection', (socket) => {
@@ -969,8 +970,11 @@ io.on('connection', (socket) => {
 
   socket.on('user:join', async (userId) => {
     console.log(`[*] User "${userId}" registered on socket ${socket.id}`)
-    connectedUsers.set(userId, socket.id)
     socket.userId = userId
+    
+    const userSockets = connectedUsers.get(userId) || new Set()
+    userSockets.add(socket.id)
+    connectedUsers.set(userId, userSockets)
 
     try {
       const u = await User.findById(userId)
@@ -987,7 +991,13 @@ io.on('connection', (socket) => {
           isOnline: true,
           lastSeen: u.lastSeen,
         })
-        io.emit('user:online', { userId })
+        io.emit('user:online', {
+          userId,
+          presence: newPresence,
+          statusEmoji: u.statusEmoji,
+          isOnline: true,
+          lastSeen: u.lastSeen,
+        })
       }
 
       // Phase 8.4: Deliver pending messages & join all conversation rooms
@@ -1218,27 +1228,35 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     console.log(`[-] Client disconnected: ${socket.id}`)
     if (socket.userId) {
-      connectedUsers.delete(socket.userId)
-      
-      try {
-        const now = new Date()
-        await User.findByIdAndUpdate(socket.userId, {
-          presence: 'offline',
-          isOnline: false,
-          lastSeen: now,
-        })
-        io.emit('user:presence_update', {
-          userId: socket.userId,
-          presence: 'offline',
-          isOnline: false,
-          lastSeen: now,
-        })
-        io.emit('user:offline', {
-          userId: socket.userId,
-          lastSeen: now,
-        })
-      } catch (err) {
-        console.error('Error updating user offline status:', err)
+      const userSockets = connectedUsers.get(socket.userId)
+      if (userSockets) {
+        userSockets.delete(socket.id)
+        if (userSockets.size === 0) {
+          connectedUsers.delete(socket.userId)
+
+          try {
+            const now = new Date()
+            await User.findByIdAndUpdate(socket.userId, {
+              presence: 'offline',
+              isOnline: false,
+              lastSeen: now,
+            })
+            io.emit('user:presence_update', {
+              userId: socket.userId,
+              presence: 'offline',
+              isOnline: false,
+              lastSeen: now,
+            })
+            io.emit('user:offline', {
+              userId: socket.userId,
+              presence: 'offline',
+              isOnline: false,
+              lastSeen: now,
+            })
+          } catch (err) {
+            console.error('Error updating user offline status:', err)
+          }
+        }
       }
     }
   })

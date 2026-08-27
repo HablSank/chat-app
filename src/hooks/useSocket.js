@@ -75,17 +75,55 @@ export function useSocket({
   useEffect(() => {
     if (!user) return
 
-    const socket = io(SOCKET_URL, { autoConnect: true })
+    const socket = io(SOCKET_URL, {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+    })
     socketRef.current = socket
+
+    const emitJoin = () => {
+      if (socket.connected && user?.id) {
+        socket.emit('user:join', user.id)
+      }
+    }
 
     socket.on('connect', () => {
       console.log('[socket] connected:', socket.id)
-      socket.emit('user:join', user.id)
+      emitJoin()
+    })
+
+    socket.io?.on('reconnect', () => {
+      console.log('[socket] reconnected')
+      emitJoin()
     })
 
     socket.on('connect_error', (err) => {
       console.error('[socket] connection error:', err.message)
     })
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (!socket.connected) {
+          socket.connect()
+        } else {
+          emitJoin()
+        }
+      }
+    }
+
+    const handleOnline = () => {
+      if (!socket.connected) {
+        socket.connect()
+      } else {
+        emitJoin()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('online', handleOnline)
 
     socket.on('chat:private_message', (payload) => onMessageRef.current?.(payload))
     socket.on('user:typing',          (data)    => onTypingRef.current?.(data))
@@ -96,15 +134,30 @@ export function useSocket({
     socket.on('chat:messages_read',   (data)    => onMessagesReadRef.current?.(data))
     socket.on('chat:messages_delivered',(data)  => onMessagesDeliveredRef.current?.(data))
     socket.on('user:presence_update', (data)    => onPresenceUpdateRef.current?.(data))
-    socket.on('user:online',          (data)    => onPresenceUpdateRef.current?.({ userId: data.userId, isOnline: true, presence: 'online' }))
-    socket.on('user:offline',         (data)    => onPresenceUpdateRef.current?.({ userId: data.userId, isOnline: false, presence: 'offline', lastSeen: data.lastSeen }))
+    socket.on('user:online',          (data)    => onPresenceUpdateRef.current?.({
+      userId: data.userId,
+      isOnline: true,
+      presence: data.presence || 'online',
+      statusEmoji: data.statusEmoji,
+      lastSeen: data.lastSeen,
+    }))
+    socket.on('user:offline',         (data)    => onPresenceUpdateRef.current?.({
+      userId: data.userId,
+      isOnline: false,
+      presence: 'offline',
+      lastSeen: data.lastSeen,
+    }))
     socket.on('chat:message_edited',  (data)    => onMessageEditedRef.current?.(data))
     socket.on('chat:message_deleted', (data)    => onMessageDeletedRef.current?.(data))
     socket.on('chat:message_pinned',  (data)    => onMessagePinnedRef.current?.(data))
     socket.on('group:created',        (data)    => onGroupCreatedRef.current?.(data))
     socket.on('group:updated',        (data)    => onGroupUpdatedRef.current?.(data))
 
-    return () => socket.disconnect()
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('online', handleOnline)
+      socket.disconnect()
+    }
   }, [user]) // Reconnect if user changes
 
   /** Join a private room */

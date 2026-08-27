@@ -7,8 +7,8 @@ import { compressImage } from '../utils/imageCompressor'
 
 const STATUS_OPTIONS = [
   { value: 'online', label: 'Online', color: 'bg-emerald-400' },
-  { value: 'idle', label: 'Idle', color: 'bg-yellow-400' },
-  { value: 'dnd', label: 'Do Not Disturb', color: 'bg-red-400' },
+  { value: 'away', label: 'Away', color: 'bg-yellow-400' },
+  { value: 'busy', label: 'Busy', color: 'bg-red-400' },
 ]
 
 const overlayVariants = {
@@ -89,7 +89,9 @@ export default function ProfileSettings({ isOpen, onClose }) {
     }
   }
 
-  const currentStatus = STATUS_OPTIONS.find(o => o.value === presence) || STATUS_OPTIONS[0]
+  const currentStatus =
+    STATUS_OPTIONS.find(o => o.value === presence) ||
+    (presence === 'idle' ? STATUS_OPTIONS[1] : presence === 'dnd' ? STATUS_OPTIONS[2] : STATUS_OPTIONS[0])
 
   const handleSubmit = (e) => {
     e.preventDefault()
