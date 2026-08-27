@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { Search, Edit, LogOut, Settings } from 'lucide-react'
-import ChatItem from './ChatItem'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, LogOut, MessageSquare, Settings, Users, Edit } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { decryptMessage } from '../utils/crypto'
+import { getApiUrl } from '../config/api'
+import ChatItem from './ChatItem'
 import ProfileSettings from './ProfileSettings'
+import CreateGroupModal from './CreateGroupModal'
 
 export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const { user, token, logout } = useAuth()
@@ -12,18 +15,42 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const searchInputRef = useRef(null)
+
+  // Auto-trigger profile edit modal for first-time signups
+  useEffect(() => {
+    if (sessionStorage.getItem('ping_first_time_signup') === 'true') {
+      sessionStorage.removeItem('ping_first_time_signup')
+      setIsSettingsOpen(true)
+    }
+  }, [])
 
   // Fetch conversations
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const res = await fetch('/api/conversations', {
+        const res = await fetch(getApiUrl('/api/conversations'), {
           headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()
         if (res.ok) {
-          setConversations(data)
+          const decryptedData = await Promise.all(
+            data.map(async (conv) => {
+              if (conv.lastMessage?.text) {
+                const decrypted = await decryptMessage(conv.lastMessage.text, conv._id)
+                return {
+                  ...conv,
+                  lastMessage: {
+                    ...conv.lastMessage,
+                    text: decrypted,
+                  }
+                }
+              }
+              return conv
+            })
+          )
+          setConversations(decryptedData)
         }
       } catch (err) {
         console.error('Failed to fetch conversations', err)
@@ -44,7 +71,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       }
       setIsSearching(true)
       try {
-        const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`, {
+        const res = await fetch(getApiUrl(`/api/users/search?q=${encodeURIComponent(query)}`), {
           headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()
@@ -66,6 +93,26 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   }, [query, token])
 
   const handleSelectConversation = (conv) => {
+    if (conv.isGroup) {
+      onSelect({
+        id: conv._id,
+        name: conv.groupName || 'Group Chat',
+        username: conv.groupName || 'Group Chat',
+        avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
+        isGroup: true,
+        groupName: conv.groupName,
+        groupAvatar: conv.groupAvatar,
+        groupAdmin: conv.groupAdmin,
+        groupAdmins: conv.groupAdmins || (conv.groupAdmin ? [conv.groupAdmin] : []),
+        participants: conv.participants || [],
+        conversationId: conv._id,
+        status: 'accepted',
+        initiator: conv.initiator,
+      })
+      setQuery('')
+      return
+    }
+
     const otherParticipant = conv.participants.find(p => p._id !== user.id)
     if (!otherParticipant) return
     onSelect({
@@ -74,7 +121,10 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       username: otherParticipant.username,
       avatar: otherParticipant.avatar,
       presence: otherParticipant.presence,
+      isOnline: otherParticipant.isOnline,
+      lastSeen: otherParticipant.lastSeen,
       statusEmoji: otherParticipant.statusEmoji,
+      isGroup: false,
       conversationId: conv._id,
       status: conv.status,
       initiator: conv.initiator
@@ -89,16 +139,29 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       username: searchUser.username,
       avatar: searchUser.avatar,
       presence: searchUser.presence,
+      isOnline: searchUser.isOnline,
+      lastSeen: searchUser.lastSeen,
       statusEmoji: searchUser.statusEmoji,
+      isGroup: false,
       conversationId: null,
       status: 'new'
     })
     setQuery('')
   }
 
+  const handleGroupCreated = (newGroup) => {
+    setConversations(prev => [newGroup, ...prev.filter(c => c._id !== newGroup._id)])
+    handleSelectConversation(newGroup)
+  }
+
   return (
     <>
       <ProfileSettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onGroupCreated={handleGroupCreated}
+      />
       <div className="flex flex-col h-full bg-zinc-900 border-r border-zinc-800">
         {/* ── Profile Header ──────────────────────────── */}
         <div className="flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
@@ -124,19 +187,30 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 user?.presence === 'idle' ? 'text-yellow-400' : 
                 user?.presence === 'dnd' ? 'text-red-400' : 'text-emerald-400'
               }`}>
-                {user?.presence === 'idle' ? 'Away' : user?.presence === 'dnd' ? 'Do Not Disturb' : 'Active now'}
+                {user?.presence === 'idle' ? 'Away' : user?.presence === 'dnd' ? 'Do Not Disturb' : 'Online'}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Create Group button */}
+            <motion.button
+              id="sidebar-create-group-btn"
+              onClick={() => setIsCreateGroupOpen(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-indigo-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+              title="Create New Group"
+            >
+              <Users size={16} />
+            </motion.button>
             {/* Settings button */}
             <motion.button
               id="sidebar-settings-btn"
               onClick={() => setIsSettingsOpen(true)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
               title="Profile Settings"
             >
               <Settings size={16} />
@@ -147,7 +221,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               onClick={() => searchInputRef.current?.focus()}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
               title="New chat"
             >
               <Edit size={16} />
@@ -157,7 +231,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               onClick={logout}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-400/10 transition-colors cursor-pointer"
               title="Logout"
             >
               <LogOut size={16} />
@@ -204,6 +278,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                     avatar: u.avatar,
                     presence: u.presence,
                     statusEmoji: u.statusEmoji,
+                    isGroup: false,
                   }}
                   isSelected={u._id === selectedId}
                   onClick={() => handleSelectUser(u)}
@@ -216,6 +291,35 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             /* Conversations */
             conversations.length > 0 ? (
               conversations.map((conv) => {
+                if (conv.isGroup) {
+                  return (
+                    <div key={conv._id} className="relative">
+                      <ChatItem
+                        contact={{
+                          id: conv._id,
+                          name: conv.groupName || 'Group Chat',
+                          avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
+                          isGroup: true,
+                          participantsCount: conv.participants?.length || 0,
+                          lastMessage: conv.lastMessage?.isSystem
+                            ? conv.lastMessage.systemText
+                            : conv.lastMessage?.audioUrl
+                            ? '🎵 Voice note'
+                            : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
+                            ? '📷 Shared an image'
+                            : conv.lastMessage?.text || '',
+                          timestamp: conv.lastMessage?.createdAt
+                            ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : '',
+                          unreadCount: conv.unreadCount || 0,
+                        }}
+                        isSelected={conv._id === selectedId}
+                        onClick={() => handleSelectConversation(conv)}
+                      />
+                    </div>
+                  )
+                }
+
                 const other = conv.participants.find(p => p._id !== user.id)
                 if (!other) return null
                 const isPending = conv.status === 'pending'
@@ -230,7 +334,10 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                         avatar: other.avatar,
                         presence: other.presence,
                         statusEmoji: other.statusEmoji,
-                        lastMessage: conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
+                        isGroup: false,
+                        lastMessage: conv.lastMessage?.audioUrl
+                          ? '🎵 Voice note'
+                          : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
                           ? '📷 Shared an image'
                           : conv.lastMessage?.text || '',
                         timestamp: conv.lastMessage?.createdAt
@@ -240,18 +347,14 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                       }}
                       isSelected={other._id === selectedId}
                       onClick={() => handleSelectConversation(conv)}
+                      isNew={isReceiver}
                     />
-                    {isReceiver && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-indigo-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        NEW
-                      </span>
-                    )}
                   </div>
                 )
               })
             ) : (
               <p className="text-sm text-zinc-500 text-center mt-8">
-                Search for users to start a chat
+                Search for users or create a group to start chatting
               </p>
             )
           )}

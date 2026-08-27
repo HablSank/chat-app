@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useContext } from 'react'
+import { getApiUrl } from '../config/api'
 
 const AuthContext = createContext(null)
 
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -54,7 +55,7 @@ export function AuthProvider({ children }) {
 
   const register = async (username, password) => {
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -70,6 +71,7 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem('chat_token', data.token)
       localStorage.setItem('chat_user', JSON.stringify(data.user))
+      sessionStorage.setItem('ping_first_time_signup', 'true')
       
       setToken(data.token)
       setUser(data.user)

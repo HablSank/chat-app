@@ -34,6 +34,21 @@ const messageSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    // Voice notes / audio message field
+    audioUrl: {
+      type: String,
+      default: '',
+    },
+    audioDuration: {
+      type: Number,
+      default: 0,
+    },
+    // Reply / Quote reference to another Message
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null,
+    },
     reactions: {
       type: [reactionSchema],
       default: [],
@@ -42,6 +57,38 @@ const messageSchema = new mongoose.Schema(
       type: String,
       enum: ['sent', 'delivered', 'read'],
       default: 'sent',
+    },
+    readBy: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        readAt: { type: Date, default: Date.now },
+      },
+    ],
+    deliveredTo: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        deliveredAt: { type: Date, default: Date.now },
+      },
+    ],
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    isPinned: {
+      type: Boolean,
+      default: false,
+    },
+    isSystem: {
+      type: Boolean,
+      default: false,
+    },
+    systemText: {
+      type: String,
+      default: '',
     },
     isEphemeral: {
       type: Boolean,

@@ -1,10 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
-
-const SOCKET_URL = typeof window !== 'undefined'
-  ? `${window.location.protocol}//${window.location.hostname}:3001`
-  : 'http://localhost:3001'
+import { SOCKET_URL } from '../config/api'
 
 /**
  * Manages a singleton Socket.IO connection for the app lifetime.
@@ -25,7 +22,22 @@ const SOCKET_URL = typeof window !== 'undefined'
  *
  * @returns {{ sendMessage, sendTyping, sendStopTyping, joinPrivateRoom, sendReaction, sendMarkRead }}
  */
-export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation, onRequestAction, onReactionUpdate, onMessagesRead, onMessagesDelivered, onPresenceUpdate }) {
+export function useSocket({
+  onMessage,
+  onTyping,
+  onStopTyping,
+  onNewConversation,
+  onRequestAction,
+  onReactionUpdate,
+  onMessagesRead,
+  onMessagesDelivered,
+  onPresenceUpdate,
+  onMessageEdited,
+  onMessageDeleted,
+  onMessagePinned,
+  onGroupCreated,
+  onGroupUpdated,
+}) {
   const { user } = useAuth()
   const socketRef          = useRef(null)
   const onMessageRef       = useRef(onMessage)
@@ -37,6 +49,11 @@ export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation
   const onMessagesReadRef  = useRef(onMessagesRead)
   const onMessagesDeliveredRef = useRef(onMessagesDelivered)
   const onPresenceUpdateRef = useRef(onPresenceUpdate)
+  const onMessageEditedRef  = useRef(onMessageEdited)
+  const onMessageDeletedRef = useRef(onMessageDeleted)
+  const onMessagePinnedRef  = useRef(onMessagePinned)
+  const onGroupCreatedRef   = useRef(onGroupCreated)
+  const onGroupUpdatedRef   = useRef(onGroupUpdated)
 
   // Sync refs each render
   useEffect(() => { onMessageRef.current      = onMessage        }, [onMessage])
@@ -48,6 +65,11 @@ export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation
   useEffect(() => { onMessagesReadRef.current = onMessagesRead   }, [onMessagesRead])
   useEffect(() => { onMessagesDeliveredRef.current = onMessagesDelivered }, [onMessagesDelivered])
   useEffect(() => { onPresenceUpdateRef.current = onPresenceUpdate }, [onPresenceUpdate])
+  useEffect(() => { onMessageEditedRef.current  = onMessageEdited  }, [onMessageEdited])
+  useEffect(() => { onMessageDeletedRef.current = onMessageDeleted }, [onMessageDeleted])
+  useEffect(() => { onMessagePinnedRef.current  = onMessagePinned  }, [onMessagePinned])
+  useEffect(() => { onGroupCreatedRef.current   = onGroupCreated   }, [onGroupCreated])
+  useEffect(() => { onGroupUpdatedRef.current   = onGroupUpdated   }, [onGroupUpdated])
 
   // Create the socket once on mount, tear down on unmount
   useEffect(() => {
@@ -74,6 +96,13 @@ export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation
     socket.on('chat:messages_read',   (data)    => onMessagesReadRef.current?.(data))
     socket.on('chat:messages_delivered',(data)  => onMessagesDeliveredRef.current?.(data))
     socket.on('user:presence_update', (data)    => onPresenceUpdateRef.current?.(data))
+    socket.on('user:online',          (data)    => onPresenceUpdateRef.current?.({ userId: data.userId, isOnline: true, presence: 'online' }))
+    socket.on('user:offline',         (data)    => onPresenceUpdateRef.current?.({ userId: data.userId, isOnline: false, presence: 'offline', lastSeen: data.lastSeen }))
+    socket.on('chat:message_edited',  (data)    => onMessageEditedRef.current?.(data))
+    socket.on('chat:message_deleted', (data)    => onMessageDeletedRef.current?.(data))
+    socket.on('chat:message_pinned',  (data)    => onMessagePinnedRef.current?.(data))
+    socket.on('group:created',        (data)    => onGroupCreatedRef.current?.(data))
+    socket.on('group:updated',        (data)    => onGroupUpdatedRef.current?.(data))
 
     return () => socket.disconnect()
   }, [user]) // Reconnect if user changes
@@ -103,6 +132,8 @@ export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation
     if (!user) return
     socketRef.current?.emit('user:typing', {
       from: user.id,
+      username: user.displayName || user.username,
+      avatar: user.avatar,
       conversationId,
     })
   }, [user])
@@ -112,6 +143,8 @@ export function useSocket({ onMessage, onTyping, onStopTyping, onNewConversation
     if (!user) return
     socketRef.current?.emit('user:stop_typing', {
       from: user.id,
+      username: user.displayName || user.username,
+      avatar: user.avatar,
       conversationId,
     })
   }, [user])

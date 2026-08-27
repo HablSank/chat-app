@@ -4,19 +4,22 @@ import Sidebar from './Sidebar'
 import ChatRoom from './ChatRoom'
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../context/AuthContext'
+import { encryptMessage } from '../utils/crypto'
+import { playSendSound, playReceiveSound } from '../utils/sound'
+import { getApiUrl } from '../config/api'
 
-// ── Empty-state illustration for desktop when no chat is selected ─────────────
+// ── Empty-state illustration when no chat is selected (Mobile & Desktop) ──
 function NoChatSelected() {
   return (
-    <div className="flex flex-col items-center justify-center flex-1 h-full gap-4 text-center select-none">
-      {/* Decorative rings */}
-      <div className="relative flex items-center justify-center w-24 h-24">
+    <div className="flex flex-col items-center justify-center h-full w-full gap-4 text-center select-none p-6">
+      {/* Decorative rings with logo */}
+      <div className="relative flex items-center justify-center w-24 h-24 sm:w-28 sm:h-28">
         <div className="absolute inset-0 rounded-full border-2 border-zinc-800 animate-ping opacity-30" />
         <div className="absolute inset-2 rounded-full border-2 border-zinc-700" />
-        <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-indigo-500/20 flex items-center justify-center">
           <svg
-            width="24"
-            height="24"
+            width="28"
+            height="28"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -32,8 +35,8 @@ function NoChatSelected() {
         </div>
       </div>
       <div>
-        <p className="text-zinc-300 font-semibold text-lg">Your Messages</p>
-        <p className="text-sm text-zinc-500 mt-1 max-w-[200px]">
+        <p className="text-zinc-200 font-bold text-lg sm:text-xl">Your Messages</p>
+        <p className="text-sm text-zinc-500 mt-1 max-w-[220px] leading-relaxed">
           Select a conversation from the sidebar to get started
         </p>
       </div>
@@ -63,9 +66,44 @@ export default function AppLayout() {
 
   // ── Socket event handlers ────────────────────────────────────────────────────
   const handleIncomingMessage = useCallback((payload) => {
+    const isFromOther = (payload.sender?._id || payload.sender) !== user?.id
+    if (isFromOther) {
+      playReceiveSound()
+    }
+
+    // If this message belongs to our active newly selected contact, update conversationId immediately
+    setSelectedContact((prev) => {
+      if (prev && !prev.conversationId && payload.conversationId) {
+        const senderId = payload.sender?._id || payload.sender
+        if (senderId === prev.id || senderId === user?.id) {
+          return {
+            ...prev,
+            conversationId: payload.conversationId,
+            status: prev.status === 'new' ? 'pending' : prev.status,
+          }
+        }
+      }
+      return prev
+    })
+
     setChatMessages((prev) => {
       const thread = prev[payload.conversationId] ?? []
       if (thread.some((m) => m._id === payload._id)) return prev
+
+      // If message is from self, replace any temporary uploading message in the thread
+      const isFromSelf = (payload.sender?._id || payload.sender) === user?.id
+      if (isFromSelf) {
+        const uploadIdx = thread.findIndex((m) => m.isUploading)
+        if (uploadIdx !== -1) {
+          const nextThread = [...thread]
+          nextThread[uploadIdx] = payload
+          return {
+            ...prev,
+            [payload.conversationId]: nextThread,
+          }
+        }
+      }
+
       return {
         ...prev,
         [payload.conversationId]: [...thread, payload],
@@ -74,23 +112,32 @@ export default function AppLayout() {
     setRefreshSidebar(prev => prev + 1)
 
     // If currently chatting in this conversation, mark as read in real-time
-    if (selectedContactRef.current?.conversationId === payload.conversationId && payload.sender?._id !== user?.id) {
+    if (selectedContactRef.current?.conversationId === payload.conversationId && isFromOther) {
       sendMarkReadRef.current?.(payload.conversationId, user.id)
     }
   }, [user])
 
-  const handleTyping = useCallback(({ from, conversationId }) => {
+  const handleTyping = useCallback(({ from, username, avatar, conversationId }) => {
+    if (!from || from === user?.id) return
     setTypingUsers((prev) => ({
       ...prev,
-      [conversationId]: { ...prev[conversationId], [from]: true }
+      [conversationId]: {
+        ...prev[conversationId],
+        [from]: { userId: from, username, avatar }
+      }
     }))
-  }, [])
+  }, [user?.id])
 
   const handleStopTyping = useCallback(({ from, conversationId }) => {
-    setTypingUsers((prev) => ({
-      ...prev,
-      [conversationId]: { ...prev[conversationId], [from]: false }
-    }))
+    setTypingUsers((prev) => {
+      if (!prev[conversationId]) return prev
+      const updated = { ...prev[conversationId] }
+      delete updated[from]
+      return {
+        ...prev,
+        [conversationId]: updated
+      }
+    })
   }, [])
 
   const handleNewConversation = useCallback((conv) => {
@@ -166,15 +213,82 @@ export default function AppLayout() {
     // Optionally trigger sidebar update if it displays delivery status
   }, [])
 
-  const handlePresenceUpdate = useCallback(({ userId, presence, statusEmoji }) => {
+  const handlePresenceUpdate = useCallback(({ userId, presence, statusEmoji, isOnline, lastSeen }) => {
     setSelectedContact(prev => {
       if (prev && prev.id === userId) {
-        return { ...prev, presence, statusEmoji }
+        return {
+          ...prev,
+          presence: presence || prev.presence,
+          statusEmoji: statusEmoji !== undefined ? statusEmoji : prev.statusEmoji,
+          isOnline: isOnline !== undefined ? isOnline : prev.isOnline,
+          lastSeen: lastSeen !== undefined ? lastSeen : prev.lastSeen,
+        }
       }
       return prev
     })
     // Trigger sidebar re-fetch to reflect new presence/emoji
     setRefreshSidebar(prev => prev + 1)
+  }, [])
+
+  const handleMessageEdited = useCallback(({ messageId, conversationId, text, isEdited, status }) => {
+    setChatMessages(prev => {
+      if (!prev[conversationId]) return prev
+      return {
+        ...prev,
+        [conversationId]: prev[conversationId].map(m =>
+          m._id === messageId ? { ...m, text, isEdited, status: status || 'delivered' } : m
+        )
+      }
+    })
+    setRefreshSidebar(prev => prev + 1)
+  }, [])
+
+  const handleMessageDeleted = useCallback(({ messageId, conversationId, isDeleted }) => {
+    setChatMessages(prev => {
+      if (!prev[conversationId]) return prev
+      return {
+        ...prev,
+        [conversationId]: prev[conversationId].map(m =>
+          m._id === messageId
+            ? { ...m, isDeleted: true, status: null, text: '', imageUrl: '', imageUrls: [], audioUrl: '' }
+            : m
+        )
+      }
+    })
+    setRefreshSidebar(prev => prev + 1)
+  }, [])
+
+  const handleMessagePinned = useCallback(({ messageId, conversationId, isPinned }) => {
+    setChatMessages(prev => {
+      if (!prev[conversationId]) return prev
+      return {
+        ...prev,
+        [conversationId]: prev[conversationId].map(m => m._id === messageId ? { ...m, isPinned } : m)
+      }
+    })
+  }, [])
+
+  const handleGroupCreated = useCallback(() => {
+    setRefreshSidebar(prev => prev + 1)
+  }, [])
+
+  const handleGroupUpdated = useCallback((updatedGroup) => {
+    setRefreshSidebar(prev => prev + 1)
+    setSelectedContact(prev => {
+      if (prev && prev.conversationId === updatedGroup._id) {
+        return {
+          ...prev,
+          name: updatedGroup.groupName || prev.name,
+          avatar: updatedGroup.groupAvatar || prev.avatar,
+          groupName: updatedGroup.groupName,
+          groupAvatar: updatedGroup.groupAvatar,
+          groupAdmin: updatedGroup.groupAdmin,
+          groupAdmins: updatedGroup.groupAdmins || (updatedGroup.groupAdmin ? [updatedGroup.groupAdmin] : []),
+          participants: updatedGroup.participants,
+        }
+      }
+      return prev
+    })
   }, [])
 
   // ── Connect to Socket.IO ──────────────────────────────────────────────────────
@@ -188,6 +302,11 @@ export default function AppLayout() {
     onMessagesRead:    handleMessagesRead,
     onMessagesDelivered: handleMessagesDelivered,
     onPresenceUpdate:  handlePresenceUpdate,
+    onMessageEdited:   handleMessageEdited,
+    onMessageDeleted:  handleMessageDeleted,
+    onMessagePinned:   handleMessagePinned,
+    onGroupCreated:    handleGroupCreated,
+    onGroupUpdated:    handleGroupUpdated,
   })
 
   const sendMarkReadRef = useRef(sendMarkRead)
@@ -220,7 +339,7 @@ export default function AppLayout() {
       if (!selectedContact?.conversationId) return
       
       try {
-        const res = await fetch(`/api/messages/${selectedContact.conversationId}`, {
+        const res = await fetch(getApiUrl(`/api/messages/${selectedContact.conversationId}`), {
           headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()
@@ -244,17 +363,112 @@ export default function AppLayout() {
 
   const handleBack = () => setSelectedContact(null)
 
-  const handleSendMessage = (payload) => {
-    const text      = payload?.text      || ''
-    const imageUrls = payload?.imageUrls || []
-    if (!selectedContact || (!text.trim() && imageUrls.length === 0) || !user) return
+  const handleSendMessage = async (payload) => {
+    const text          = payload?.text          || ''
+    const imageUrls     = payload?.imageUrls?.length
+      ? payload.imageUrls
+      : payload?.imageUrl
+      ? [payload.imageUrl]
+      : []
+    const audioUrl      = payload?.audioUrl      || ''
+    const audioDuration = payload?.audioDuration || 0
+    const replyTo       = payload?.replyTo       || null
+
+    if (!selectedContact || (!text.trim() && imageUrls.length === 0 && !audioUrl) || !user) return
+
+    // Optimistic temporary rendering for media sending
+    if (payload?.isOptimistic) {
+      const convId = selectedContact.conversationId || 'default_room'
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+      const optimisticMsg = {
+        _id: tempId,
+        conversationId: convId,
+        sender: {
+          _id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatar: user.avatar,
+        },
+        text: text.trim(),
+        imageUrls,
+        imageUrl: imageUrls[0] || null,
+        audioUrl,
+        audioDuration,
+        replyTo: replyTo ? { _id: replyTo } : null,
+        reactions: [],
+        status: 'sending',
+        isUploading: true,
+        isOwn: true,
+        createdAt: new Date().toISOString(),
+      }
+
+      setChatMessages((prev) => {
+        const thread = prev[convId] ?? []
+        return {
+          ...prev,
+          [convId]: [...thread, optimisticMsg],
+        }
+      })
+      return
+    }
+
+    // Encrypt text before sending over network / storing in DB
+    const encryptedText = text.trim()
+      ? await encryptMessage(text.trim(), selectedContact.conversationId || 'default_room')
+      : ''
+
     sendMessage({
-      from:      user.id,
-      to:        selectedContact.id,
-      text:      text.trim(),
+      from:          user.id,
+      to:            selectedContact.isGroup ? null : selectedContact.id,
+      conversationId: selectedContact.conversationId || null,
+      text:          encryptedText,
       imageUrls,
-      isEphemeral: payload.isEphemeral,
+      audioUrl,
+      audioDuration,
+      replyTo,
+      isEphemeral:   payload.isEphemeral,
     })
+
+    playSendSound()
+  }
+
+  const handleEditMessage = async (messageId, newPlainText) => {
+    if (!selectedContact?.conversationId || !newPlainText.trim()) return
+    const encryptedText = await encryptMessage(newPlainText.trim(), selectedContact.conversationId)
+    try {
+      await fetch(getApiUrl(`/api/messages/${messageId}`), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ text: encryptedText })
+      })
+    } catch (err) {
+      console.error('Failed to edit message', err)
+    }
+  }
+
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await fetch(getApiUrl(`/api/messages/${messageId}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } catch (err) {
+      console.error('Failed to delete message', err)
+    }
+  }
+
+  const handlePinMessage = async (messageId) => {
+    try {
+      await fetch(getApiUrl(`/api/messages/${messageId}/pin`), {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    } catch (err) {
+      console.error('Failed to pin message', err)
+    }
   }
 
   const handleReact = (messageId, emoji) => {
@@ -265,7 +479,7 @@ export default function AppLayout() {
 
   const handleAcceptRequest = async () => {
     try {
-      const res = await fetch(`/api/conversations/accept/${selectedContact.conversationId}`, {
+      const res = await fetch(getApiUrl(`/api/conversations/accept/${selectedContact.conversationId}`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -280,7 +494,7 @@ export default function AppLayout() {
 
   const handleRejectRequest = async () => {
     try {
-      const res = await fetch(`/api/conversations/reject/${selectedContact.conversationId}`, {
+      const res = await fetch(getApiUrl(`/api/conversations/reject/${selectedContact.conversationId}`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -293,6 +507,16 @@ export default function AppLayout() {
     }
   }
 
+  const handleGroupLeft = useCallback((convId) => {
+    setRefreshSidebar(prev => prev + 1)
+    setSelectedContact(prev => {
+      if (prev && prev.conversationId === convId) {
+        return null
+      }
+      return prev
+    })
+  }, [])
+
   const handleTypingStart = () => { 
     if (selectedContact?.conversationId) sendTyping(selectedContact.conversationId) 
   }
@@ -301,7 +525,10 @@ export default function AppLayout() {
   }
 
   const activeThread = selectedContact?.conversationId ? (chatMessages[selectedContact.conversationId] ?? []) : []
-  const isContactTyping = Boolean(selectedContact?.conversationId && typingUsers[selectedContact.conversationId]?.[selectedContact.id])
+  const activeTypingUsers = Object.values(
+    typingUsers[selectedContact?.conversationId] || {}
+  )
+  const isContactTyping = activeTypingUsers.length > 0
 
   if (isMobile) {
     return (
@@ -313,14 +540,20 @@ export default function AppLayout() {
               contact={selectedContact}
               messages={activeThread}
               onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onPinMessage={handlePinMessage}
               onTypingStart={handleTypingStart}
               onTypingStop={handleTypingStop}
               isTyping={isContactTyping}
+              typingUsers={activeTypingUsers}
               onBack={handleBack}
               isMobile={true}
               onAccept={handleAcceptRequest}
               onReject={handleRejectRequest}
               onReact={handleReact}
+              onGroupUpdated={handleGroupUpdated}
+              onGroupLeft={handleGroupLeft}
               currentUser={user}
             />
           ) : (
@@ -355,14 +588,20 @@ export default function AppLayout() {
               contact={selectedContact}
               messages={activeThread}
               onSendMessage={handleSendMessage}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+              onPinMessage={handlePinMessage}
               onTypingStart={handleTypingStart}
               onTypingStop={handleTypingStop}
               isTyping={isContactTyping}
+              typingUsers={activeTypingUsers}
               onBack={handleBack}
               isMobile={false}
               onAccept={handleAcceptRequest}
               onReject={handleRejectRequest}
               onReact={handleReact}
+              onGroupUpdated={handleGroupUpdated}
+              onGroupLeft={handleGroupLeft}
               currentUser={user}
             />
           ) : (

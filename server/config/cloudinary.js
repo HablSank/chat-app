@@ -45,9 +45,21 @@ const mediaStorage = new CloudinaryStorage({
   },
 })
 
+// Storage for audio messages / voice notes
+const audioStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'chat-app-audio',
+    resource_type: 'auto',
+    allowed_formats: ['mp3', 'wav', 'webm', 'ogg', 'm4a', 'aac', 'mp4'],
+  },
+})
+
 export const uploadAvatar = multer({ storage: avatarStorage })
 export const uploadMedia = multer({ storage: mediaStorage })
 export const uploadMediaMulti = multer({ storage: mediaStorage })
+export const uploadAudio = multer({ storage: audioStorage })
 export const upload = uploadAvatar // fallback export
 
 export default cloudinary
+

@@ -1,7 +1,15 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Camera, Loader2, CheckCircle } from 'lucide-react'
+import { X, Camera, Loader2, CheckCircle, ChevronDown, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { getApiUrl } from '../config/api'
+import { compressImage } from '../utils/imageCompressor'
+
+const STATUS_OPTIONS = [
+  { value: 'online', label: 'Online', color: 'bg-emerald-400' },
+  { value: 'idle', label: 'Idle', color: 'bg-yellow-400' },
+  { value: 'dnd', label: 'Do Not Disturb', color: 'bg-red-400' },
+]
 
 const overlayVariants = {
   hidden: { opacity: 0 },
@@ -14,7 +22,7 @@ const panelVariants = {
     opacity: 1,
     scale: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 380, damping: 30 },
+    transition: { type: 'spring', stiffness: 350, damping: 28 },
   },
   exit: {
     opacity: 0,
@@ -28,79 +36,125 @@ export default function ProfileSettings({ isOpen, onClose }) {
   const { user, token, updateUser } = useAuth()
 
   const [displayName, setDisplayName] = useState(user?.displayName || '')
-  const [bio, setBio] = useState(user?.bio || '')
-  const [presence, setPresence] = useState(user?.presence || 'online')
+  const [bio, setBio]                 = useState(user?.bio || '')
+  const [presence, setPresence]       = useState(user?.presence === 'offline' ? 'online' : (user?.presence || 'online'))
   const [statusEmoji, setStatusEmoji] = useState(user?.statusEmoji || '')
-  const [avatarFile, setAvatarFile] = useState(null)
-  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSaved, setIsSaved] = useState(false)
-  const [error, setError] = useState('')
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar || '')
+  const [avatarFile, setAvatarFile]   = useState(null)
+  const [isLoading, setIsLoading]     = useState(false)
+  const [error, setError]             = useState('')
+  const [isSaved, setIsSaved]         = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const fileInputRef = useRef(null)
+  const dropdownRef = useRef(null)
 
-  const handleAvatarChange = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+  // Sync state whenever modal is opened
+  useEffect(() => {
+    if (isOpen && user) {
+      setDisplayName(user.displayName || '')
+      setBio(user.bio || '')
+      setPresence(user.presence === 'offline' ? 'online' : (user.presence || 'online'))
+      setStatusEmoji(user.statusEmoji || '')
+      setAvatarPreview(user.avatar || '')
+      setAvatarFile(null)
+      setError('')
+      setIsSaved(false)
+    }
+  }, [isOpen, user])
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      try {
+        const compressed = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
+        setAvatarFile(compressed)
+        setAvatarPreview(URL.createObjectURL(compressed))
+      } catch (err) {
+        console.warn('Image compression fallback:', err)
+        setAvatarFile(file)
+        setAvatarPreview(URL.createObjectURL(file))
+      }
+    }
   }
 
-  const handleSubmit = async (e) => {
+  const currentStatus = STATUS_OPTIONS.find(o => o.value === presence) || STATUS_OPTIONS[0]
+
+  const handleSubmit = (e) => {
     e.preventDefault()
-    setError('')
-    setIsLoading(true)
-    setIsSaved(false)
 
-    try {
-      const formData = new FormData()
-      formData.append('displayName', displayName)
-      formData.append('bio', bio)
-      if (avatarFile) {
-        formData.append('avatar', avatarFile)
+    // 1. Snapshot previous user state for rollback if needed
+    const prevUser = { ...user }
+    const optimisticAvatar = avatarPreview || user?.avatar
+
+    // 2. Immediately update AuthContext in 0ms
+    updateUser({
+      displayName: displayName.trim() || user?.displayName,
+      bio: bio.trim(),
+      avatar: optimisticAvatar,
+      presence: presence || 'online',
+      statusEmoji: statusEmoji || '',
+    })
+
+    // 3. Close modal immediately — 0ms blocking!
+    onClose?.()
+
+    // 4. Perform Cloudinary & server updates asynchronously in background
+    ;(async () => {
+      try {
+        const formData = new FormData()
+        formData.append('displayName', displayName.trim())
+        formData.append('bio', bio.trim())
+        if (avatarFile) {
+          const compressed = await compressImage(avatarFile, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
+          formData.append('avatar', compressed)
+        }
+
+        const res = await fetch(getApiUrl('/api/users/profile'), {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message || 'Failed to update profile')
+
+        const presenceRes = await fetch(getApiUrl('/api/users/presence'), {
+          method: 'PUT',
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ presence, statusEmoji }),
+        })
+        const presenceData = await presenceRes.json()
+        if (!presenceRes.ok) throw new Error(presenceData.message || 'Failed to update presence')
+
+        // Update with permanent server/Cloudinary avatar URL
+        updateUser({
+          displayName: data.displayName,
+          bio: data.bio,
+          avatar: data.avatar,
+          presence: presenceData.presence,
+          statusEmoji: presenceData.statusEmoji,
+        })
+      } catch (err) {
+        console.error('Background profile update failed:', err)
+        // Rollback state
+        updateUser(prevUser)
       }
-
-      const res = await fetch('/api/users/profile', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Failed to update profile')
-
-      const presenceRes = await fetch('/api/users/presence', {
-        method: 'PUT',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ presence, statusEmoji }),
-      })
-      const presenceData = await presenceRes.json()
-      if (!presenceRes.ok) throw new Error(presenceData.message || 'Failed to update presence')
-
-      // Update the AuthContext so changes reflect everywhere immediately
-      updateUser({
-        displayName: data.displayName,
-        bio: data.bio,
-        avatar: data.avatar,
-        presence: presenceData.presence,
-        statusEmoji: presenceData.statusEmoji
-      })
-
-      setIsSaved(true)
-      setAvatarFile(null)
-
-      setTimeout(() => {
-        setIsSaved(false)
-        onClose()
-      }, 1200)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setIsLoading(false)
-    }
+    })()
   }
 
   if (!isOpen) return null
@@ -129,10 +183,10 @@ export default function ProfileSettings({ isOpen, onClose }) {
               animate="visible"
               exit="exit"
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm sm:max-w-md mx-4 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative my-auto pointer-events-auto"
+              className="w-full max-w-sm sm:max-w-md mx-4 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl relative my-auto pointer-events-auto"
             >
               {/* Header Banner */}
-              <div className="h-28 sm:h-32 bg-gradient-to-br from-indigo-600/30 via-purple-600/20 to-zinc-900 relative border-b border-zinc-800/40">
+              <div className="h-28 sm:h-32 bg-gradient-to-br from-indigo-600/30 via-purple-600/20 to-zinc-900 relative border-b border-zinc-800/40 rounded-t-3xl overflow-hidden">
                 <div className="absolute top-4 left-6">
                   <h2 className="text-base font-semibold text-zinc-100 drop-shadow-sm">Edit Profile</h2>
                   <p className="text-xs text-zinc-400">Customize your public presence</p>
@@ -228,19 +282,63 @@ export default function ProfileSettings({ isOpen, onClose }) {
                 </div>
 
                 {/* Presence & Emoji Status */}
-                <div className="flex gap-3">
-                  <div className="flex-1 space-y-1">
+                <div className="flex gap-3 relative">
+                  {/* Custom Themed Status Dropdown */}
+                  <div className="flex-1 space-y-1 relative" ref={dropdownRef}>
                     <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Status</label>
-                    <select
-                      value={presence}
-                      onChange={(e) => setPresence(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-zinc-800 border border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 text-sm text-zinc-100 outline-none transition-all appearance-none"
+                    <button
+                      type="button"
+                      id="profile-status-dropdown-btn"
+                      onClick={() => setIsDropdownOpen(prev => !prev)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700/80 hover:border-zinc-600 focus:border-indigo-500 text-sm text-zinc-100 flex items-center justify-between transition-all cursor-pointer shadow-sm"
                     >
-                      <option value="online">🟢 Online</option>
-                      <option value="idle">🟡 Idle</option>
-                      <option value="dnd">🔴 Do Not Disturb</option>
-                    </select>
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-2.5 h-2.5 rounded-full ${currentStatus.color}`} />
+                        <span className="font-medium text-xs sm:text-sm">{currentStatus.label}</span>
+                      </div>
+                      <ChevronDown
+                        size={15}
+                        className={`text-zinc-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-indigo-400' : ''}`}
+                      />
+                    </button>
+
+                    {/* Dropdown Menu Popup (Opens upwards to prevent clipping) */}
+                    <AnimatePresence>
+                      {isDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute bottom-full left-0 mb-1.5 w-full bg-zinc-800/98 border border-zinc-700/90 backdrop-blur-2xl rounded-2xl p-1.5 shadow-2xl z-50 space-y-1"
+                        >
+                          {STATUS_OPTIONS.map((opt) => {
+                            const isSelected = presence === opt.value
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => {
+                                  setPresence(opt.value)
+                                  setIsDropdownOpen(false)
+                                }}
+                                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                                  isSelected ? 'bg-indigo-500/20 text-indigo-300' : 'hover:bg-zinc-700/70 text-zinc-200'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <span className={`w-2.5 h-2.5 rounded-full ${opt.color}`} />
+                                  <span className="text-xs sm:text-sm font-medium">{opt.label}</span>
+                                </div>
+                                {isSelected && <Check size={14} className="text-indigo-400" />}
+                              </button>
+                            )
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
+
                   <div className="w-20 space-y-1">
                     <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Emoji</label>
                     <input
@@ -249,7 +347,7 @@ export default function ProfileSettings({ isOpen, onClose }) {
                       onChange={(e) => setStatusEmoji(e.target.value)}
                       placeholder="✨"
                       maxLength={2}
-                      className="w-full px-3.5 py-2 rounded-xl bg-zinc-800 border border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 text-sm text-center text-zinc-100 placeholder-zinc-500 outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-800 border border-zinc-700/80 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 text-sm text-center text-zinc-100 placeholder-zinc-500 outline-none transition-all"
                     />
                   </div>
                 </div>

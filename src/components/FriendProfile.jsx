@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { getApiUrl } from '../config/api'
 import Lightbox from './Lightbox'
 
 const overlayVariants = {
@@ -33,7 +34,7 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
     const fetchProfile = async () => {
       setIsLoading(true)
       try {
-        const res = await fetch(`/api/users/${userId}`, {
+        const res = await fetch(getApiUrl(`/api/users/${userId}`), {
           headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()
@@ -126,10 +127,10 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
                     </div>
 
                     {/* Online/Offline Badge */}
-                    <div className="flex items-center gap-1.5 pb-2 bg-zinc-800/60 px-3 py-1 rounded-full border border-zinc-700/50">
+                    <div className="flex items-center gap-1.5 bg-zinc-800/60 px-3 py-1 rounded-full border border-zinc-700/50">
                       <span className={`w-2 h-2 rounded-full ${profile?.isOnline ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-zinc-500'}`} />
                       <span className={`text-xs font-medium ${profile?.isOnline ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                        {profile?.isOnline ? 'Active now' : 'Offline'}
+                        {profile?.isOnline ? 'Online' : 'Offline'}
                       </span>
                     </div>
                   </div>

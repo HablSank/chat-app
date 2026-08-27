@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, Phone, Video, Clock } from 'lucide-react'
+import { ArrowLeft, Phone, Video, Clock, Pin, PinOff, Image as ImageIcon, Users, Search, ChevronUp, ChevronDown, X } from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import ChatInput from './ChatInput'
 import TypingIndicator from './TypingIndicator'
 import FriendProfile from './FriendProfile'
+import MediaSidebar from './MediaSidebar'
+import GroupInfoModal from './GroupInfoModal'
+import ChatHeader from './ChatHeader'
+import { decryptMessage } from '../utils/crypto'
 
 const slideInVariants = {
   hidden: { x: '100%', opacity: 0 },
@@ -18,6 +22,30 @@ const slideInVariants = {
     opacity: 0,
     transition: { type: 'spring', stiffness: 380, damping: 35 },
   },
+}
+
+function formatLastSeen(lastSeenDate) {
+  if (!lastSeenDate) return 'Offline'
+  const date = new Date(lastSeenDate)
+  if (isNaN(date.getTime())) return 'Offline'
+
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  const isYesterday = date.toDateString() === yesterday.toDateString()
+
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+  if (isToday) {
+    return `Last seen today at ${timeStr}`
+  } else if (isYesterday) {
+    return `Last seen yesterday at ${timeStr}`
+  } else {
+    const dateStr = date.toLocaleDateString([], { day: 'numeric', month: 'short' })
+    return `Last seen on ${dateStr} at ${timeStr}`
+  }
 }
 
 // ── Notification Toast ────────────────────────────────────────────────────────
@@ -42,39 +70,140 @@ function Toast({ message, visible }) {
   )
 }
 
+// ── Pinned Message Banner Component (with decryption) ────────────────────────
+function PinnedMessageBanner({ message, decryptedText, onScrollTo, onUnpin }) {
+  if (!message) return null
+
+  const displayText =
+    decryptedText ||
+    (message.imageUrls?.length || message.imageUrl ? '📷 Photo' : message.audioUrl ? '🎵 Voice note' : 'Pinned message')
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      onClick={onScrollTo}
+      className="bg-indigo-950/40 border-b border-indigo-500/20 px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-indigo-950/60 transition-colors z-9"
+    >
+      <div className="flex items-center gap-2 text-xs truncate">
+        <Pin size={13} className="text-indigo-400 flex-shrink-0" />
+        <span className="font-semibold text-indigo-300">Pinned:</span>
+        <span className="text-zinc-300 truncate">{displayText}</span>
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onUnpin?.(message._id)
+        }}
+        className="text-zinc-400 hover:text-indigo-300 p-1 rounded-lg hover:bg-zinc-800/60 transition-colors cursor-pointer"
+        title="Unpin message"
+      >
+        <PinOff size={13} />
+      </button>
+    </motion.div>
+  )
+}
+
 export default function ChatRoom({
   contact,
   messages,
   onSendMessage,
+  onEditMessage,
+  onDeleteMessage,
+  onPinMessage,
   onTypingStart,
   onTypingStop,
   isTyping,
+  typingUsers = [],
   onBack,
   isMobile,
   onAccept,
   onReject,
   onReact,
+  onGroupUpdated,
+  onGroupLeft,
   currentUser,
 }) {
   const scrollRef          = useRef(null)
   const [toastMessage, setToastMessage]     = useState('🚀 Feature coming soon!')
   const [showToast, setShowToast]           = useState(false)
   const [showFriendProfile, setShowFriendProfile] = useState(false)
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false)
   const [isVanishMode, setIsVanishMode]     = useState(false)
+  const [isMediaSidebarOpen, setIsMediaSidebarOpen] = useState(false)
+  const [replyingTo, setReplyingTo]         = useState(null)
+  const [editingMessage, setEditingMessage] = useState(null)
+  const [isSearchOpen, setIsSearchOpen]     = useState(false)
+  const [searchQuery, setSearchQuery]       = useState('')
+  const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
+  const [decryptedMap, setDecryptedMap]     = useState({})
   const toastTimerRef      = useRef(null)
 
   const isPending  = contact.status === 'pending'
   const isReceiver = isPending && contact.initiator !== currentUser.id
 
+  const pinnedMessages = messages.filter(m => m.isPinned && !m.isDeleted)
+
+  // Decrypt messages in background to enable client-side E2EE search
+  useEffect(() => {
+    let isMounted = true
+    const decryptAll = async () => {
+      const map = {}
+      for (const msg of messages) {
+        if (msg.text && !msg.isSystem) {
+          map[msg._id] = await decryptMessage(msg.text, contact.conversationId)
+        } else if (msg.systemText) {
+          map[msg._id] = msg.systemText
+        }
+      }
+      if (isMounted) setDecryptedMap(map)
+    }
+    decryptAll()
+    return () => { isMounted = false }
+  }, [messages, contact.conversationId])
+
+  // Filter message matches
+  const matchedMessageIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q || !isSearchOpen) return []
+    return messages
+      .filter((msg) => {
+        if (msg.isDeleted) return false
+        const plain = (decryptedMap[msg._id] || msg.text || '').toLowerCase()
+        const senderName = (msg.sender?.displayName || msg.sender?.username || '').toLowerCase()
+        const sysText = (msg.systemText || '').toLowerCase()
+        return plain.includes(q) || senderName.includes(q) || sysText.includes(q)
+      })
+      .map((m) => m._id)
+  }, [messages, decryptedMap, searchQuery, isSearchOpen])
+
+  // Auto-scroll to active match
+  useEffect(() => {
+    if (isSearchOpen && matchedMessageIds.length > 0) {
+      const safeIdx = Math.min(currentMatchIdx, matchedMessageIds.length - 1)
+      const activeId = matchedMessageIds[safeIdx]
+      if (activeId) {
+        const el = document.getElementById(`msg-${activeId}`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }
+    }
+  }, [currentMatchIdx, matchedMessageIds, isSearchOpen])
+
   // Auto-scroll on new messages, contact switch, or when typing indicator appears
   useEffect(() => {
-    if (scrollRef.current) {
+    if (!isSearchOpen && scrollRef.current) {
       scrollRef.current.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: 'smooth',
       })
     }
-  }, [messages.length, contact.id, isTyping])
+    setReplyingTo(null)
+    setEditingMessage(null)
+  }, [messages.length, contact.id, isTyping, isSearchOpen])
 
   const triggerToast = (msg = '🚀 Feature coming soon!') => {
     setToastMessage(msg)
@@ -88,18 +217,37 @@ export default function ChatRoom({
     setIsVanishMode(nextMode)
     triggerToast(
       nextMode
-        ? 'Vanish Mode Aktif (24 Jam)'
-        : 'Vanish Mode Dimatikan'
+        ? 'Pesan Sementara Aktif (24 Jam)'
+        : 'Pesan Sementara Dinonaktifkan'
     )
   }
 
+  // Format participant names for group header
+  const groupMemberNames = contact.isGroup
+    ? (contact.participants?.length > 0
+        ? contact.participants.map(p => (p._id === currentUser.id ? 'You' : p.displayName || p.username)).join(', ')
+        : 'Group')
+    : ''
+
   return (
     <>
-      <FriendProfile
-        isOpen={showFriendProfile}
-        onClose={() => setShowFriendProfile(false)}
-        userId={contact.id}
-      />
+      {!contact.isGroup && (
+        <FriendProfile
+          isOpen={showFriendProfile}
+          onClose={() => setShowFriendProfile(false)}
+          userId={contact.id}
+        />
+      )}
+
+      {contact.isGroup && (
+        <GroupInfoModal
+          isOpen={isGroupInfoOpen}
+          onClose={() => setIsGroupInfoOpen(false)}
+          contact={contact}
+          onGroupUpdated={onGroupUpdated}
+          onGroupLeft={onGroupLeft}
+        />
+      )}
 
       <motion.div
         key={contact.id}
@@ -107,103 +255,136 @@ export default function ChatRoom({
         initial={isMobile ? 'hidden' : false}
         animate={isMobile ? 'visible' : false}
         exit={isMobile ? 'exit' : undefined}
-        className={`relative flex flex-col h-full transition-all duration-700 ${
+        className={`relative flex flex-col h-full transition-all duration-700 overflow-hidden ${
           isVanishMode ? 'bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-zinc-950 to-zinc-950' : 'bg-zinc-900'
         }`}
       >
         {/* Toast */}
         <Toast message={toastMessage} visible={showToast} />
 
-        {/* ── Sticky Top Header ───────────────────────── */}
-        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur-sm sticky top-0 z-10">
-          {/* Back button — mobile only */}
-          {isMobile && (
-            <motion.button
-              id="chatroom-back-btn"
-              onClick={onBack}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors mr-1"
-            >
-              <ArrowLeft size={18} />
-            </motion.button>
-          )}
+        {/* Media Sidebar Drawer */}
+        <MediaSidebar
+          isOpen={isMediaSidebarOpen}
+          onClose={() => setIsMediaSidebarOpen(false)}
+          messages={messages}
+        />
 
-          {/* Friend avatar + info — click to open profile */}
-          <button
-            type="button"
-            id="chatroom-friend-profile-btn"
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowFriendProfile(true)
-            }}
-            className="flex items-center gap-3 flex-1 min-w-0 text-left group cursor-pointer"
-          >
-            <div className="relative flex-shrink-0">
-              <img
-                src={contact.avatar}
-                alt={contact.name}
-                className="w-9 h-9 rounded-full bg-zinc-700 object-cover group-hover:opacity-80 transition-opacity"
+        {/* ── Chat Header with clean mobile-friendly dropdown menu ── */}
+        <ChatHeader
+          contact={contact}
+          isMobile={isMobile}
+          onBack={onBack}
+          onOpenProfile={() => setShowFriendProfile(true)}
+          onOpenGroupInfo={() => setIsGroupInfoOpen(true)}
+          groupMemberNames={groupMemberNames}
+          formatLastSeen={formatLastSeen}
+          isSearchOpen={isSearchOpen}
+          onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
+          isMediaSidebarOpen={isMediaSidebarOpen}
+          onToggleMediaSidebar={() => setIsMediaSidebarOpen((prev) => !prev)}
+          isVanishMode={isVanishMode}
+          onToggleVanish={handleToggleVanish}
+          onVoiceCall={() => triggerToast('🚀 Panggilan Suara segera hadir!')}
+          onVideoCall={() => triggerToast('🚀 Panggilan Video segera hadir!')}
+          onClearChat={() => triggerToast('🧹 Fitur Bersihkan Chat segera hadir!')}
+        />
+
+        {/* ── Client-Side E2EE Message Search Bar ──────────────────────── */}
+        <AnimatePresence>
+          {isSearchOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-b border-zinc-800/80 bg-zinc-950/90 px-4 py-2 flex items-center gap-2 text-xs shadow-inner"
+            >
+              <Search size={14} className="text-zinc-500 flex-shrink-0" />
+              <input
+                id="chat-search-input"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setCurrentMatchIdx(0)
+                }}
+                placeholder="Search decrypted messages in chat..."
+                className="flex-1 bg-transparent text-xs text-zinc-100 placeholder-zinc-500 outline-none"
+                autoFocus
               />
-              {contact.isOnline && (
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-zinc-900" />
+
+              {/* Match counter & Navigation */}
+              {searchQuery.trim() && (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    {matchedMessageIds.length > 0
+                      ? `${currentMatchIdx + 1} of ${matchedMessageIds.length}`
+                      : '0 matches'}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={matchedMessageIds.length === 0}
+                    onClick={() =>
+                      setCurrentMatchIdx((prev) =>
+                        prev > 0 ? prev - 1 : matchedMessageIds.length - 1
+                      )
+                    }
+                    className="w-6 h-6 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    title="Previous match"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={matchedMessageIds.length === 0}
+                    onClick={() =>
+                      setCurrentMatchIdx((prev) =>
+                        prev < matchedMessageIds.length - 1 ? prev + 1 : 0
+                      )
+                    }
+                    className="w-6 h-6 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    title="Next match"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
               )}
-            </div>
 
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-zinc-100 truncate group-hover:text-indigo-300 transition-colors">
-                {contact.name}
-              </p>
-              <p className={`text-xs ${
-                contact.presence === 'idle' ? 'text-yellow-400' :
-                contact.presence === 'dnd' ? 'text-red-400' :
-                contact.presence === 'online' ? 'text-emerald-400' : 'text-zinc-500'
-              }`}>
-                {contact.presence === 'idle' ? 'Away' :
-                 contact.presence === 'dnd' ? 'Do Not Disturb' :
-                 contact.presence === 'online' ? 'Online' : 'Offline'}
-              </p>
-            </div>
-          </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSearchOpen(false)
+                  setSearchQuery('')
+                  setCurrentMatchIdx(0)
+                }}
+                className="w-6 h-6 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center cursor-pointer transition-colors"
+                title="Close search"
+              >
+                <X size={14} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          {/* Action buttons — "Coming Soon" toast on click */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <motion.button
-              id="chatroom-vanish-btn"
-              onClick={handleToggleVanish}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-                isVanishMode 
-                  ? 'text-white bg-indigo-500 shadow-lg shadow-indigo-500/20' 
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-              }`}
-              title="Vanish Mode (Pesan Sementara)"
-            >
-              <Clock size={16} />
-            </motion.button>
-            <motion.button
-              id="chatroom-phone-btn"
-              onClick={() => triggerToast('🚀 Feature coming soon!')}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title="Voice call (coming soon)"
-            >
-              <Phone size={16} />
-            </motion.button>
-            <motion.button
-              id="chatroom-video-btn"
-              onClick={() => triggerToast('🚀 Feature coming soon!')}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
-              title="Video call (coming soon)"
-            >
-              <Video size={16} />
-            </motion.button>
-          </div>
-        </div>
+        {/* ── Pinned Message Banner ──────────────────────── */}
+        <AnimatePresence>
+          {pinnedMessages.length > 0 && (
+            <PinnedMessageBanner
+              key={pinnedMessages[pinnedMessages.length - 1]._id}
+              message={pinnedMessages[pinnedMessages.length - 1]}
+              decryptedText={decryptedMap[pinnedMessages[pinnedMessages.length - 1]._id]}
+              onScrollTo={() => {
+                const latestPinned = pinnedMessages[pinnedMessages.length - 1]
+                if (latestPinned) {
+                  const el = document.getElementById(`msg-${latestPinned._id}`)
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }
+              }}
+              onUnpin={(id) => onPinMessage?.(id)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* ── Scrollable Message Thread ────────────────── */}
         <div
@@ -212,20 +393,50 @@ export default function ChatRoom({
         >
           {messages.length > 0 ? (
             messages.map((msg) => {
-              const isOwn = msg.sender._id === currentUser.id
+              const isOwn = (msg.sender?._id || msg.sender) === currentUser.id
               const displayMsg = {
                 _id:       msg._id,
                 text:      msg.text,
                 imageUrl:  msg.imageUrl,
                 imageUrls: msg.imageUrls,
+                audioUrl:  msg.audioUrl,
+                audioDuration: msg.audioDuration,
+                replyTo:   msg.replyTo,
+                sender:    msg.sender,
                 reactions: msg.reactions,
                 status:    msg.status,
+                isUploading: msg.isUploading || msg.status === 'sending',
+                readBy:    msg.readBy || [],
+                deliveredTo: msg.deliveredTo || [],
+                isEdited:  msg.isEdited,
+                isDeleted: msg.isDeleted,
+                isPinned:  msg.isPinned,
+                isSystem:  msg.isSystem,
+                systemText: msg.systemText,
                 isEphemeral: msg.isEphemeral,
                 expiresAt: msg.expiresAt ? new Date(msg.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
                 timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isOwn,
               }
-              return <MessageBubble key={msg._id} message={displayMsg} onReact={onReact} />
+              const isSearchResult = matchedMessageIds.includes(msg._id)
+              const isCurrentMatch = isSearchResult && matchedMessageIds[currentMatchIdx] === msg._id
+
+              return (
+                <MessageBubble
+                  key={msg._id}
+                  message={displayMsg}
+                  onReact={onReact}
+                  onReply={(targetMsg) => setReplyingTo(targetMsg)}
+                  onEdit={(targetMsg) => setEditingMessage(targetMsg)}
+                  onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
+                  onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
+                  conversationId={contact.conversationId}
+                  isGroup={contact.isGroup}
+                  totalParticipants={contact.participants?.length || 2}
+                  isSearchResult={isSearchResult}
+                  isCurrentMatch={isCurrentMatch}
+                />
+              )
             })
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
@@ -247,7 +458,13 @@ export default function ChatRoom({
 
           {/* ── Typing Indicator ──────────────────────── */}
           <AnimatePresence>
-            {isTyping && <TypingIndicator key="typing-indicator" />}
+            {isTyping && (
+              <TypingIndicator
+                key="typing-indicator"
+                typingUsers={typingUsers}
+                isGroup={contact.isGroup}
+              />
+            )}
           </AnimatePresence>
         </div>
 
@@ -280,10 +497,21 @@ export default function ChatRoom({
           </div>
         ) : (
           <ChatInput
-            onSend={(payload) => onSendMessage({ ...payload, isEphemeral: isVanishMode })}
+            onSend={(payload) => {
+              onSendMessage({ ...payload, isEphemeral: isVanishMode })
+              setReplyingTo(null)
+            }}
             onTypingStart={onTypingStart}
             onTypingStop={onTypingStop}
             isVanishMode={isVanishMode}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
+            editingMessage={editingMessage}
+            onCancelEdit={() => setEditingMessage(null)}
+            onSaveEdit={(id, text) => {
+              onEditMessage?.(id, text)
+              setEditingMessage(null)
+            }}
           />
         )}
       </motion.div>
