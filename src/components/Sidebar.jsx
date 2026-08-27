@@ -173,9 +173,13 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 className="w-10 h-10 rounded-full bg-zinc-700 object-cover ring-1 ring-zinc-700 hover:ring-indigo-500 transition-all"
               />
               <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
-                user?.presence === 'online' ? 'bg-emerald-400' : 
-                user?.presence === 'idle' ? 'bg-yellow-400' : 
-                user?.presence === 'dnd' ? 'bg-red-400' : 'bg-emerald-400'
+                user?.presence === 'away' || user?.presence === 'idle' || user?.status === 'away' || user?.status === 'idle'
+                  ? 'bg-amber-400'
+                  : user?.presence === 'busy' || user?.presence === 'dnd' || user?.status === 'busy' || user?.status === 'dnd'
+                  ? 'bg-rose-500'
+                  : user?.presence === 'offline' || user?.status === 'offline'
+                  ? 'bg-zinc-400'
+                  : 'bg-emerald-400'
               }`} />
             </div>
             <div className="min-w-0 flex-1">
@@ -183,11 +187,22 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 {user?.displayName || user?.username || 'User'}
                 {user?.statusEmoji && <span>{user?.statusEmoji}</span>}
               </p>
-              <p className={`text-xs ${
-                user?.presence === 'idle' ? 'text-yellow-400' : 
-                user?.presence === 'dnd' ? 'text-red-400' : 'text-emerald-400'
+              <p className={`text-xs font-medium ${
+                user?.presence === 'away' || user?.presence === 'idle' || user?.status === 'away' || user?.status === 'idle'
+                  ? 'text-amber-400'
+                  : user?.presence === 'busy' || user?.presence === 'dnd' || user?.status === 'busy' || user?.status === 'dnd'
+                  ? 'text-rose-500'
+                  : user?.presence === 'offline' || user?.status === 'offline'
+                  ? 'text-zinc-400'
+                  : 'text-emerald-400'
               }`}>
-                {user?.presence === 'idle' ? 'Away' : user?.presence === 'dnd' ? 'Do Not Disturb' : 'Online'}
+                {user?.presence === 'away' || user?.presence === 'idle' || user?.status === 'away' || user?.status === 'idle'
+                  ? 'Away'
+                  : user?.presence === 'busy' || user?.presence === 'dnd' || user?.status === 'busy' || user?.status === 'dnd'
+                  ? 'Busy'
+                  : user?.presence === 'offline' || user?.status === 'offline'
+                  ? 'Offline'
+                  : 'Online'}
               </p>
             </div>
           </div>

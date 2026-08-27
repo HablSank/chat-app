@@ -323,6 +323,19 @@ export default function AppLayout() {
     return () => mq.removeEventListener('change', update)
   }, [])
 
+  // Handle mobile browser/hardware back button (History API)
+  useEffect(() => {
+    const handlePopState = () => {
+      // When popstate fires (native back button / swipe back gesture)
+      if (selectedContactRef.current) {
+        setSelectedContact(null)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   const handleSelectContact = (contact) => {
     setSelectedContact(contact)
     if (contact.conversationId) {
@@ -330,6 +343,11 @@ export default function AppLayout() {
       if (user?.id) {
         sendMarkRead(contact.conversationId, user.id)
       }
+    }
+
+    // On mobile screens, push a state so hardware back button returns to chat list
+    if (window.innerWidth < 768) {
+      window.history.pushState({ chatOpen: true, contactId: contact.id }, '')
     }
   }
 
@@ -361,7 +379,13 @@ export default function AppLayout() {
     fetchMessages()
   }, [selectedContact?.conversationId, token, user?.id, sendMarkRead])
 
-  const handleBack = () => setSelectedContact(null)
+  const handleBack = () => {
+    if (window.history.state?.chatOpen) {
+      window.history.back()
+    } else {
+      setSelectedContact(null)
+    }
+  }
 
   const handleSendMessage = async (payload) => {
     const text          = payload?.text          || ''
