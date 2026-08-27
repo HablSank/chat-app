@@ -2,43 +2,38 @@ import { useState, useEffect } from 'react'
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
-  const [isInstallable, setIsInstallable]   = useState(false)
   const [isInstalled, setIsInstalled]       = useState(false)
   const [isIOS, setIsIOS]                   = useState(false)
 
   useEffect(() => {
     // Check if running in standalone mode (installed PWA)
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.navigator.standalone === true ||
-      document.referrer.includes('android-app://')
+    const checkStandalone = () => {
+      const isStandalone =
+        (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ||
+        (typeof window !== 'undefined' && window.navigator?.standalone === true) ||
+        (typeof document !== 'undefined' && document.referrer?.includes('android-app://'))
+      
+      setIsInstalled(!!isStandalone)
+      return !!isStandalone
+    }
 
-    if (isStandalone) {
-      setIsInstalled(true)
+    if (checkStandalone()) {
       return
     }
 
-    // Detect iOS Safari
-    const userAgent = window.navigator.userAgent.toLowerCase()
+    // Detect iOS
+    const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : ''
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) && !window.MSStream
-    const isSafari = /safari/.test(userAgent) && !/chrome|crios|fxios|android/.test(userAgent)
-    if (isIOSDevice) {
-      setIsIOS(true)
-      if (isSafari) {
-        setIsInstallable(true)
-      }
-    }
+    setIsIOS(isIOSDevice)
 
     // Capture standard PWA install prompt (Chrome, Edge, Android, etc.)
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      setIsInstallable(true)
     }
 
     const handleAppInstalled = () => {
       setIsInstalled(true)
-      setIsInstallable(false)
       setDeferredPrompt(null)
     }
 
@@ -53,17 +48,30 @@ export function usePWAInstall() {
 
   const promptInstall = async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
-      if (outcome === 'accepted') {
-        setIsInstalled(true)
-        setIsInstallable(false)
+      try {
+        deferredPrompt.prompt()
+        const { outcome } = await deferredPrompt.userChoice
+        if (outcome === 'accepted') {
+          setIsInstalled(true)
+        }
+        setDeferredPrompt(null)
+        return { success: outcome === 'accepted', triggered: true, isIOS }
+      } catch (err) {
+        console.warn('Install prompt error:', err)
       }
-      setDeferredPrompt(null)
-      return { success: outcome === 'accepted' }
     }
-    return { success: false, isIOS }
+    // No native prompt available: caller should show manual guide modal
+    return { success: false, triggered: false, isIOS }
   }
 
-  return { isInstallable, isInstalled, isIOS, promptInstall }
+  // Always true in web browsers when NOT in standalone mode
+  const isInstallable = !isInstalled
+
+  return {
+    isInstallable,
+    isInstalled,
+    isIOS,
+    hasNativePrompt: !!deferredPrompt,
+    promptInstall,
+  }
 }

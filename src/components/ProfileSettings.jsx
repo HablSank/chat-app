@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
-import IOSInstallGuideModal from './IOSInstallGuideModal'
+import PWAInstallGuideModal from './PWAInstallGuideModal'
 
 const STATUS_OPTIONS = [
   { value: 'online', label: 'Online', color: 'bg-emerald-400' },
@@ -48,16 +48,16 @@ export default function ProfileSettings({ isOpen, onClose }) {
   const [isSaved, setIsSaved]         = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
-  const [showIOSGuide, setShowIOSGuide]     = useState(false)
+  const [showInstallGuide, setShowInstallGuide] = useState(false)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
 
   const handleInstallClick = async () => {
     if (isIOS) {
-      setShowIOSGuide(true)
+      setShowInstallGuide(true)
     } else {
       const res = await promptInstall()
-      if (res.isIOS) {
-        setShowIOSGuide(true)
+      if (!res.triggered) {
+        setShowInstallGuide(true)
       }
     }
   }
@@ -370,8 +370,8 @@ export default function ProfileSettings({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Install PWA section (Hidden if already in standalone mode) */}
-                {!isInstalled && isInstallable && (
+                {/* Install PWA section (Always visible on web browsers, hidden when running in standalone mode) */}
+                {!isInstalled && (
                   <div className="p-3 rounded-2xl bg-gradient-to-r from-indigo-950/60 to-zinc-800/80 border border-indigo-500/20 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
@@ -437,7 +437,7 @@ export default function ProfileSettings({ isOpen, onClose }) {
           </div>
         </div>
       )}
-      <IOSInstallGuideModal isOpen={showIOSGuide} onClose={() => setShowIOSGuide(false)} />
+      <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
     </AnimatePresence>
   )
 }

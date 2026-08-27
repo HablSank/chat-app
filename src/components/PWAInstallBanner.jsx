@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Download, X, Sparkles } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
-import IOSInstallGuideModal from './IOSInstallGuideModal'
+import PWAInstallGuideModal from './PWAInstallGuideModal'
 
 export default function PWAInstallBanner() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const [isDismissed, setIsDismissed] = useState(false)
-  const [showIOSGuide, setShowIOSGuide] = useState(false)
+  const [showInstallGuide, setShowInstallGuide] = useState(false)
 
   useEffect(() => {
     const dismissed = sessionStorage.getItem('ping_pwa_dismissed')
@@ -23,11 +23,11 @@ export default function PWAInstallBanner() {
 
   const handleInstallClick = async () => {
     if (isIOS) {
-      setShowIOSGuide(true)
+      setShowInstallGuide(true)
     } else {
       const res = await promptInstall()
-      if (res.isIOS) {
-        setShowIOSGuide(true)
+      if (!res.triggered) {
+        setShowInstallGuide(true)
       }
     }
   }
@@ -93,8 +93,8 @@ export default function PWAInstallBanner() {
         </div>
       </motion.div>
 
-      {/* iOS Manual Instructions Modal */}
-      <IOSInstallGuideModal isOpen={showIOSGuide} onClose={() => setShowIOSGuide(false)} />
+      {/* PWA Manual Instructions Modal */}
+      <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
     </>
   )
 }

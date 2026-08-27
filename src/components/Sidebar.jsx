@@ -9,7 +9,7 @@ import ChatItem from './ChatItem'
 import ProfileSettings from './ProfileSettings'
 import CreateGroupModal from './CreateGroupModal'
 import PWAInstallBanner from './PWAInstallBanner'
-import IOSInstallGuideModal from './IOSInstallGuideModal'
+import PWAInstallGuideModal from './PWAInstallGuideModal'
 
 export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const { user, token, logout, isProfileOpen, setIsProfileOpen } = useAuth()
@@ -20,7 +20,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const [isSearching, setIsSearching] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
-  const [showIOSGuide, setShowIOSGuide] = useState(false)
+  const [showInstallGuide, setShowInstallGuide] = useState(false)
   const searchInputRef = useRef(null)
 
   // Sync modal state with AuthContext isProfileOpen
@@ -37,11 +37,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   const handleInstallPWA = async () => {
     if (isIOS) {
-      setShowIOSGuide(true)
+      setShowInstallGuide(true)
     } else {
       const res = await promptInstall()
-      if (res.isIOS) {
-        setShowIOSGuide(true)
+      if (!res.triggered) {
+        setShowInstallGuide(true)
       }
     }
   }
@@ -237,8 +237,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Install PWA button (Hidden when running standalone) */}
-            {!isInstalled && isInstallable && (
+            {/* Install PWA button (Always visible on web browsers, hidden when running in standalone mode) */}
+            {!isInstalled && (
               <motion.button
                 id="sidebar-install-pwa-btn"
                 onClick={handleInstallPWA}
@@ -420,7 +420,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           )}
         </div>
       </div>
-      <IOSInstallGuideModal isOpen={showIOSGuide} onClose={() => setShowIOSGuide(false)} />
+      <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
     </>
   )
 }
