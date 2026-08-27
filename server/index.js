@@ -94,9 +94,13 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id: newUser._id,
-        username: newUser.username,
-        avatar: newUser.avatar,
+        id:          newUser._id,
+        username:    newUser.username,
+        displayName: newUser.displayName || '',
+        bio:         newUser.bio || 'Hey there! I am using Chat App.',
+        avatar:      newUser.avatar,
+        presence:    newUser.presence || 'offline',
+        statusEmoji: newUser.statusEmoji || '',
       },
     })
   } catch (error) {
@@ -130,13 +134,38 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
-        username: user.username,
-        avatar: user.avatar,
+        id:          user._id,
+        username:    user.username,
+        displayName: user.displayName || '',
+        bio:         user.bio || 'Hey there! I am using Chat App.',
+        avatar:      user.avatar,
+        presence:    user.presence || 'offline',
+        statusEmoji: user.statusEmoji || '',
       },
     })
   } catch (error) {
     console.error('Login Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// ── REST API: Check Auth / Get Current User Session ────────────────────────
+app.get('/api/auth/me', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password')
+    if (!user) return res.status(404).json({ message: 'User not found' })
+
+    res.json({
+      id:          user._id,
+      username:    user.username,
+      displayName: user.displayName || '',
+      bio:         user.bio || 'Hey there! I am using Chat App.',
+      avatar:      user.avatar,
+      presence:    user.presence || 'online',
+      statusEmoji: user.statusEmoji || '',
+    })
+  } catch (error) {
+    console.error('Check Auth Error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })
@@ -170,6 +199,7 @@ app.put('/api/users/profile', protect, uploadAvatar.single('avatar'), async (req
 
     if (req.body.displayName !== undefined) user.displayName = req.body.displayName
     if (req.body.bio !== undefined) user.bio = req.body.bio
+    if (req.body.statusEmoji !== undefined) user.statusEmoji = req.body.statusEmoji
     if (req.file) user.avatar = req.file.path // Cloudinary URL
 
     await user.save()
@@ -180,6 +210,8 @@ app.put('/api/users/profile', protect, uploadAvatar.single('avatar'), async (req
       displayName: user.displayName,
       bio:         user.bio,
       avatar:      user.avatar,
+      presence:    user.presence,
+      statusEmoji: user.statusEmoji,
     })
   } catch (error) {
     console.error('Profile Update Error:', error)

@@ -13,17 +13,37 @@ export function AuthProvider({ children }) {
     const storedToken = localStorage.getItem('chat_token')
     const storedUser = localStorage.getItem('chat_user')
     
-    if (storedToken && storedUser) {
+    if (storedToken) {
       setToken(storedToken)
-      try {
-        setUser(JSON.parse(storedUser))
-      } catch (e) {
-        console.error('Failed to parse user from localStorage', e)
-        localStorage.removeItem('chat_user')
-        localStorage.removeItem('chat_token')
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser))
+        } catch (e) {
+          console.error('Failed to parse user from localStorage', e)
+        }
       }
+
+      // Fetch fresh profile state from backend
+      fetch(getApiUrl('/api/auth/me'), {
+        headers: { Authorization: `Bearer ${storedToken}` }
+      })
+        .then((res) => {
+          if (res.ok) return res.json()
+          throw new Error('Session expired')
+        })
+        .then((freshUser) => {
+          localStorage.setItem('chat_user', JSON.stringify(freshUser))
+          setUser(freshUser)
+        })
+        .catch((err) => {
+          console.warn('Auth check warning:', err.message)
+        })
+        .finally(() => {
+          setIsLoading(false)
+        })
+    } else {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [])
 
   const login = async (username, password) => {
