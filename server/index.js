@@ -327,6 +327,29 @@ app.get('/api/users/:id', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Find Existing 1-on-1 Conversation by Target User ID ───────────
+app.get('/api/conversations/find/:userId', protect, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId
+    const conversation = await Conversation.findOne({
+      isGroup: { $ne: true },
+      participants: { $all: [req.user._id, targetUserId] },
+      status: { $ne: 'rejected' },
+    })
+      .populate('participants', '-password')
+      .populate('lastMessage')
+
+    if (!conversation) {
+      return res.json({ conversation: null })
+    }
+
+    res.json({ conversation })
+  } catch (error) {
+    console.error('Find Conversation Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 app.get('/api/conversations', protect, async (req, res) => {
   try {
     // Get all conversations where user is a participant and status is not rejected

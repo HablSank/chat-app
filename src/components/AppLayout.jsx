@@ -391,6 +391,34 @@ export default function AppLayout() {
     fetchMessages()
   }, [selectedContact?.conversationId, token, user?.id, sendMarkRead])
 
+  // Fallback: If contact is opened without conversationId, check backend to see if a conversation already exists
+  useEffect(() => {
+    if (selectedContact && !selectedContact.conversationId && !selectedContact.isGroup && selectedContact.id && token) {
+      fetch(getApiUrl(`/api/conversations/find/${selectedContact.id}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.conversation) {
+            const conv = data.conversation
+            setSelectedContact(prev => {
+              if (prev && prev.id === selectedContact.id && !prev.conversationId) {
+                return {
+                  ...prev,
+                  conversationId: conv._id,
+                  status: conv.status,
+                  initiator: conv.initiator,
+                }
+              }
+              return prev
+            })
+            joinPrivateRoom(conv._id)
+          }
+        })
+        .catch(err => console.warn('Lookup existing conversation error:', err))
+    }
+  }, [selectedContact?.id, selectedContact?.conversationId, selectedContact?.isGroup, token, joinPrivateRoom])
+
   const handleBack = () => {
     if (window.history.state?.chatOpen) {
       window.history.back()

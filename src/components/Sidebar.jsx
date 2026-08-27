@@ -162,7 +162,36 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     setQuery('')
   }
 
-  const handleSelectUser = (searchUser) => {
+  const handleSelectUser = async (searchUser) => {
+    const targetUserId = (searchUser?._id || searchUser?.id || '').toString()
+
+    // 1. Check if conversation already exists in loaded sidebar conversations
+    const existingConv = conversations.find(c =>
+      !c.isGroup && c.participants?.some(p => (p._id?.toString() || p.toString()) === targetUserId)
+    )
+
+    if (existingConv) {
+      handleSelectConversation(existingConv)
+      return
+    }
+
+    // 2. Check MongoDB for existing conversation or pending request
+    try {
+      const res = await fetch(getApiUrl(`/api/conversations/find/${targetUserId}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.conversation) {
+          handleSelectConversation(data.conversation)
+          return
+        }
+      }
+    } catch (err) {
+      console.warn('Find conversation error:', err)
+    }
+
+    // 3. Fallback: completely new chat
     onSelect({
       id: searchUser._id,
       name: searchUser.displayName || searchUser.username,
