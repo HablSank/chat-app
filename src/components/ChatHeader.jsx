@@ -13,6 +13,7 @@ import {
   Sparkles,
   Shield,
   Info,
+  Lock,
 } from 'lucide-react'
 
 export default function ChatHeader({
@@ -28,24 +29,32 @@ export default function ChatHeader({
   isMediaSidebarOpen,
   onToggleMediaSidebar,
   isVanishMode,
-  onToggleVanish,
+  onToggleVanishMode,
   onVoiceCall,
   onVideoCall,
   onClearChat,
+  onDeleteChat,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
-  // Close dropdown when clicking outside
+  const isAccepted = contact.isGroup || contact.status === 'accepted'
+  const displayAvatar = isAccepted ? contact.avatar : 'https://api.dicebear.com/7.x/shapes/svg?seed=locked'
+
+  // Close dropdown menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setIsMenuOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isMenuOpen])
 
   const handleMenuItemClick = (action) => {
     setIsMenuOpen(false)
@@ -53,24 +62,19 @@ export default function ChatHeader({
   }
 
   return (
-    <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur-md sticky top-0 z-20">
-      {/* Left: Back button + Contact Profile Info */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-        {/* Back button (Mobile only) */}
+    <div className="h-16 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30">
+      {/* Left: Back button (Mobile only) + Contact / Group Info */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {isMobile && (
-          <motion.button
-            id="chatroom-back-btn"
+          <button
             onClick={onBack}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors flex-shrink-0 cursor-pointer"
-            title="Back to conversations"
+            className="text-zinc-400 hover:text-zinc-200 p-1.5 -ml-1 rounded-full hover:bg-zinc-800 transition-colors flex-shrink-0 cursor-pointer"
+            aria-label="Back"
           >
-            <ArrowLeft size={18} />
-          </motion.button>
+            <ArrowLeft size={20} />
+          </button>
         )}
 
-        {/* Contact Avatar & Status — click opens Info / Profile */}
         <button
           type="button"
           id="chatroom-friend-profile-btn"
@@ -85,13 +89,20 @@ export default function ChatHeader({
         >
           <div className="relative flex-shrink-0">
             <img
-              src={contact.avatar}
+              src={displayAvatar}
               alt={contact.name}
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-zinc-700 object-cover group-hover:opacity-90 transition-opacity"
             />
             {contact.isGroup ? (
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-indigo-600 border-2 border-zinc-900 flex items-center justify-center text-white">
                 <Users size={8} />
+              </span>
+            ) : !isAccepted ? (
+              <span
+                title="Privacy Locked"
+                className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-zinc-800 border-2 border-zinc-900 flex items-center justify-center text-zinc-400 shadow-sm"
+              >
+                <Lock size={8} />
               </span>
             ) : (
               (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (
@@ -132,6 +143,11 @@ export default function ChatHeader({
               <p className="text-xs text-zinc-400 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
                 {groupMemberNames}
               </p>
+            ) : !isAccepted ? (
+              <div className="flex items-center gap-1 text-xs truncate text-amber-400/90 font-medium">
+                <Lock size={10} className="flex-shrink-0" />
+                <span className="truncate">Menunggu Persetujuan</span>
+              </div>
             ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (contact.presence === 'idle' || contact.presence === 'away') ? (
               <div className="flex items-center gap-1.5 text-xs truncate">
                 <span className="flex items-center gap-1 text-amber-400 font-medium truncate">

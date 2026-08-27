@@ -142,7 +142,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       return
     }
 
-    const otherParticipant = conv.participants.find(p => p._id !== user.id)
+    const currentUserId = (user?.id || user?._id || '').toString()
+    const otherParticipant = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
     if (!otherParticipant) return
     onSelect({
       id: otherParticipant._id,
@@ -339,6 +340,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                     presence: u.presence,
                     statusEmoji: u.statusEmoji,
                     isGroup: false,
+                    status: u.isLocked ? 'new' : 'accepted',
                   }}
                   isSelected={u._id === selectedId}
                   onClick={() => handleSelectUser(u)}
@@ -361,6 +363,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                           avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
                           isGroup: true,
                           participantsCount: conv.participants?.length || 0,
+                          status: 'accepted',
                           lastMessage: conv.lastMessage?.isSystem
                             ? conv.lastMessage.systemText
                             : conv.lastMessage?.audioUrl
@@ -380,10 +383,14 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                   )
                 }
 
-                const other = conv.participants.find(p => p._id !== user.id)
+                const currentUserId = (user?.id || user?._id || '').toString()
+                const other = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
                 if (!other) return null
                 const isPending = conv.status === 'pending'
-                const isReceiver = isPending && conv.initiator !== user.id
+                const initiatorId = conv.initiator?._id
+                  ? conv.initiator._id.toString()
+                  : (conv.initiator ? conv.initiator.toString() : '')
+                const isReceiver = isPending && initiatorId !== currentUserId
 
                 return (
                   <div key={conv._id} className="relative">
@@ -395,6 +402,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                         presence: other.presence,
                         statusEmoji: other.statusEmoji,
                         isGroup: false,
+                        status: conv.status,
+                        initiator: conv.initiator,
                         lastMessage: conv.lastMessage?.audioUrl
                           ? '🎵 Voice note'
                           : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Lock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
 import Lightbox from './Lightbox'
@@ -54,6 +54,8 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
 
   if (!isOpen) return null
 
+  const isLocked = profile?.isLocked
+
   return (
     <>
       <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
@@ -105,14 +107,18 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
                   {/* Avatar with Cutout Effect */}
                   <div className="-mt-12 mb-4 flex items-end justify-between">
                     <div
-                      className="w-24 h-24 rounded-full overflow-hidden bg-zinc-800 border-4 border-zinc-900 shadow-xl relative cursor-pointer group"
+                      className={`w-24 h-24 rounded-full overflow-hidden bg-zinc-800 border-4 border-zinc-900 shadow-xl relative ${isLocked ? 'cursor-default' : 'cursor-pointer group'}`}
                       onClick={() => {
-                        if (profile?.avatar) setLightboxSrc(profile.avatar)
+                        if (!isLocked && profile?.avatar) setLightboxSrc(profile.avatar)
                       }}
-                      title={profile?.avatar ? 'Click to view full photo' : ''}
+                      title={!isLocked && profile?.avatar ? 'Click to view full photo' : ''}
                     >
                       {isLoading ? (
                         <div className="w-full h-full bg-zinc-800 animate-pulse" />
+                      ) : isLocked ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-800 text-zinc-400">
+                          <Lock size={28} className="text-zinc-400 mb-0.5" />
+                        </div>
                       ) : profile?.avatar ? (
                         <img
                           src={profile.avatar}
@@ -126,12 +132,23 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
                       )}
                     </div>
 
-                    {/* Online/Offline Badge */}
+                    {/* Online/Offline or Locked Badge */}
                     <div className="flex items-center gap-1.5 bg-zinc-800/60 px-3 py-1 rounded-full border border-zinc-700/50">
-                      <span className={`w-2 h-2 rounded-full ${profile?.isOnline ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-zinc-500'}`} />
-                      <span className={`text-xs font-medium ${profile?.isOnline ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                        {profile?.isOnline ? 'Online' : 'Offline'}
-                      </span>
+                      {isLocked ? (
+                        <>
+                          <Lock size={12} className="text-amber-400" />
+                          <span className="text-xs font-medium text-amber-400">
+                            Locked Profile
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className={`w-2 h-2 rounded-full ${profile?.isOnline ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-zinc-500'}`} />
+                          <span className={`text-xs font-medium ${profile?.isOnline ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                            {profile?.isOnline ? 'Online' : 'Offline'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -152,8 +169,8 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
 
                       <div className="bg-zinc-800/40 rounded-2xl p-3.5 border border-zinc-800/80">
                         <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">About</p>
-                        <p className="text-sm text-zinc-300 leading-relaxed break-words">
-                          {profile?.bio || 'Hey there! I am using Chat App.'}
+                        <p className={`text-sm leading-relaxed break-words ${isLocked ? 'text-zinc-400 italic' : 'text-zinc-300'}`}>
+                          {profile?.bio || (isLocked ? 'Profil dan bio disembunyikan sampai permintaan pesan diterima.' : 'Hey there! I am using Chat App.')}
                         </p>
                       </div>
                     </div>

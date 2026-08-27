@@ -160,15 +160,27 @@ export default function AppLayout() {
     })
   }, [user])
 
-  const handleRequestAction = useCallback(({ conversationId, status }) => {
+  const handleRequestAction = useCallback(({ conversationId, status, conversation }) => {
     setRefreshSidebar(prev => prev + 1)
     setSelectedContact(prev => {
       if (prev && prev.conversationId === conversationId) {
-        return { ...prev, status }
+        if (status === 'rejected') return null
+        const currentUserId = (user?.id || user?._id || '').toString()
+        const otherParticipant = conversation?.participants?.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
+        return {
+          ...prev,
+          status,
+          ...(otherParticipant ? {
+            name: otherParticipant.displayName || otherParticipant.username,
+            avatar: otherParticipant.avatar,
+            presence: otherParticipant.presence,
+            statusEmoji: otherParticipant.statusEmoji,
+          } : {})
+        }
       }
       return prev
     })
-  }, [])
+  }, [user])
 
   const handleReactionUpdate = useCallback(({ messageId, reactions }) => {
     setChatMessages(prev => {
@@ -508,11 +520,24 @@ export default function AppLayout() {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (res.ok) {
-        setSelectedContact(prev => ({ ...prev, status: 'accepted' }))
+        const data = await res.json()
+        const currentUserId = (user?.id || user?._id || '').toString()
+        const otherParticipant = data.participants?.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
+
+        setSelectedContact(prev => ({
+          ...prev,
+          status: 'accepted',
+          ...(otherParticipant ? {
+            name: otherParticipant.displayName || otherParticipant.username,
+            avatar: otherParticipant.avatar,
+            presence: otherParticipant.presence,
+            statusEmoji: otherParticipant.statusEmoji,
+          } : {})
+        }))
         setRefreshSidebar(prev => prev + 1)
       }
     } catch (err) {
-      console.error(err)
+      console.error('Accept Request Error:', err)
     }
   }
 

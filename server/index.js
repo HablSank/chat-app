@@ -184,7 +184,33 @@ app.get('/api/users/search', protect, async (req, res) => {
 
     // Exclude current user from search
     const users = await User.find({ ...keyword, _id: { $ne: req.user._id } }).select('-password')
-    res.json(users)
+    
+    // Find accepted 1-on-1 conversations for current user
+    const acceptedConvs = await Conversation.find({
+      participants: req.user._id,
+      status: 'accepted',
+      isGroup: { $ne: true },
+    }).select('participants')
+
+    const acceptedFriendIds = new Set(
+      acceptedConvs.flatMap(c => c.participants.map(p => p.toString())).filter(id => id !== req.user._id.toString())
+    )
+
+    const sanitizedUsers = users.map(u => {
+      const isAccepted = acceptedFriendIds.has(u._id.toString())
+      if (isAccepted) return u
+      return {
+        _id: u._id,
+        username: u.username,
+        displayName: u.displayName || u.username,
+        avatar: 'https://api.dicebear.com/7.x/shapes/svg?seed=locked',
+        presence: 'offline',
+        statusEmoji: '',
+        isLocked: true,
+      }
+    })
+
+    res.json(sanitizedUsers)
   } catch (error) {
     console.error('Search Users Error:', error)
     res.status(500).json({ message: 'Server error' })
@@ -265,8 +291,35 @@ app.put('/api/users/presence', protect, async (req, res) => {
 // ── REST API: Get User Profile by ID (Friend Profile) ─────────────────────
 app.get('/api/users/:id', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password')
+    const targetUserId = req.params.id
+    const user = await User.findById(targetUserId).select('-password')
     if (!user) return res.status(404).json({ message: 'User not found' })
+
+    const isSelf = req.user._id.toString() === targetUserId
+    if (isSelf) {
+      return res.json(user)
+    }
+
+    // Check if there is an accepted conversation or shared group
+    const acceptedConv = await Conversation.findOne({
+      participants: { $all: [req.user._id, targetUserId] },
+      status: { $in: ['accepted', undefined] },
+    })
+
+    if (!acceptedConv) {
+      return res.json({
+        _id: user._id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        avatar: 'https://api.dicebear.com/7.x/shapes/svg?seed=locked',
+        bio: 'Profil dan bio disembunyikan sampai permintaan pesan diterima.',
+        isOnline: false,
+        presence: 'offline',
+        statusEmoji: '',
+        isLocked: true,
+      })
+    }
+
     res.json(user)
   } catch (error) {
     console.error('Get User Error:', error)
@@ -739,20 +792,32 @@ app.post('/api/conversations/accept/:id', protect, async (req, res) => {
     if (!conversation) return res.status(404).json({ message: 'Not found' })
     
     // Only the non-initiator can accept
-    if (conversation.initiator.toString() === req.user._id.toString()) {
+    if (conversation.initiator && conversation.initiator.toString() === req.user._id.toString()) {
       return res.status(403).json({ message: 'Cannot accept own request' })
     }
 
     conversation.status = 'accepted'
     await conversation.save()
 
-    // Notify the room
+    const populatedConv = await Conversation.findById(conversation._id)
+      .populate('participants', '-password')
+      .populate('groupAdmin', '-password')
+      .populate('groupAdmins', '-password')
+      .populate('lastMessage')
+
+    // Notify the room and all participants
     io.to(conversation._id.toString()).emit('chat:request_action', {
-      conversationId: conversation._id,
-      status: 'accepted'
+      conversationId: conversation._id.toString(),
+      status: 'accepted',
+      conversation: populatedConv,
+    })
+    io.emit('chat:request_action', {
+      conversationId: conversation._id.toString(),
+      status: 'accepted',
+      conversation: populatedConv,
     })
 
-    res.json(conversation)
+    res.json(populatedConv)
   } catch (error) {
     console.error('Accept Conversation Error:', error)
     res.status(500).json({ message: 'Server error' })
@@ -764,7 +829,7 @@ app.post('/api/conversations/reject/:id', protect, async (req, res) => {
     const conversation = await Conversation.findById(req.params.id)
     if (!conversation) return res.status(404).json({ message: 'Not found' })
     
-    if (conversation.initiator.toString() === req.user._id.toString()) {
+    if (conversation.initiator && conversation.initiator.toString() === req.user._id.toString()) {
       return res.status(403).json({ message: 'Cannot reject own request' })
     }
 
@@ -772,8 +837,12 @@ app.post('/api/conversations/reject/:id', protect, async (req, res) => {
     await conversation.save()
 
     io.to(conversation._id.toString()).emit('chat:request_action', {
-      conversationId: conversation._id,
-      status: 'rejected'
+      conversationId: conversation._id.toString(),
+      status: 'rejected',
+    })
+    io.emit('chat:request_action', {
+      conversationId: conversation._id.toString(),
+      status: 'rejected',
     })
 
     res.json(conversation)
@@ -1102,31 +1171,43 @@ io.on('connection', (socket) => {
         await conversation.save()
         
         // Let both users know there's a new conversation
-        const fromSocket = connectedUsers.get(payload.from)
-        const toSocket = connectedUsers.get(payload.to)
+        const fromSockets = connectedUsers.get(payload.from)
+        const toSockets = connectedUsers.get(payload.to)
         
         const populatedConv = await Conversation.findById(conversation._id).populate('participants', '-password')
         
-        if (fromSocket) {
-          const socketInstance = io.sockets.sockets.get(fromSocket)
-          if (socketInstance) socketInstance.join(conversation._id.toString())
-          io.to(fromSocket).emit('conversation:new', populatedConv)
+        if (fromSockets) {
+          for (const socketId of fromSockets) {
+            const socketInstance = io.sockets.sockets.get(socketId)
+            if (socketInstance) socketInstance.join(conversation._id.toString())
+            io.to(socketId).emit('conversation:new', populatedConv)
+          }
         }
-        if (toSocket) {
-          const socketInstance = io.sockets.sockets.get(toSocket)
-          if (socketInstance) socketInstance.join(conversation._id.toString())
-          io.to(toSocket).emit('conversation:new', populatedConv)
+        if (toSockets) {
+          for (const socketId of toSockets) {
+            const socketInstance = io.sockets.sockets.get(socketId)
+            if (socketInstance) socketInstance.join(conversation._id.toString())
+            io.to(socketId).emit('conversation:new', populatedConv)
+          }
         }
       } else if (conversation && !conversation.isGroup && conversation.status === 'rejected') {
         conversation.status = 'pending'
         conversation.initiator = payload.from
         await conversation.save()
         
-        const fromSocket = connectedUsers.get(payload.from)
-        const toSocket = connectedUsers.get(payload.to)
+        const fromSockets = connectedUsers.get(payload.from)
+        const toSockets = connectedUsers.get(payload.to)
         const populatedConv = await Conversation.findById(conversation._id).populate('participants', '-password')
-        if (fromSocket) io.to(fromSocket).emit('conversation:new', populatedConv)
-        if (toSocket) io.to(toSocket).emit('conversation:new', populatedConv)
+        if (fromSockets) {
+          for (const socketId of fromSockets) {
+            io.to(socketId).emit('conversation:new', populatedConv)
+          }
+        }
+        if (toSockets) {
+          for (const socketId of toSockets) {
+            io.to(socketId).emit('conversation:new', populatedConv)
+          }
+        }
       }
 
       if (!conversation) {

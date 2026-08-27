@@ -139,10 +139,13 @@ export default function ChatRoom({
   const [searchQuery, setSearchQuery]       = useState('')
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
   const [decryptedMap, setDecryptedMap]     = useState({})
-  const toastTimerRef      = useRef(null)
-
   const isPending  = contact.status === 'pending'
-  const isReceiver = isPending && contact.initiator !== currentUser.id
+  const initiatorId = contact.initiator?._id
+    ? contact.initiator._id.toString()
+    : (contact.initiator ? contact.initiator.toString() : '')
+  const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
+  const isInitiator = isPending && initiatorId === currentUserId
+  const isReceiver = isPending && !isInitiator
 
   const pinnedMessages = messages.filter(m => m.isPinned && !m.isDeleted)
 
@@ -471,28 +474,45 @@ export default function ChatRoom({
         {/* ── Fixed Bottom Input or Banner ───────────────────────── */}
         {isReceiver ? (
           <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
-            <div className="bg-zinc-800/80 rounded-2xl p-4 text-center">
-              <p className="text-sm text-zinc-300 font-medium mb-3">
-                {contact.name} wants to connect with you.
+            <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
+              <p className="text-sm text-zinc-100 font-semibold mb-1">
+                {contact.name} ingin mengirim pesan kepada Anda
+              </p>
+              <p className="text-xs text-zinc-400 mb-3">
+                Terima permintaan untuk melihat foto profil lengkap dan membalas pesan.
               </p>
               <div className="flex items-center justify-center gap-3">
                 <motion.button
                   onClick={onReject}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-6 py-2 rounded-xl bg-zinc-700 hover:bg-red-500/80 text-zinc-200 text-sm font-semibold transition-colors"
+                  className="px-6 py-2 rounded-xl bg-zinc-700 hover:bg-rose-500/80 text-zinc-200 text-sm font-semibold transition-colors cursor-pointer"
                 >
-                  Reject
+                  Tolak
                 </motion.button>
                 <motion.button
                   onClick={onAccept}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-6 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors"
+                  className="px-6 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-indigo-500/30"
                 >
-                  Accept
+                  Terima
                 </motion.button>
               </div>
+            </div>
+          </div>
+        ) : isInitiator ? (
+          <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
+            <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-2">
+                <Clock size={16} />
+              </div>
+              <p className="text-sm text-zinc-100 font-semibold mb-1">
+                Permintaan Pesan Terkirim
+              </p>
+              <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                Menunggu persetujuan dari {contact.name}. Foto profil dan info lengkap akan terbuka setelah permintaan disetujui.
+              </p>
             </div>
           </div>
         ) : (
