@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
-import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, Lock, X } from 'lucide-react'
+import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, CheckCheck, Lock, X } from 'lucide-react'
 import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage, getCachedDecryptedMessage } from '../utils/crypto'
@@ -63,7 +63,7 @@ function renderClickableText(text, isOwn) {
 // ── Read Receipt Checkmarks ───────────────────────────────────────────────────
 function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalParticipants }) {
   if (status === 'sending') {
-    return <Loader2 size={10} className="animate-spin text-zinc-400 select-none flex items-center" title="Mengirim..." />
+    return <Loader2 size={11} className="animate-spin text-zinc-500 select-none flex items-center" title="Mengirim..." />
   }
 
   if (isGroup) {
@@ -74,34 +74,46 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
     // Double blue checks when all other members have read the message
     if (readCount >= recipientCount || status === 'read') {
       return (
-        <span className="text-indigo-400 text-[10px] font-bold leading-none select-none flex items-center" title="Read by all members">
-          ✓✓
+        <span className="text-indigo-400 select-none flex items-center" title="Dibaca oleh semua anggota">
+          <CheckCheck size={13} strokeWidth={2.5} />
         </span>
       )
     }
-    // Double grey checks when at least 1 member received or read it
+    // Double grey checks when delivered
     if (deliveredCount > 0 || readCount > 0 || status === 'delivered') {
       return (
-        <span className="text-zinc-400 text-[10px] leading-none select-none flex items-center" title="Delivered">
-          ✓✓
+        <span className="text-zinc-400 select-none flex items-center" title="Terkirim ke penerima">
+          <CheckCheck size={13} strokeWidth={2.5} />
         </span>
       )
     }
     // Single grey check for sent
     return (
-      <span className="text-zinc-500 text-[10px] leading-none select-none flex items-center" title="Sent">
-        ✓
+      <span className="text-zinc-500 select-none flex items-center" title="Terkirim ke server">
+        <Check size={12} strokeWidth={2.5} />
       </span>
     )
   }
 
   if (status === 'read') {
-    return <span className="text-indigo-400 text-[10px] font-bold leading-none select-none flex items-center" title="Read">✓✓</span>
+    return (
+      <span className="text-indigo-400 select-none flex items-center" title="Dibaca">
+        <CheckCheck size={13} strokeWidth={2.5} />
+      </span>
+    )
   }
   if (status === 'delivered') {
-    return <span className="text-zinc-400 text-[10px] leading-none select-none flex items-center" title="Delivered">✓✓</span>
+    return (
+      <span className="text-zinc-400 select-none flex items-center" title="Terkirim">
+        <CheckCheck size={13} strokeWidth={2.5} />
+      </span>
+    )
   }
-  return <span className="text-zinc-500 text-[10px] leading-none select-none flex items-center" title="Sent">✓</span>
+  return (
+    <span className="text-zinc-500 select-none flex items-center" title="Terkirim ke server">
+      <Check size={12} strokeWidth={2.5} />
+    </span>
+  )
 }
 
 // ── Audio Player Component ─────────────────────────────────────────────────────

@@ -35,6 +35,8 @@ GEMINI.md
 AGENTS.md
 .agents/
 
-
 # Admin Utility Scripts
 server/reset.js
+
+# Agent Skills
+SKILL.md
