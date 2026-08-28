@@ -5,10 +5,26 @@ import { X, ZoomIn } from 'lucide-react'
 export default function Lightbox({ src, onClose }) {
   // Close on Escape key
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  // Mobile Hardware Back Button Support via history pushState / popstate
+  useEffect(() => {
+    if (!src) return
+
+    window.history.pushState({ modalOpen: true, modalType: 'lightbox' }, '')
+
+    const handlePopState = (e) => {
+      onClose?.()
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [src, onClose])
 
   return (
     <AnimatePresence>

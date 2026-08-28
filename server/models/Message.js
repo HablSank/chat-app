@@ -128,6 +128,11 @@ const messageSchema = new mongoose.Schema(
         type: String,
         default: '',
       },
+      inviteStatus: {
+        type: String,
+        enum: ['pending', 'accepted', 'declined'],
+        default: 'pending',
+      },
     },
   },
   { timestamps: true }

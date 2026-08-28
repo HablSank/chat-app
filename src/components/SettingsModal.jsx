@@ -251,7 +251,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 20 }}
           transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-          className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-10"
+          className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-10 transform-gpu will-change-transform"
         >
           {/* Header */}
           <div id="settings-modal-header" className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/90 flex-shrink-0">

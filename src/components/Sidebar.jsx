@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, LogOut, Settings, Users, User, Download, Archive, ArrowLeft, MessageSquarePlus, CheckSquare, Trash2, Check, X, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -27,6 +27,15 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const [isNewChatOpen, setIsNewChatOpen] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
+
+  const handleOpenSettings = useCallback(() => setIsSettingsOpen(true), [])
+  const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), [])
+  const handleOpenProfile = useCallback(() => setIsProfileOpen?.(true), [setIsProfileOpen])
+  const handleCloseProfile = useCallback(() => setIsProfileOpen?.(false), [setIsProfileOpen])
+  const handleOpenCreateGroup = useCallback(() => setIsCreateGroupOpen(true), [])
+  const handleCloseCreateGroup = useCallback(() => setIsCreateGroupOpen(false), [])
+  const handleOpenNewChat = useCallback(() => setIsNewChatOpen(true), [])
+  const handleCloseNewChat = useCallback(() => setIsNewChatOpen(false), [])
 
   // Phase 15.22-FIX: Pin and Archive states from MongoDB with real-time sync
   const [isViewingArchive, setIsViewingArchive] = useState(false)
@@ -532,7 +541,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   return (
     <>
-      <div id="sidebar-container" className="w-full sm:w-80 md:w-96 flex flex-col h-full bg-zinc-900 border-r border-zinc-800 flex-shrink-0 relative select-none">
+      <div id="sidebar-container" className="w-full sm:w-80 md:w-96 flex flex-col h-full bg-zinc-900 border-r border-zinc-800 flex-shrink-0 relative select-none transform-gpu">
         {/* Floating Feedback Toast */}
         <AnimatePresence>
           {showToast && (
@@ -552,7 +561,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         <div id="sidebar-user-header" className="p-3.5 border-b border-zinc-800 flex items-center justify-between flex-shrink-0 bg-zinc-900">
           <div
             className="flex items-center gap-3 min-w-0 cursor-pointer group"
-            onClick={() => setIsProfileOpen?.(true)}
+            onClick={handleOpenProfile}
           >
             <div className="relative flex-shrink-0">
               <img
@@ -598,7 +607,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             <button
               type="button"
               id="sidebar-new-chat-btn"
-              onClick={() => setIsNewChatOpen(true)}
+              onClick={handleOpenNewChat}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
               title={t('createNewChat')}
             >
@@ -607,7 +616,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             <button
               type="button"
               id="sidebar-create-group-btn"
-              onClick={() => setIsCreateGroupOpen(true)}
+              onClick={handleOpenCreateGroup}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
               title={t('createGroup')}
             >
@@ -616,7 +625,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             <button
               type="button"
               id="sidebar-settings-btn"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={handleOpenSettings}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
               title={t('settings')}
             >
@@ -625,7 +634,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             <button
               type="button"
               id="sidebar-profile-btn"
-              onClick={() => setIsProfileOpen?.(true)}
+              onClick={handleOpenProfile}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
               title={t('profile')}
             >
@@ -849,7 +858,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             id="mobile-new-chat-fab"
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.92 }}
-            onClick={() => setIsNewChatOpen(true)}
+            onClick={handleOpenNewChat}
             className="fixed bottom-6 right-6 z-40 sm:hidden bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-2xl flex items-center justify-center cursor-pointer shadow-indigo-600/40"
             title={t('createNewChat')}
             aria-label="New Chat"
@@ -859,16 +868,16 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         )}
       </div>
 
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <ProfileSettings isOpen={isProfileOpen} onClose={() => setIsProfileOpen?.(false)} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      <ProfileSettings isOpen={isProfileOpen} onClose={handleCloseProfile} />
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
-        onClose={() => setIsCreateGroupOpen(false)}
+        onClose={handleCloseCreateGroup}
         onGroupCreated={handleGroupCreated}
       />
       <NewChatModal
         isOpen={isNewChatOpen}
-        onClose={() => setIsNewChatOpen(false)}
+        onClose={handleCloseNewChat}
         onSelectUser={handleSelectUser}
         existingUserIds={existingFriendIds}
       />

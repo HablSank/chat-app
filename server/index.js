@@ -1707,6 +1707,39 @@ app.delete('/api/messages/:id', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Update Group Invite Status on Message ───────────────────────────
+app.patch('/api/messages/:id/invite-status', protect, async (req, res) => {
+  try {
+    const { inviteStatus } = req.body
+    if (!['accepted', 'declined', 'pending'].includes(inviteStatus)) {
+      return res.status(400).json({ message: 'Invalid inviteStatus' })
+    }
+
+    const message = await Message.findById(req.params.id)
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found' })
+    }
+
+    if (!message.inviteData) {
+      message.inviteData = {}
+    }
+    message.inviteData.inviteStatus = inviteStatus
+    await message.save()
+
+    // Broadcast update to conversation participants
+    io.to(message.conversationId.toString()).emit('chat:invite_status_updated', {
+      messageId: message._id.toString(),
+      conversationId: message.conversationId.toString(),
+      inviteStatus,
+    })
+
+    res.json({ success: true, messageId: message._id, inviteStatus })
+  } catch (error) {
+    console.error('Update Invite Status Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Batch Archive Conversations ────────────────────────────────────
 app.patch('/api/conversations/batch-archive', protect, async (req, res) => {
   try {

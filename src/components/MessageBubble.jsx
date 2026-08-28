@@ -286,7 +286,19 @@ const downloadImage = async (imageUrl, fileName) => {
 }
 
 // ── Image Grid (1–4 images) ───────────────────────────────────────────────────
-function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
+function ImageGrid({
+  urls,
+  onOpenLightbox,
+  isOwn,
+  isEphemeral,
+  isUploading,
+  timestamp,
+  status,
+  isGroup,
+  readBy,
+  deliveredTo,
+  totalParticipants,
+}) {
   const count = urls.length
 
   if (count === 1) {
@@ -310,12 +322,29 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
               e.stopPropagation()
               downloadImage(urls[0], 'ping-image.jpg')
             }}
-            className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
+            className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
             title="Unduh Gambar"
           >
             <Download size={13} />
           </button>
         )}
+
+        {/* WhatsApp-style dark overlay pill for media timestamp & ticks */}
+        {!isUploading && timestamp && (
+          <div className="absolute bottom-1.5 right-1.5 bg-black/50 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm select-none pointer-events-none">
+            <span>{timestamp}</span>
+            {isOwn && (
+              <ReadReceipt
+                status={status}
+                isGroup={isGroup}
+                readBy={readBy}
+                deliveredTo={deliveredTo}
+                totalParticipants={totalParticipants}
+              />
+            )}
+          </div>
+        )}
+
         {isUploading && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 text-white select-none">
             <Loader2 size={24} className="animate-spin text-indigo-400" />
@@ -357,12 +386,29 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
                 e.stopPropagation()
                 downloadImage(url, `ping-image-${i + 1}.jpg`)
               }}
-              className="absolute bottom-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
+              className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
               title="Unduh Gambar"
             >
               <Download size={12} />
             </button>
           )}
+
+          {/* WhatsApp-style dark overlay pill on the last visible image */}
+          {!isUploading && timestamp && (i === Math.min(count - 1, 3)) && (
+            <div className="absolute bottom-1.5 right-1.5 bg-black/50 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm select-none pointer-events-none">
+              <span>{timestamp}</span>
+              {isOwn && (
+                <ReadReceipt
+                  status={status}
+                  isGroup={isGroup}
+                  readBy={readBy}
+                  deliveredTo={deliveredTo}
+                  totalParticipants={totalParticipants}
+                />
+              )}
+            </div>
+          )}
+
           {/* "+N more" overlay on the 4th tile */}
           {i === 3 && urls.length > 4 && !isUploading && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -371,12 +417,6 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
           )}
         </div>
       ))}
-      {isUploading && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 text-white select-none">
-          <Loader2 size={24} className="animate-spin text-indigo-400" />
-          <span className="text-[11px] font-medium text-zinc-200">Mengirim...</span>
-        </div>
-      )}
     </div>
   )
 }
@@ -564,10 +604,17 @@ function ReactionBubbles({ reactions, onReact }) {
 }
 
 // ── WhatsApp-Style Group Invite Card ──────────────────────────────────────────
-function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConversation, token }) {
+function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPendingConversation, token }) {
   const [isJoining, setIsJoining] = useState(false)
-  const [hasJoined, setHasJoined] = useState(false)
-  const [isDeclined, setIsDeclined] = useState(false)
+  const initialStatus = inviteData?.inviteStatus || 'pending'
+  const [inviteStatus, setInviteStatus] = useState(initialStatus)
+
+  // Sync state if inviteData changes
+  useEffect(() => {
+    if (inviteData?.inviteStatus) {
+      setInviteStatus(inviteData.inviteStatus)
+    }
+  }, [inviteData?.inviteStatus])
 
   const groupId = inviteData?.groupId?._id || inviteData?.groupId
   const groupName = inviteData?.groupName || 'Group'
@@ -575,6 +622,8 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
 
   // Phase 15.21: Lock [Gabung Grup] button for recipient when 1-on-1 conversation is pending message request
   const isLocked = !isOwn && !!isPendingConversation
+  const isDeclined = inviteStatus === 'declined'
+  const hasJoined = inviteStatus === 'accepted'
 
   const handleJoin = async (e) => {
     e.stopPropagation()
@@ -590,8 +639,20 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
       })
       const data = await res.json()
       if (res.ok) {
-        setHasJoined(true)
+        setInviteStatus('accepted')
         onJoinGroup?.(data)
+
+        // Persist accepted status to message in DB
+        if (messageId) {
+          fetch(getApiUrl(`/api/messages/${messageId}/invite-status`), {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ inviteStatus: 'accepted' }),
+          }).catch((err) => console.error('Failed to persist accepted invite status:', err))
+        }
       } else {
         console.error('Failed to join group:', data.message)
       }
@@ -602,10 +663,26 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
     }
   }
 
-  const handleDecline = (e) => {
+  const handleDecline = async (e) => {
     e.stopPropagation()
     if (isLocked) return
-    setIsDeclined(true)
+    setInviteStatus('declined')
+
+    // Persist declined status to message in DB
+    if (messageId) {
+      try {
+        await fetch(getApiUrl(`/api/messages/${messageId}/invite-status`), {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ inviteStatus: 'declined' }),
+        })
+      } catch (err) {
+        console.error('Failed to persist declined invite status:', err)
+      }
+    }
   }
 
   return (
@@ -652,11 +729,11 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
           {isOwn ? (
             <span className="text-zinc-400">Undangan Anda terkirim</span>
           ) : isDeclined ? (
-            <span className="text-rose-400">Undangan ditolak</span>
+            <span className="text-rose-400">✕ Undangan grup ditolak</span>
           ) : isLocked ? (
             <span className="text-amber-400/90">Terima pesan terlebih dahulu</span>
           ) : hasJoined ? (
-            <span className="text-emerald-400">Sudah bergabung</span>
+            <span className="text-emerald-400">✓ Anda telah bergabung</span>
           ) : (
             <span className="text-zinc-400">Ketuk untuk bergabung</span>
           )}
@@ -680,7 +757,7 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
               ) : (
                 <>
                   <Users size={13} />
-                  <span>Lihat Grup</span>
+                  <span>Gabung</span>
                 </>
               )}
             </motion.button>
@@ -916,16 +993,21 @@ export default function MessageBubble({
     }
   }, [])
 
-  // ── Long-press / Selection for WhatsApp-Style Top Header Bar ──
-  const handleTouchStart = () => {
+  const touchStartPosRef = useRef({ x: 0, y: 0 })
+
+  // ── Long-press / Selection for WhatsApp-Style Top Header Bar (~350ms with scroll cancel) ──
+  const handleTouchStart = (e) => {
     isLongPressRef.current = false
+    if (e.touches && e.touches[0]) {
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    }
     timerRef.current = setTimeout(() => {
       isLongPressRef.current = true
       onSelectMessage?.(message)
       if (navigator.vibrate) {
         try { navigator.vibrate(30) } catch {}
       }
-    }, 450)
+    }, 350)
   }
 
   const handleTouchEnd = () => {
@@ -935,10 +1017,14 @@ export default function MessageBubble({
     }
   }
 
-  const handleTouchMove = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
+  const handleTouchMove = (e) => {
+    if (timerRef.current && e.touches && e.touches[0]) {
+      const diffX = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x)
+      const diffY = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y)
+      if (diffX > 10 || diffY > 10) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
     }
   }
 
@@ -1108,6 +1194,12 @@ export default function MessageBubble({
                   isEphemeral={isEphemeral}
                   isUploading={isUploading || status === 'sending'}
                   onOpenLightbox={(src) => setLightboxSrc(src)}
+                  timestamp={timestamp}
+                  status={status}
+                  isGroup={isGroup}
+                  readBy={readBy}
+                  deliveredTo={deliveredTo}
+                  totalParticipants={totalParticipants}
                 />
               )}
 
@@ -1124,12 +1216,25 @@ export default function MessageBubble({
                   `}
                 >
                   <AudioPlayer audioUrl={audioUrl} isOwn={isOwn} audioDuration={audioDuration} />
+                  <div className="flex items-center justify-end gap-1 px-1 mt-1 text-[10px] opacity-75">
+                    <span>{timestamp}</span>
+                    {isOwn && (
+                      <ReadReceipt
+                        status={status}
+                        isGroup={isGroup}
+                        readBy={readBy}
+                        deliveredTo={deliveredTo}
+                        totalParticipants={totalParticipants}
+                      />
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* Group Invite Card or Text bubble */}
               {messageType === 'group_invite' || inviteData?.groupId ? (
                 <GroupInviteCard
+                  messageId={_id}
                   inviteData={inviteData}
                   text={decryptedText || text}
                   isOwn={isOwn}
@@ -1142,14 +1247,34 @@ export default function MessageBubble({
                   <div
                     style={isOwn && customTheme?.bubbleColor ? { backgroundColor: customTheme.bubbleColor } : {}}
                     className={`
-                      px-4 py-2.5 text-sm leading-relaxed break-words select-text
+                      px-3.5 py-2 text-sm leading-relaxed break-words select-text relative
                       ${isOwn
                         ? `${!customTheme?.bubbleColor ? 'bg-indigo-500/90' : ''} text-white rounded-2xl rounded-br-sm shadow-sm`
                         : 'bg-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm'}
                       ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 shadow-sm' : 'border-2 border-dashed border-zinc-500 shadow-sm') : ''}
                     `}
                   >
-                    {renderClickableText(decryptedText, isOwn)}
+                    <span>{renderClickableText(decryptedText, isOwn)}</span>
+                    {/* Embedded WhatsApp-style bottom-right timestamp & ticks */}
+                    <span className="inline-flex items-center gap-1 float-end pl-2 pt-1 mt-0.5 select-none text-[10px] opacity-75 align-bottom">
+                      {isPinned && !isDeleted && (
+                        <Pin size={9} className="text-indigo-300 rotate-45" title="Pinned" />
+                      )}
+                      {isEphemeral && <Timer size={9} className="text-zinc-300" title="Vanish Mode" />}
+                      <span>{timestamp}</span>
+                      {isEdited && !isDeleted && (
+                        <span className="italic text-[9px]">(edited)</span>
+                      )}
+                      {isOwn && !isDeleted && (
+                        <ReadReceipt
+                          status={status}
+                          isGroup={isGroup}
+                          readBy={readBy}
+                          deliveredTo={deliveredTo}
+                          totalParticipants={totalParticipants}
+                        />
+                      )}
+                    </span>
                   </div>
                 )
               )}
@@ -1161,29 +1286,6 @@ export default function MessageBubble({
               />
             </>
           )}
-
-          {/* Timestamp + Read receipt + Pinned / Edited badges */}
-          <div className="flex items-center gap-1 px-1 mt-0.5">
-            {isPinned && !isDeleted && (
-              <Pin size={10} className="text-indigo-400 rotate-45" title="Pinned message" />
-            )}
-            {isEphemeral && <Timer size={10} className="text-zinc-500" title="Vanish Mode Message" />}
-            <span className="text-xs text-zinc-500">
-              {timestamp} {isEphemeral && expiresAt && `• Expires at ${expiresAt}`}
-            </span>
-            {isEdited && !isDeleted && (
-              <span className="text-[10px] text-zinc-500 italic">(edited)</span>
-            )}
-            {isOwn && !isDeleted && (
-              <ReadReceipt
-                status={status}
-                isGroup={isGroup}
-                readBy={readBy}
-                deliveredTo={deliveredTo}
-                totalParticipants={totalParticipants}
-              />
-            )}
-          </div>
         </motion.div>
       </motion.div>
     </>

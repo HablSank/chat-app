@@ -296,7 +296,7 @@ export default function ChatRoom({
   const prevMsgLengthRef = useRef(safeMessages.length)
   const messagesEndRef = useRef(null)
 
-  // 1. Instant scrollToBottom when opening or switching a chat room
+  // 1. Instant scrollToBottom with delayed teleport (~180ms) when opening or switching a chat room
   useLayoutEffect(() => {
     if (!activeRoomId) return
     const isSwitched = prevRoomIdRef.current !== activeRoomId
@@ -308,18 +308,20 @@ export default function ChatRoom({
     }
 
     if (!initialScrollDoneRef.current || isSwitched) {
+      // Immediate teleport attempt
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
       }
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' })
       initialScrollDoneRef.current = true
 
-      requestAnimationFrame(() => {
+      // Delayed teleport (~180ms) to ensure layout/images settled without jitter
+      const timer = setTimeout(() => {
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' })
-      })
+      }, 180)
+
+      return () => clearTimeout(timer)
     }
   }, [activeRoomId, safeMessages.length])
 

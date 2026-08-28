@@ -214,7 +214,7 @@ export default function ProfileSettings({ isOpen, onClose }) {
               animate="visible"
               exit="exit"
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm sm:max-w-md mx-4 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl relative my-auto pointer-events-auto"
+              className="w-full max-w-sm sm:max-w-md mx-4 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl relative my-auto pointer-events-auto transform-gpu will-change-transform"
             >
               {/* Header Banner */}
               <div className="h-28 sm:h-32 bg-gradient-to-br from-indigo-600/30 via-purple-600/20 to-zinc-900 relative border-b border-zinc-800/40 rounded-t-3xl overflow-hidden">
