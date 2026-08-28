@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
-import { Search, LogOut, Settings, Users, Edit, Download } from 'lucide-react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, LogOut, Settings, Users, Edit, Download, Pin, Archive, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { decryptMessage } from '../utils/crypto'
@@ -21,7 +21,88 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
+
+  // Phase 15.22: Pin and Archive states
+  const [pinnedChatIds, setPinnedChatIds] = useState([])
+  const [archivedChatIds, setArchivedChatIds] = useState([])
+  const [isViewingArchive, setIsViewingArchive] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
+  const [showToast, setShowToast] = useState(false)
+  const toastTimerRef = useRef(null)
   const searchInputRef = useRef(null)
+
+  const currentUserId = (user?.id || user?._id || '').toString()
+
+  // Load pinned and archived chat IDs from localStorage
+  useEffect(() => {
+    if (!currentUserId) return
+    try {
+      const savedPins = JSON.parse(localStorage.getItem(`ping_pinned_chats_${currentUserId}`) || '[]')
+      const savedArchives = JSON.parse(localStorage.getItem(`ping_archived_chats_${currentUserId}`) || '[]')
+      setPinnedChatIds(Array.isArray(savedPins) ? savedPins : [])
+      setArchivedChatIds(Array.isArray(savedArchives) ? savedArchives : [])
+    } catch {
+      setPinnedChatIds([])
+      setArchivedChatIds([])
+    }
+  }, [currentUserId])
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg)
+    setShowToast(true)
+    clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 2400)
+  }
+
+  const handleTogglePin = (contact) => {
+    const convId = (contact.conversationId || contact.id || '').toString()
+    if (!convId || !currentUserId) return
+
+    setPinnedChatIds(prev => {
+      const isPinned = prev.includes(convId)
+      if (isPinned) {
+        const next = prev.filter(id => id !== convId)
+        localStorage.setItem(`ping_pinned_chats_${currentUserId}`, JSON.stringify(next))
+        triggerToast('📌 Sematan chat dilepas')
+        return next
+      } else {
+        if (prev.length >= 3) {
+          triggerToast('⚠️ Maksimal 3 chat yang dapat disematkan')
+          return prev
+        }
+        const next = [convId, ...prev]
+        localStorage.setItem(`ping_pinned_chats_${currentUserId}`, JSON.stringify(next))
+        triggerToast('📌 Chat disematkan ke atas')
+        return next
+      }
+    })
+  }
+
+  const handleToggleArchive = (contact) => {
+    const convId = (contact.conversationId || contact.id || '').toString()
+    if (!convId || !currentUserId) return
+
+    setArchivedChatIds(prev => {
+      const isArchived = prev.includes(convId)
+      if (isArchived) {
+        const next = prev.filter(id => id !== convId)
+        localStorage.setItem(`ping_archived_chats_${currentUserId}`, JSON.stringify(next))
+        triggerToast('📦 Chat dipindahkan dari arsip')
+        return next
+      } else {
+        const next = [convId, ...prev]
+        localStorage.setItem(`ping_archived_chats_${currentUserId}`, JSON.stringify(next))
+        // If chat was pinned, unpin it
+        setPinnedChatIds(pins => {
+          const nextPins = pins.filter(id => id !== convId)
+          localStorage.setItem(`ping_pinned_chats_${currentUserId}`, JSON.stringify(nextPins))
+          return nextPins
+        })
+        triggerToast('📦 Chat berhasil diarsipkan')
+        return next
+      }
+    })
+  }
 
   // Sync modal state with AuthContext isProfileOpen
   useEffect(() => {
@@ -122,7 +203,6 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   }, [query, token])
 
   const handleSelectConversation = (conv) => {
-    const currentUserId = (user?.id || user?._id || '').toString()
     if (conv.isGroup) {
       const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
       onSelect({
@@ -138,10 +218,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         participants: conv.participants || [],
         members: conv.members || conv.participants || [],
         pendingMembers: conv.pendingMembers || [],
-        conversationId: conv._id,
         status: isPending ? 'pending' : 'accepted',
         isPendingInvite: isPending,
-        initiator: conv.initiator,
+        conversationId: conv._id,
       })
       setQuery('')
       return
@@ -206,8 +285,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       lastSeen: searchUser.lastSeen,
       statusEmoji: searchUser.statusEmoji,
       isGroup: false,
-      conversationId: null,
-      status: 'new'
+      status: 'pending',
+      initiator: user?.id || user?._id
     })
     setQuery('')
   }
@@ -217,126 +296,223 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     handleSelectConversation(newGroup)
   }
 
+  // Split and organize conversations into Active (with Pinned on top) vs Archived
+  const { displayActiveConversations, archivedConversations } = useMemo(() => {
+    const archived = []
+    const activePinned = []
+    const activeUnpinned = []
+
+    conversations.forEach((conv) => {
+      const convIdStr = conv._id.toString()
+      if (archivedChatIds.includes(convIdStr)) {
+        archived.push(conv)
+      } else if (pinnedChatIds.includes(convIdStr)) {
+        activePinned.push(conv)
+      } else {
+        activeUnpinned.push(conv)
+      }
+    })
+
+    // Sort activePinned according to pinnedChatIds order
+    activePinned.sort((a, b) => {
+      const idxA = pinnedChatIds.indexOf(a._id.toString())
+      const idxB = pinnedChatIds.indexOf(b._id.toString())
+      return idxA - idxB
+    })
+
+    return {
+      displayActiveConversations: [...activePinned, ...activeUnpinned],
+      archivedConversations: archived,
+    }
+  }, [conversations, pinnedChatIds, archivedChatIds])
+
+  const renderConversationItem = (conv, isArchivedView = false) => {
+    const convIdStr = conv._id.toString()
+    const isPinned = pinnedChatIds.includes(convIdStr)
+    const isArchived = archivedChatIds.includes(convIdStr)
+
+    if (conv.isGroup) {
+      const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
+      return (
+        <div key={conv._id} className="relative">
+          <ChatItem
+            contact={{
+              id: conv._id,
+              conversationId: conv._id,
+              name: conv.groupName || 'Group Chat',
+              avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
+              isGroup: true,
+              participantsCount: conv.participants?.length || (conv.members?.length || 0),
+              status: isPending ? 'pending' : 'accepted',
+              isPendingInvite: isPending,
+              pendingMembers: conv.pendingMembers || [],
+              lastMessage: conv.lastMessage?.isSystem
+                ? conv.lastMessage.systemText
+                : conv.lastMessage?.audioUrl
+                ? '🎵 Voice note'
+                : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
+                ? '📷 Shared an image'
+                : conv.lastMessage?.text || '',
+              timestamp: conv.lastMessage?.createdAt
+                ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : '',
+              unreadCount: conv.unreadCount || 0,
+            }}
+            isSelected={conv._id === selectedId}
+            onClick={() => handleSelectConversation(conv)}
+            isNew={isPending}
+            isPinned={isPinned}
+            isArchived={isArchived}
+            onTogglePin={handleTogglePin}
+            onToggleArchive={handleToggleArchive}
+          />
+        </div>
+      )
+    }
+
+    const other = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
+    if (!other) return null
+    const isPending = conv.status === 'pending'
+    const initiatorId = conv.initiator?._id
+      ? conv.initiator._id.toString()
+      : (conv.initiator ? conv.initiator.toString() : '')
+    const isReceiver = isPending && initiatorId !== currentUserId
+
+    return (
+      <div key={conv._id} className="relative">
+        <ChatItem
+          contact={{
+            id: other._id,
+            conversationId: conv._id,
+            name: other.displayName || other.username,
+            avatar: other.avatar,
+            presence: other.presence,
+            statusEmoji: other.statusEmoji,
+            isGroup: false,
+            status: conv.status,
+            initiator: conv.initiator,
+            lastMessage: conv.lastMessage?.messageType === 'group_invite'
+              ? `👥 Undangan Grup: ${conv.lastMessage.inviteData?.groupName || 'Grup'}`
+              : conv.lastMessage?.audioUrl
+              ? '🎵 Voice note'
+              : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
+              ? '📷 Shared an image'
+              : conv.lastMessage?.text || '',
+            timestamp: conv.lastMessage?.createdAt
+              ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : '',
+            unreadCount: conv.unreadCount || 0,
+          }}
+          isSelected={other._id === selectedId}
+          onClick={() => handleSelectConversation(conv)}
+          isNew={isReceiver}
+          isPinned={isPinned}
+          isArchived={isArchived}
+          onTogglePin={handleTogglePin}
+          onToggleArchive={handleToggleArchive}
+        />
+      </div>
+    )
+  }
+
   return (
     <>
-      <ProfileSettings isOpen={isSettingsOpen} onClose={handleCloseSettings} />
-      <CreateGroupModal
-        isOpen={isCreateGroupOpen}
-        onClose={() => setIsCreateGroupOpen(false)}
-        onGroupCreated={handleGroupCreated}
-      />
-      <div className="flex flex-col h-full bg-zinc-900 border-r border-zinc-800">
-        {/* ── Profile Header ──────────────────────────── */}
-        <div className="flex items-center justify-between px-4 pt-5 pb-3 flex-shrink-0">
+      <div className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-zinc-900 border-r border-zinc-800 relative select-none">
+        {/* Floating Feedback Toast */}
+        <AnimatePresence>
+          {showToast && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 28 }}
+              className="absolute top-16 left-4 right-4 z-50 bg-zinc-850/95 border border-zinc-700/80 text-zinc-100 text-xs font-semibold px-3.5 py-2 rounded-xl shadow-2xl backdrop-blur-md text-center"
+            >
+              {toastMessage}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── User Header ─────────────────────────────── */}
+        <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative flex-shrink-0 cursor-pointer" onClick={() => setIsSettingsOpen(true)}>
+            <div className="relative flex-shrink-0">
               <img
-                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
-                alt={user?.username || 'User'}
-                className="w-10 h-10 rounded-full bg-zinc-700 object-cover ring-1 ring-zinc-700 hover:ring-indigo-500 transition-all"
+                src={user?.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=user'}
+                alt={user?.displayName || user?.username}
+                className="w-10 h-10 rounded-full bg-zinc-700 object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setIsSettingsOpen(true)}
               />
-              <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
-                user?.presence === 'away' || user?.presence === 'idle' || user?.status === 'away' || user?.status === 'idle'
-                  ? 'bg-amber-400'
-                  : user?.presence === 'busy' || user?.presence === 'dnd' || user?.status === 'busy' || user?.status === 'dnd'
-                  ? 'bg-rose-500'
-                  : user?.presence === 'offline' || user?.status === 'offline'
-                  ? 'bg-zinc-400'
-                  : 'bg-emerald-400'
-              }`} />
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-900 bg-emerald-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-zinc-100 leading-tight truncate flex items-center gap-1.5">
-                {user?.displayName || user?.username || 'User'}
-                {user?.statusEmoji && <span>{user?.statusEmoji}</span>}
-              </p>
-              <p className={`text-xs font-medium ${
-                user?.presence === 'away' || user?.presence === 'idle' || user?.status === 'away' || user?.status === 'idle'
-                  ? 'text-amber-400'
-                  : user?.presence === 'busy' || user?.presence === 'dnd' || user?.status === 'busy' || user?.status === 'dnd'
-                  ? 'text-rose-500'
-                  : user?.presence === 'offline' || user?.status === 'offline'
-                  ? 'text-zinc-400'
-                  : 'text-emerald-400'
-              }`}>
-                {user?.presence === 'away' || user?.presence === 'idle' || user?.status === 'away' || user?.status === 'idle'
-                  ? 'Away'
-                  : user?.presence === 'busy' || user?.presence === 'dnd' || user?.status === 'busy' || user?.status === 'dnd'
-                  ? 'Busy'
-                  : user?.presence === 'offline' || user?.status === 'offline'
-                  ? 'Offline'
-                  : 'Online'}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-sm text-zinc-100 truncate">
+                  {user?.displayName || user?.username}
+                </span>
+                {user?.statusEmoji && <span className="flex-shrink-0">{user.statusEmoji}</span>}
+              </div>
+              <p className="text-xs text-zinc-400 truncate font-mono">@{user?.username}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Install PWA button (Always visible on web browsers, hidden when running in standalone mode) */}
-            {!isInstalled && (
-              <motion.button
+          <div className="flex items-center gap-1">
+            {isInstallable && !isInstalled && (
+              <button
+                type="button"
                 id="sidebar-install-pwa-btn"
                 onClick={handleInstallPWA}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="w-8 h-8 flex items-center justify-center rounded-full text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 transition-colors cursor-pointer"
-                title="Install Ping! App"
+                className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-full transition-colors cursor-pointer"
+                title="Install App (PWA)"
               >
-                <Download size={16} />
-              </motion.button>
+                <Download size={18} />
+              </button>
             )}
-            {/* Create Group button */}
-            <motion.button
+            <button
+              type="button"
               id="sidebar-create-group-btn"
               onClick={() => setIsCreateGroupOpen(true)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-indigo-300 hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="Create New Group"
+              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Buat Grup Baru"
             >
-              <Users size={16} />
-            </motion.button>
-            {/* Settings button */}
-            <motion.button
+              <Users size={18} />
+            </button>
+            <button
+              type="button"
               id="sidebar-settings-btn"
               onClick={() => setIsSettingsOpen(true)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="Profile Settings"
+              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Settings"
             >
-              <Settings size={16} />
-            </motion.button>
-            {/* New chat / compose button -> focuses search */}
-            <motion.button
+              <Settings size={18} />
+            </button>
+            <button
+              type="button"
               id="sidebar-compose-btn"
               onClick={() => searchInputRef.current?.focus()}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="New chat"
+              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Cari atau Mulai Chat Baru"
             >
-              <Edit size={16} />
-            </motion.button>
-            {/* Logout button */}
-            <motion.button
+              <Edit size={18} />
+            </button>
+            <button
+              type="button"
               onClick={logout}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:text-red-400 hover:bg-red-400/10 transition-colors cursor-pointer"
-              title="Logout"
+              className="p-2 text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Log out"
             >
-              <LogOut size={16} />
-            </motion.button>
+              <LogOut size={18} />
+            </button>
           </div>
         </div>
 
-        {/* ── PWA Install Prompt Banner ───────────────── */}
+        {/* ── PWA Install Banner ──────────────────────── */}
         <PWAInstallBanner />
 
         {/* ── Search Bar ──────────────────────────────── */}
-        <div className="px-4 pb-3 flex-shrink-0">
-          <div className="flex items-center gap-2 bg-zinc-800 rounded-2xl px-3 py-2 border border-transparent focus-within:border-zinc-700 transition-colors">
-            <Search size={15} className="text-zinc-500 flex-shrink-0" />
+        <div className="p-3 flex-shrink-0">
+          <div className="flex items-center gap-2 bg-zinc-800/80 px-3.5 py-2.5 rounded-xl border border-zinc-700/50 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all">
+            <Search size={16} className="text-zinc-400 flex-shrink-0" />
             <input
               ref={searchInputRef}
               id="sidebar-search"
@@ -349,11 +525,22 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           </div>
         </div>
 
-        {/* ── Section Label ───────────────────────────── */}
+        {/* ── Section Label / Archive Header ──────────── */}
         <div className="px-4 pb-2 flex-shrink-0 flex justify-between items-center">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
-            {query ? 'Search Results' : 'Messages'}
-          </p>
+          {isViewingArchive ? (
+            <button
+              type="button"
+              onClick={() => setIsViewingArchive(false)}
+              className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              <span>Kembali ke Pesan</span>
+            </button>
+          ) : (
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
+              {query ? 'Search Results' : 'Messages'}
+            </p>
+          )}
         </div>
 
         {/* ── Scrollable List ─────────────────────── */}
@@ -382,92 +569,59 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             ) : (
               <p className="text-sm text-zinc-500 text-center mt-8">No users found</p>
             )
-          ) : (
-            /* Conversations */
-            conversations.length > 0 ? (
-              conversations.map((conv) => {
-                const currentUserId = (user?.id || user?._id || '').toString()
-                if (conv.isGroup) {
-                  const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
-                  return (
-                    <div key={conv._id} className="relative">
-                      <ChatItem
-                        contact={{
-                          id: conv._id,
-                          name: conv.groupName || 'Group Chat',
-                          avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
-                          isGroup: true,
-                          participantsCount: conv.participants?.length || (conv.members?.length || 0),
-                          status: isPending ? 'pending' : 'accepted',
-                          isPendingInvite: isPending,
-                          pendingMembers: conv.pendingMembers || [],
-                          lastMessage: conv.lastMessage?.isSystem
-                            ? conv.lastMessage.systemText
-                            : conv.lastMessage?.audioUrl
-                            ? '🎵 Voice note'
-                            : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
-                            ? '📷 Shared an image'
-                            : conv.lastMessage?.text || '',
-                          timestamp: conv.lastMessage?.createdAt
-                            ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : '',
-                          unreadCount: conv.unreadCount || 0,
-                        }}
-                        isSelected={conv._id === selectedId}
-                        onClick={() => handleSelectConversation(conv)}
-                        isNew={isPending}
-                      />
-                    </div>
-                  )
-                }
-
-                const other = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
-                if (!other) return null
-                const isPending = conv.status === 'pending'
-                const initiatorId = conv.initiator?._id
-                  ? conv.initiator._id.toString()
-                  : (conv.initiator ? conv.initiator.toString() : '')
-                const isReceiver = isPending && initiatorId !== currentUserId
-
-                return (
-                  <div key={conv._id} className="relative">
-                    <ChatItem
-                      contact={{
-                        id: other._id,
-                        name: other.displayName || other.username,
-                        avatar: other.avatar,
-                        presence: other.presence,
-                        statusEmoji: other.statusEmoji,
-                        isGroup: false,
-                        status: conv.status,
-                        initiator: conv.initiator,
-                        lastMessage: conv.lastMessage?.messageType === 'group_invite'
-                          ? `👥 Undangan Grup: ${conv.lastMessage.inviteData?.groupName || 'Grup'}`
-                          : conv.lastMessage?.audioUrl
-                          ? '🎵 Voice note'
-                          : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl
-                          ? '📷 Shared an image'
-                          : conv.lastMessage?.text || '',
-                        timestamp: conv.lastMessage?.createdAt
-                          ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : '',
-                        unreadCount: conv.unreadCount || 0,
-                      }}
-                      isSelected={other._id === selectedId}
-                      onClick={() => handleSelectConversation(conv)}
-                      isNew={isReceiver}
-                    />
-                  </div>
-                )
-              })
+          ) : isViewingArchive ? (
+            /* Archived Conversations View */
+            archivedConversations.length > 0 ? (
+              archivedConversations.map((conv) => renderConversationItem(conv, true))
             ) : (
-              <p className="text-sm text-zinc-500 text-center mt-8">
-                Search for users or create a group to start chatting
-              </p>
+              <div className="text-center py-10 px-4">
+                <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 mx-auto mb-2">
+                  <Archive size={20} />
+                </div>
+                <p className="text-sm font-semibold text-zinc-300">Tidak ada chat diarsipkan</p>
+                <p className="text-xs text-zinc-500 mt-1">Klik kanan atau tahan chat untuk mengarsipkan.</p>
+              </div>
             )
+          ) : (
+            /* Active Conversations List */
+            <>
+              {/* Archive Folder Row if there are archived chats */}
+              {archivedConversations.length > 0 && (
+                <motion.button
+                  whileHover={{ backgroundColor: 'rgba(39,39,42,0.6)' }}
+                  onClick={() => setIsViewingArchive(true)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-zinc-300 hover:text-white transition-colors cursor-pointer mb-2 bg-zinc-800/30 border border-zinc-800"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400">
+                      <Archive size={15} />
+                    </div>
+                    <span className="text-sm font-semibold text-zinc-200">Diarsipkan</span>
+                  </div>
+                  <span className="text-xs font-bold text-indigo-400 bg-indigo-500/15 border border-indigo-500/25 px-2 py-0.5 rounded-full">
+                    {archivedConversations.length}
+                  </span>
+                </motion.button>
+              )}
+
+              {displayActiveConversations.length > 0 ? (
+                displayActiveConversations.map((conv) => renderConversationItem(conv, false))
+              ) : (
+                <p className="text-sm text-zinc-500 text-center mt-8">
+                  Search for users or create a group to start chatting
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      <ProfileSettings isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onGroupCreated={handleGroupCreated}
+      />
       <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
     </>
   )

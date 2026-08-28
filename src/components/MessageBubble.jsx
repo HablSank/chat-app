@@ -108,6 +108,7 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
 function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1) // 1 -> 1.5 -> 2 -> 1
 
   const initialDuration = (isFinite(audioDuration) && !isNaN(audioDuration) && audioDuration > 0)
     ? Number(audioDuration)
@@ -125,6 +126,22 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
     }
   }
 
+  const toggleSpeed = (e) => {
+    e.stopPropagation()
+    const nextSpeed = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1
+    setPlaybackSpeed(nextSpeed)
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed
+    }
+  }
+
+  const handlePlay = () => {
+    setIsPlaying(true)
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed
+    }
+  }
+
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setCurrentTime(audioRef.current.currentTime)
@@ -139,6 +156,7 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
       } else if (initialDuration > 0) {
         setDuration(initialDuration)
       }
+      audioRef.current.playbackRate = playbackSpeed
     }
   }
 
@@ -176,11 +194,11 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
     : `linear-gradient(to right, #6366f1 ${progress}%, #3f3f46 ${progress}%)`
 
   return (
-    <div className="flex items-center gap-3 py-1 px-1 min-w-[210px] sm:min-w-[250px]" onClick={e => e.stopPropagation()}>
+    <div className="flex items-center gap-2.5 py-1 px-1 min-w-[220px] sm:min-w-[270px]" onClick={e => e.stopPropagation()}>
       <audio
         ref={audioRef}
         src={audioUrl}
-        onPlay={() => setIsPlaying(true)}
+        onPlay={handlePlay}
         onPause={() => setIsPlaying(false)}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
@@ -196,7 +214,7 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
         {isPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
       </button>
 
-      <div className="flex-1 flex flex-col justify-center">
+      <div className="flex-1 flex flex-col justify-center min-w-0">
         <input
           type="range"
           min="0"
@@ -214,6 +232,21 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
           <span>{formatTime(effectiveDuration)}</span>
         </div>
       </div>
+
+      {/* Voice speedup button (1x / 1.5x / 2x) */}
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={toggleSpeed}
+        className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer flex-shrink-0 ${
+          playbackSpeed > 1
+            ? (isOwn ? 'bg-white text-indigo-700 font-extrabold shadow-sm' : 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/40')
+            : (isOwn ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-zinc-850 text-zinc-300 hover:bg-zinc-700 border border-zinc-700/60')
+        }`}
+        title="Ubah Kecepatan Suara (1x / 1.5x / 2x)"
+      >
+        {playbackSpeed}x
+      </motion.button>
     </div>
   )
 }
