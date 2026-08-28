@@ -45,7 +45,73 @@
     scrollbar-width: none;
   }
 
+  /* ── LIGHT MODE STYLING ── */
+  html.light,
+  html.light-theme {
+    color-scheme: light;
+  }
+
+  html.light body,
   html.light-theme body {
-    filter: brightness(1.05) contrast(0.98);
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+  }
+
+  html.light .bg-zinc-950,
+  html.light-theme .bg-zinc-950 {
+    background-color: #f1f5f9 !important;
+  }
+
+  html.light .bg-zinc-900,
+  html.light-theme .bg-zinc-900 {
+    background-color: #ffffff !important;
+  }
+
+  html.light .bg-zinc-900\/50,
+  html.light-theme .bg-zinc-900\/50,
+  html.light .bg-zinc-950\/50,
+  html.light-theme .bg-zinc-950\/50,
+  html.light .bg-zinc-950\/60,
+  html.light-theme .bg-zinc-950\/60 {
+    background-color: rgba(241, 245, 249, 0.8) !important;
+  }
+
+  html.light .bg-zinc-850,
+  html.light-theme .bg-zinc-850,
+  html.light .bg-zinc-800,
+  html.light-theme .bg-zinc-800 {
+    background-color: #f1f5f9 !important;
+  }
+
+  html.light .border-zinc-800,
+  html.light-theme .border-zinc-800,
+  html.light .border-zinc-700,
+  html.light-theme .border-zinc-700,
+  html.light .border-zinc-800\/80,
+  html.light-theme .border-zinc-800\/80 {
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light .text-zinc-100,
+  html.light-theme .text-zinc-100,
+  html.light .text-zinc-200,
+  html.light-theme .text-zinc-200 {
+    color: #0f172a !important;
+  }
+
+  html.light .text-zinc-400,
+  html.light-theme .text-zinc-400,
+  html.light .text-zinc-500,
+  html.light-theme .text-zinc-500 {
+    color: #64748b !important;
+  }
+
+  html.light input,
+  html.light-theme input,
+  html.light textarea,
+  html.light-theme textarea {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
   }
 }

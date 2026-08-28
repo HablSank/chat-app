@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
+import { ThemeProvider } from './context/ThemeContext'
 import AppLayout from './components/AppLayout'
 import Login from './components/Login'
 import Register from './components/Register'
@@ -34,21 +35,14 @@ function AuthRouter() {
 }
 
 function App() {
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('ping_app_theme')
-    if (savedTheme === 'light') {
-      document.documentElement.classList.add('light-theme')
-    } else {
-      document.documentElement.classList.remove('light-theme')
-    }
-  }, [])
-
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <AuthRouter />
-      </AuthProvider>
-    </LanguageProvider>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AuthRouter />
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   )
 }
 

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
+import { useTheme } from '../context/ThemeContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useAutoUpdate } from '../hooks/useAutoUpdate'
 import { getApiUrl } from '../config/api'
@@ -31,6 +32,7 @@ import PWAInstallGuideModal from './PWAInstallGuideModal'
 export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const { token, user, updateUserPresence } = useAuth()
   const { language, setLanguage, t } = useLanguage()
+  const { theme, setTheme } = useTheme()
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const { updateAvailable, reloadApp } = useAutoUpdate()
 
@@ -39,7 +41,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const [notificationsAllowed, setNotificationsAllowed] = useState(false)
   const [isPushLoading, setIsPushLoading]     = useState(false)
   const [showPwaGuide, setShowPwaGuide]       = useState(false)
-  const [appTheme, setAppTheme]               = useState(() => localStorage.getItem('ping_app_theme') || 'dark')
 
   // System update state
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
@@ -531,13 +532,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        setAppTheme('dark')
-                        localStorage.setItem('ping_app_theme', 'dark')
-                        document.documentElement.classList.remove('light-theme')
-                      }}
+                      onClick={() => setTheme('dark')}
                       className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
-                        appTheme === 'dark'
+                        theme === 'dark'
                           ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
                           : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
@@ -551,13 +548,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setAppTheme('light')
-                        localStorage.setItem('ping_app_theme', 'light')
-                        document.documentElement.classList.add('light-theme')
-                      }}
+                      onClick={() => setTheme('light')}
                       className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
-                        appTheme === 'light'
+                        theme === 'light'
                           ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
                           : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                       }`}

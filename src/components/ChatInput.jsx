@@ -23,6 +23,7 @@ export default function ChatInput({
   const [value, setValue]             = useState('')
   const [imageFiles, setImageFiles]   = useState([]) // up to 4
   const [previews, setPreviews]       = useState([])
+  const [isUploading, setIsUploading] = useState(false)
   const [isGiphyOpen, setIsGiphyOpen] = useState(false)
 
   // Voice recording state
