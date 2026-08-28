@@ -243,9 +243,11 @@ export default function ChatInput({
       const textToSend    = trimmed
       const replyTarget   = replyingTo?._id || null
       const localImageUrls = filesToUpload.map(f => URL.createObjectURL(f))
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
 
       // 1. Instantly render optimistic photo message in chat feed (0ms delay)
       onSend?.({
+        tempId,
         text: textToSend,
         imageUrls: localImageUrls,
         imageUrl: localImageUrls[0] || null,
@@ -277,6 +279,7 @@ export default function ChatInput({
           if (!res.ok) throw new Error(data.message || 'Media upload failed')
 
           onSend?.({
+            tempId,
             text: textToSend,
             imageUrls: data.imageUrls,
             replyTo: replyTarget,

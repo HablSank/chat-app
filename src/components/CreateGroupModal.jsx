@@ -4,6 +4,7 @@ import { Users, X, Search, Check, Loader2, Sparkles, Camera } from 'lucide-react
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
+import { compressImage } from '../utils/imageCompressor'
 import ImageCropperModal from './ImageCropperModal'
 
 export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
@@ -106,10 +107,12 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
     setIsCropperOpen(false)
     setTempImageSrc(null)
     setIsUploadingAvatar(true)
+    setError('')
 
     try {
+      const compressed = await compressImage(croppedBlob, { maxWidth: 500, maxHeight: 500, quality: 0.85 })
       const formData = new FormData()
-      formData.append('avatar', croppedBlob, 'group-avatar.jpg')
+      formData.append('avatar', compressed || croppedBlob, 'group-avatar.jpg')
 
       const res = await fetch(getApiUrl('/api/conversations/group-avatar'), {
         method: 'POST',
@@ -428,9 +431,9 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
           setIsCropperOpen(false)
           setTempImageSrc(null)
         }}
-        onCropComplete={handleCropComplete}
+        onCropFinished={handleCropComplete}
         cropShape="round"
-        aspectRatio={1}
+        aspect={1}
       />
     </>
   )

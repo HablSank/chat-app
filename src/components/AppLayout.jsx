@@ -140,10 +140,15 @@ export default function AppLayout() {
       const thread = prev[payload.conversationId] ?? []
       if (thread.some((m) => m._id === payload._id)) return prev
 
-      // If message is from self, replace any temporary/optimistic message matching temp- or sending state
+      // If message is from self or carries tempId, replace matching temporary/optimistic message
       const isFromSelf = (payload.sender?._id || payload.sender) === user?.id
-      if (isFromSelf) {
-        const tempIdx = thread.findIndex((m) => m._id?.startsWith?.('temp-') || m.isUploading || m.status === 'sending')
+      if (isFromSelf || payload.tempId) {
+        const tempIdx = thread.findIndex((m) =>
+          (payload.tempId && (m.tempId === payload.tempId || m._id === payload.tempId)) ||
+          m._id?.startsWith?.('temp-') ||
+          m.isUploading ||
+          m.status === 'sending'
+        )
         if (tempIdx !== -1) {
           const nextThread = [...thread]
           nextThread[tempIdx] = {
@@ -520,9 +525,10 @@ export default function AppLayout() {
     // Optimistic temporary rendering for media sending
     if (payload?.isOptimistic) {
       const convId = selectedContact.conversationId || 'default_room'
-      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+      const tempId = payload.tempId || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
       const optimisticMsg = {
         _id: tempId,
+        tempId: tempId,
         conversationId: convId,
         sender: {
           _id: user.id,
@@ -561,10 +567,11 @@ export default function AppLayout() {
       : ''
 
     // Optimistically render sent message immediately with plainText (0ms lag, no cipher flash)
+    const tempId = payload?.tempId || `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
     if (selectedContact.conversationId) {
-      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
       const optimisticMsg = {
         _id: tempId,
+        tempId: tempId,
         conversationId: convId,
         sender: {
           _id: user.id,
@@ -588,6 +595,16 @@ export default function AppLayout() {
 
       setChatMessages((prev) => {
         const thread = prev[convId] ?? []
+        // If an optimistic message with matching tempId exists (from media prep), update it
+        const tempIdx = thread.findIndex((m) => m._id === tempId || (m.tempId && m.tempId === tempId))
+        if (tempIdx !== -1) {
+          const nextThread = [...thread]
+          nextThread[tempIdx] = optimisticMsg
+          return {
+            ...prev,
+            [convId]: nextThread,
+          }
+        }
         return {
           ...prev,
           [convId]: [...thread, optimisticMsg],
@@ -605,6 +622,7 @@ export default function AppLayout() {
       audioDuration,
       replyTo,
       isEphemeral:   payload.isEphemeral,
+      tempId,
     })
 
     playSendSound()

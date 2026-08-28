@@ -997,52 +997,14 @@ export default function MessageBubble({
     return () => { isMounted = false }
   }, [replyTo?.text, replyTo?.plainText, conversationId])
 
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
-
-  const touchStartPosRef = useRef({ x: 0, y: 0 })
-
-  // ── Long-press / Selection for WhatsApp-Style Top Header Bar (~300ms with scroll cancel) ──
-  const handleTouchStart = (e) => {
-    isLongPressRef.current = false
-    if (e.touches && e.touches[0]) {
-      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    }
-    timerRef.current = setTimeout(() => {
-      isLongPressRef.current = true
-      onSelectMessage?.(message)
-      if (navigator.vibrate) {
-        try { navigator.vibrate(30) } catch {}
-      }
-    }, 300)
-  }
-
-  const handleTouchEnd = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-  }
-
-  const handleTouchMove = (e) => {
-    if (timerRef.current && e.touches && e.touches[0]) {
-      const diffX = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x)
-      const diffY = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y)
-      if (diffX > 8 || diffY > 8) {
-        clearTimeout(timerRef.current)
-        timerRef.current = null
-      }
-    }
-  }
-
+  // ── Phase 15.47: Overhaul Mobile Selection with Native onContextMenu ──
   const handleContextMenu = (e) => {
     e.preventDefault()
     if (!isDeleted) {
       onSelectMessage?.(message)
+      if (navigator.vibrate) {
+        try { navigator.vibrate(30) } catch {}
+      }
     }
   }
 
@@ -1134,9 +1096,6 @@ export default function MessageBubble({
           className={`relative flex flex-col max-w-[75%] sm:max-w-[70%] gap-1 select-none touch-callout-none touch-manipulation z-10 ${
             isOwn ? 'items-end' : 'items-start'
           }`}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          onTouchMove={handleTouchMove}
           onContextMenu={handleContextMenu}
         >
           {/* Contextual Quick Reactions Bar when EXACTLY 1 message is selected */}
