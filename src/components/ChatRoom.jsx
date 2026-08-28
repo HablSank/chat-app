@@ -431,9 +431,38 @@ export default function ChatRoom({
   }
 
   // Helper: Format message timestamp into WhatsApp copy standard [HH:mm, DD/MM/YYYY]
-  const formatMessageTimestamp = (createdAt) => {
-    const d = createdAt ? new Date(createdAt) : new Date()
-    if (isNaN(d.getTime())) return ''
+  const formatMessageTimestamp = (messageObj) => {
+    let date = null
+    const candidate = messageObj?.createdAt || messageObj?.timestamp || messageObj
+
+    if (candidate) {
+      const parsed = new Date(candidate)
+      if (!isNaN(parsed.getTime())) {
+        date = parsed
+      }
+    }
+
+    // If candidate was only a time string (e.g., '14:30'), try finding original in messages
+    if (!date && messageObj?._id) {
+      const orig = safeMessages.find((m) => m?._id?.toString() === messageObj._id.toString())
+      if (orig?.createdAt) {
+        const parsed = new Date(orig.createdAt)
+        if (!isNaN(parsed.getTime())) {
+          date = parsed
+        }
+      }
+      // Or extract timestamp from MongoDB ObjectId (first 4 bytes = unix timestamp)
+      if (!date && typeof messageObj._id === 'string' && messageObj._id.length === 24) {
+        try {
+          const unixSec = parseInt(messageObj._id.substring(0, 8), 16)
+          if (unixSec > 0) {
+            date = new Date(unixSec * 1000)
+          }
+        } catch {}
+      }
+    }
+
+    const d = date || new Date()
     const hh = d.getHours().toString().padStart(2, '0')
     const mm = d.getMinutes().toString().padStart(2, '0')
     const day = d.getDate().toString().padStart(2, '0')
@@ -446,11 +475,26 @@ export default function ChatRoom({
     const msgs = Array.isArray(target) ? target : [target].filter(Boolean)
     if (msgs.length === 0) return
 
-    // Sort chronologically
+    // Sort chronologically using true message creation time
     const sorted = [...msgs].sort((a, b) => {
-      const timeA = new Date(a.createdAt || a.timestamp || 0).getTime()
-      const timeB = new Date(b.createdAt || b.timestamp || 0).getTime()
-      return timeA - timeB
+      const getExactTime = (m) => {
+        if (m?.createdAt) {
+          const t = new Date(m.createdAt).getTime()
+          if (!isNaN(t)) return t
+        }
+        const orig = safeMessages.find((origMsg) => origMsg?._id?.toString() === m?._id?.toString())
+        if (orig?.createdAt) {
+          const t = new Date(orig.createdAt).getTime()
+          if (!isNaN(t)) return t
+        }
+        if (typeof m?._id === 'string' && m._id.length === 24) {
+          try {
+            return parseInt(m._id.substring(0, 8), 16) * 1000
+          } catch {}
+        }
+        return 0
+      }
+      return getExactTime(a) - getExactTime(b)
     })
 
     let copyText = ''
@@ -469,7 +513,7 @@ export default function ChatRoom({
     } else {
       // Multi-selection: WhatsApp standard formatting [HH:mm, DD/MM/YYYY] Sender: Message
       const formattedLines = sorted.map((m) => {
-        const timeStr = formatMessageTimestamp(m.createdAt)
+        const timeStr = formatMessageTimestamp(m)
         const senderName = m.isOwn
           ? (currentUser?.displayName || currentUser?.username || 'You')
           : (m.sender?.displayName || m.sender?.username || 'Member')
@@ -825,6 +869,7 @@ export default function ChatRoom({
                 systemText: msg.systemText,
                 isEphemeral: msg.isEphemeral,
                 expiresAt: msg.expiresAt ? new Date(msg.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+                createdAt: msg.createdAt,
                 timestamp: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
                 isOwn,
               }
