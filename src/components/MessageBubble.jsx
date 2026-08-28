@@ -5,6 +5,7 @@ import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage, getCachedDecryptedMessage } from '../utils/crypto'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
 
 const bubbleVariants = {
@@ -862,6 +863,7 @@ export default function MessageBubble({
   isSingleSelected = false,
 }) {
   const { token } = useAuth()
+  const { t } = useLanguage()
   const {
     _id,
     text,
