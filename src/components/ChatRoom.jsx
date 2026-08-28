@@ -89,8 +89,8 @@ function Toast({ message, visible }) {
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           className="absolute top-16 left-1/2 -translate-x-1/2 z-30
             bg-zinc-800/95 border border-zinc-700/80 text-zinc-100 text-xs font-medium
-            px-4 py-1.5 rounded-full shadow-2xl backdrop-blur-md pointer-events-none text-center
-            whitespace-nowrap max-w-[90%]"
+            px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md pointer-events-none text-center
+            max-w-[90%] sm:max-w-xs truncate"
         >
           {message}
         </motion.div>

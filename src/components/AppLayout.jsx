@@ -718,7 +718,7 @@ export default function AppLayout() {
         />
       </div>
 
-      <div className="flex-1 min-w-0 h-full overflow-hidden">
+      <div className="flex-1 min-w-0 max-w-full h-full overflow-hidden">
         <AnimatePresence mode="wait">
           {selectedContact ? (
             <ChatRoom
