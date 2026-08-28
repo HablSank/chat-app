@@ -357,11 +357,13 @@ app.get('/api/conversations', protect, async (req, res) => {
     const conversations = await Conversation.find({
       $or: [
         { participants: userId },
+        { members: userId },
         { isGroup: true, pendingMembers: userId },
       ],
       status: { $ne: 'rejected' },
     })
       .populate('participants', '-password')
+      .populate('members', '-password')
       .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
@@ -405,7 +407,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
       return res.status(400).json({ message: 'At least one other member is required' })
     }
 
-    // Pending invited members (excluding creator)
+    // Pending invited members (strictly excluding creator)
     const invitedUserIds = Array.from(
       new Set(memberIds.map(id => id.toString()).filter(id => id !== req.user._id.toString()))
     )
@@ -422,6 +424,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
       memberDetails: [{ user: req.user._id, joinedAt: now }],
       initiator: req.user._id,
       participants: [req.user._id],
+      members: [req.user._id],
       pendingMembers: invitedUserIds,
       status: 'accepted',
     })
@@ -444,6 +447,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
 
     const populatedGroup = await Conversation.findById(newGroup._id)
       .populate('participants', '-password')
+      .populate('members', '-password')
       .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
@@ -471,6 +475,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
         const inviteObj = { ...groupObj, status: 'pending', isPendingInvite: true }
         uSockets.forEach(sockId => {
           io.to(sockId).emit('conversation:new', inviteObj)
+          io.to(sockId).emit('group_invite_sent', inviteObj)
           io.to(sockId).emit('group:created', inviteObj)
         })
       }
@@ -553,8 +558,11 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
         const removedUsers = await User.find({ _id: { $in: removedIds } }).select('username displayName')
         const removedNames = removedUsers.map(u => u.displayName || u.username).join(', ')
 
-        // Remove from participants, admins, and memberDetails
+        // Remove from participants, members, admins, and memberDetails
         conversation.participants = conversation.participants.filter(p => !removedIds.includes(p._id?.toString() || p.toString()))
+        if (conversation.members) {
+          conversation.members = conversation.members.filter(m => !removedIds.includes(m._id?.toString() || m.toString()))
+        }
         conversation.groupAdmins = conversation.groupAdmins.filter(a => !removedIds.includes(a._id?.toString() || a.toString()))
         if (conversation.memberDetails) {
           conversation.memberDetails = conversation.memberDetails.filter(m => !removedIds.includes(m.user?.toString() || m.user?._id?.toString()))
@@ -593,6 +601,7 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
 
     const populatedGroup = await Conversation.findById(conversation._id)
       .populate('participants', '-password')
+      .populate('members', '-password')
       .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
@@ -902,6 +911,104 @@ app.post('/api/conversations/reject/:id', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Add Members to Group Exclusively as Pending ────────────────────
+app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
+  try {
+    const { userIds, memberIds } = req.body
+    const rawIds = Array.isArray(userIds) ? userIds : (Array.isArray(memberIds) ? memberIds : [])
+    if (rawIds.length === 0) return res.status(400).json({ message: 'User IDs are required' })
+
+    const conversation = await Conversation.findById(req.params.id)
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' })
+    if (!conversation.isGroup) return res.status(400).json({ message: 'Not a group conversation' })
+
+    const currentUserId = req.user._id.toString()
+    const currentAdmins = (conversation.groupAdmins && conversation.groupAdmins.length > 0)
+      ? conversation.groupAdmins.map(a => a.toString())
+      : [conversation.groupAdmin?.toString()].filter(Boolean)
+
+    if (!currentAdmins.includes(currentUserId)) {
+      return res.status(403).json({ message: 'Only group admins can invite members' })
+    }
+
+    const existingParticipantIds = conversation.participants.map(p => p._id?.toString() || p.toString())
+    const existingPendingIds = (conversation.pendingMembers || []).map(p => p._id?.toString() || p.toString())
+    const toAdd = Array.from(new Set(rawIds.map(id => id.toString())))
+      .filter(id => !existingParticipantIds.includes(id) && !existingPendingIds.includes(id))
+
+    if (toAdd.length > 0) {
+      if (!conversation.pendingMembers) conversation.pendingMembers = []
+      toAdd.forEach(uid => {
+        if (!conversation.pendingMembers.some(p => (p._id?.toString() || p.toString()) === uid)) {
+          conversation.pendingMembers.push(uid)
+        }
+      })
+
+      const addedUsers = await User.find({ _id: { $in: toAdd } }).select('username displayName')
+      const addedNames = addedUsers.map(u => u.displayName || u.username).join(', ')
+      const actorName = req.user.displayName || req.user.username
+
+      const sysMsg = new Message({
+        conversationId: conversation._id,
+        sender: req.user._id,
+        isSystem: true,
+        systemText: `${actorName} mengundang ${addedNames} ke grup`,
+        status: 'delivered',
+      })
+      await sysMsg.save()
+      conversation.lastMessage = sysMsg._id
+      await conversation.save()
+
+      const populatedGroup = await Conversation.findById(conversation._id)
+        .populate('participants', '-password')
+        .populate('members', '-password')
+        .populate('pendingMembers', '-password')
+        .populate('groupAdmin', '-password')
+        .populate('groupAdmins', '-password')
+        .populate('lastMessage')
+
+      const groupObj = populatedGroup.toObject()
+      toAdd.forEach(uid => {
+        const uSockets = connectedUsers.get(uid)
+        if (uSockets) {
+          const inviteObj = { ...groupObj, status: 'pending', isPendingInvite: true }
+          uSockets.forEach(sockId => {
+            io.to(sockId).emit('conversation:new', inviteObj)
+            io.to(sockId).emit('group_invite_sent', inviteObj)
+            io.to(sockId).emit('group:created', inviteObj)
+          })
+        }
+      })
+
+      io.to(conversation._id.toString()).emit('chat:private_message', {
+        ...sysMsg.toObject(),
+        sender: {
+          _id: req.user._id,
+          username: req.user.username,
+          displayName: req.user.displayName,
+          avatar: req.user.avatar,
+        },
+        conversationId: conversation._id.toString(),
+      })
+      io.to(conversation._id.toString()).emit('group:updated', populatedGroup)
+      return res.json(populatedGroup)
+    }
+
+    const populatedCurrent = await Conversation.findById(conversation._id)
+      .populate('participants', '-password')
+      .populate('members', '-password')
+      .populate('pendingMembers', '-password')
+      .populate('groupAdmin', '-password')
+      .populate('groupAdmins', '-password')
+      .populate('lastMessage')
+
+    res.json(populatedCurrent)
+  } catch (error) {
+    console.error('Add Members Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Group Invite Accept & Decline ──────────────────────────────────
 const handleAcceptGroupInvite = async (req, res) => {
   try {
@@ -921,6 +1028,12 @@ const handleAcceptGroupInvite = async (req, res) => {
     // Add to participants if not already present
     if (!conversation.participants.some((p) => (p._id?.toString() || p.toString()) === userIdStr)) {
       conversation.participants.push(req.user._id)
+    }
+
+    // Add to members if not already present
+    if (!conversation.members) conversation.members = []
+    if (!conversation.members.some((p) => (p._id?.toString() || p.toString()) === userIdStr)) {
+      conversation.members.push(req.user._id)
     }
 
     // Add to memberDetails
@@ -951,6 +1064,7 @@ const handleAcceptGroupInvite = async (req, res) => {
 
     const populatedGroup = await Conversation.findById(conversation._id)
       .populate('participants', '-password')
+      .populate('members', '-password')
       .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
@@ -1011,6 +1125,7 @@ const handleDeclineGroupInvite = async (req, res) => {
 
 app.post('/api/conversations/:id/decline-invite', protect, handleDeclineGroupInvite)
 app.post('/api/conversations/:id/decline-group', protect, handleDeclineGroupInvite)
+app.post('/api/conversations/:id/reject-group', protect, handleDeclineGroupInvite)
 
 // ── REST API: Get Message Info (Read By & Delivered To) ──────────────────────
 app.get('/api/messages/:id/info', protect, async (req, res) => {

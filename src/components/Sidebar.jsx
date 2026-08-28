@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Search, LogOut, MessageSquare, Settings, Users, Edit, Download } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Search, LogOut, Settings, Users, Edit, Download } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { decryptMessage } from '../utils/crypto'
@@ -122,7 +122,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   }, [query, token])
 
   const handleSelectConversation = (conv) => {
+    const currentUserId = (user?.id || user?._id || '').toString()
     if (conv.isGroup) {
+      const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
       onSelect({
         id: conv._id,
         name: conv.groupName || 'Group Chat',
@@ -134,15 +136,17 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         groupAdmin: conv.groupAdmin,
         groupAdmins: conv.groupAdmins || (conv.groupAdmin ? [conv.groupAdmin] : []),
         participants: conv.participants || [],
+        members: conv.members || conv.participants || [],
+        pendingMembers: conv.pendingMembers || [],
         conversationId: conv._id,
-        status: 'accepted',
+        status: isPending ? 'pending' : 'accepted',
+        isPendingInvite: isPending,
         initiator: conv.initiator,
       })
       setQuery('')
       return
     }
 
-    const currentUserId = (user?.id || user?._id || '').toString()
     const otherParticipant = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
     if (!otherParticipant) return
     onSelect({
@@ -382,7 +386,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             /* Conversations */
             conversations.length > 0 ? (
               conversations.map((conv) => {
+                const currentUserId = (user?.id || user?._id || '').toString()
                 if (conv.isGroup) {
+                  const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
                   return (
                     <div key={conv._id} className="relative">
                       <ChatItem
@@ -391,8 +397,10 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                           name: conv.groupName || 'Group Chat',
                           avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
                           isGroup: true,
-                          participantsCount: conv.participants?.length || 0,
-                          status: 'accepted',
+                          participantsCount: conv.participants?.length || (conv.members?.length || 0),
+                          status: isPending ? 'pending' : 'accepted',
+                          isPendingInvite: isPending,
+                          pendingMembers: conv.pendingMembers || [],
                           lastMessage: conv.lastMessage?.isSystem
                             ? conv.lastMessage.systemText
                             : conv.lastMessage?.audioUrl
@@ -407,12 +415,12 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                         }}
                         isSelected={conv._id === selectedId}
                         onClick={() => handleSelectConversation(conv)}
+                        isNew={isPending}
                       />
                     </div>
                   )
                 }
 
-                const currentUserId = (user?.id || user?._id || '').toString()
                 const other = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
                 if (!other) return null
                 const isPending = conv.status === 'pending'

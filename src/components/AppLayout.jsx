@@ -545,7 +545,7 @@ export default function AppLayout() {
     if (!selectedContact?.conversationId) return
     try {
       const endpoint = selectedContact.isGroup
-        ? `/api/conversations/${selectedContact.conversationId}/accept-invite`
+        ? `/api/conversations/${selectedContact.conversationId}/accept-group`
         : `/api/conversations/accept/${selectedContact.conversationId}`
 
       const res = await fetch(getApiUrl(endpoint), {
@@ -564,7 +564,7 @@ export default function AppLayout() {
           ...(selectedContact.isGroup ? {
             participants: data.participants || [],
             pendingMembers: data.pendingMembers || [],
-            members: data.participants || [],
+            members: data.members || data.participants || [],
           } : (otherParticipant ? {
             name: otherParticipant.displayName || otherParticipant.username,
             avatar: otherParticipant.avatar,
@@ -584,7 +584,7 @@ export default function AppLayout() {
     if (!selectedContact?.conversationId) return
     try {
       const endpoint = selectedContact.isGroup
-        ? `/api/conversations/${selectedContact.conversationId}/decline-invite`
+        ? `/api/conversations/${selectedContact.conversationId}/reject-group`
         : `/api/conversations/reject/${selectedContact.conversationId}`
 
       const res = await fetch(getApiUrl(endpoint), {

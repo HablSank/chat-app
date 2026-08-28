@@ -14,6 +14,7 @@ import {
   Loader2,
   Search,
   AlertTriangle,
+  Clock,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
@@ -43,6 +44,7 @@ export default function GroupInfoModal({
   const avatarInputRef = useRef(null)
 
   const participants = contact?.participants || []
+  const pendingMembers = Array.isArray(contact?.pendingMembers) ? contact.pendingMembers : []
   const groupAdminIds = (contact?.groupAdmins && contact.groupAdmins.length > 0)
     ? contact.groupAdmins.map((a) => a._id?.toString() || a.toString())
     : [contact?.groupAdmin?._id?.toString() || contact?.groupAdmin?.toString()].filter(Boolean)
@@ -591,6 +593,48 @@ export default function GroupInfoModal({
                     )
                   })}
                 </div>
+
+                {/* Pending Invites List */}
+                {pendingMembers.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-zinc-800/80">
+                    <div className="flex items-center justify-between mb-2.5 px-1">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                        <Clock size={13} />
+                        <span>Pending Invites ({pendingMembers.length})</span>
+                      </h4>
+                    </div>
+                    <div className="space-y-1.5">
+                      {pendingMembers.map((pMember) => {
+                        const pId = pMember._id?.toString() || pMember.toString()
+                        const pName = pMember.displayName || pMember.username || 'Invited User'
+                        const pAvatar = pMember.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=pending'
+                        return (
+                          <div
+                            key={pId}
+                            className="flex items-center justify-between p-2.5 rounded-2xl bg-zinc-950/30 border border-amber-500/20"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <img
+                                src={pAvatar}
+                                alt={pName}
+                                className="w-8 h-8 rounded-full bg-zinc-800 object-cover opacity-80 flex-shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold text-zinc-300 truncate">
+                                  {pName}
+                                </p>
+                                <p className="text-[10px] text-amber-400/80">Menunggu konfirmasi</p>
+                              </div>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-semibold flex-shrink-0">
+                              Invited
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Leave Group Button */}

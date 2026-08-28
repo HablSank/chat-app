@@ -8,6 +8,12 @@ const conversationSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     initiator: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
