@@ -123,6 +123,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   const handleSelectConversation = (conv) => {
     if (conv.isGroup) {
+      const isPending = conv.status === 'pending' || !!conv.isPendingInvite
       onSelect({
         id: conv._id,
         name: conv.groupName || 'Group Chat',
@@ -135,7 +136,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         groupAdmins: conv.groupAdmins || (conv.groupAdmin ? [conv.groupAdmin] : []),
         participants: conv.participants || [],
         conversationId: conv._id,
-        status: 'accepted',
+        status: isPending ? 'pending' : 'accepted',
+        isPendingInvite: conv.isPendingInvite,
         initiator: conv.initiator,
       })
       setQuery('')
@@ -383,6 +385,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             conversations.length > 0 ? (
               conversations.map((conv) => {
                 if (conv.isGroup) {
+                  const isPending = conv.status === 'pending' || !!conv.isPendingInvite
                   return (
                     <div key={conv._id} className="relative">
                       <ChatItem
@@ -392,7 +395,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                           avatar: conv.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(conv.groupName || 'group')}`,
                           isGroup: true,
                           participantsCount: conv.participants?.length || 0,
-                          status: 'accepted',
+                          status: isPending ? 'pending' : 'accepted',
+                          isPendingInvite: conv.isPendingInvite,
                           lastMessage: conv.lastMessage?.isSystem
                             ? conv.lastMessage.systemText
                             : conv.lastMessage?.audioUrl
@@ -407,6 +411,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                         }}
                         isSelected={conv._id === selectedId}
                         onClick={() => handleSelectConversation(conv)}
+                        isNew={isPending}
                       />
                     </div>
                   )

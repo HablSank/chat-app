@@ -17,6 +17,47 @@ const bubbleVariants = {
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😭', '🔥']
 
+function isValidHttpUrl(string) {
+  try {
+    const url = new URL(string)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function renderClickableText(text, isOwn) {
+  if (!text) return null
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
+  const parts = text.split(urlRegex)
+
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      const candidateUrl = part.startsWith('http://') || part.startsWith('https://')
+        ? part
+        : `https://${part}`
+
+      if (isValidHttpUrl(candidateUrl)) {
+        return (
+          <a
+            key={index}
+            href={candidateUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={`underline break-all font-medium transition-opacity hover:opacity-80 ${
+              isOwn ? 'text-white underline-offset-2' : 'text-indigo-400 hover:text-indigo-300 underline-offset-2'
+            }`}
+          >
+            {part}
+          </a>
+        )
+      }
+    }
+    return part
+  })
+}
+
 // ── Read Receipt Checkmarks ───────────────────────────────────────────────────
 function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalParticipants }) {
   if (status === 'sending') {
@@ -762,7 +803,7 @@ export default function MessageBubble({
                     ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 shadow-sm' : 'border-2 border-dashed border-zinc-500 shadow-sm') : ''}
                   `}
                 >
-                  {decryptedText}
+                  {renderClickableText(decryptedText, isOwn)}
                 </div>
               )}
 

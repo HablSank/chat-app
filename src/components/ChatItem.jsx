@@ -62,9 +62,16 @@ export default function ChatItem({ contact, isSelected, onClick, isNew }) {
               {name}
             </span>
             {isGroup && (
-              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.2 rounded-md font-medium flex-shrink-0">
-                Group
-              </span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.2 rounded-md font-medium">
+                  Group
+                </span>
+                {status === 'pending' && (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-md font-medium">
+                    Invite
+                  </span>
+                )}
+              </div>
             )}
             {isAccepted && statusEmoji && <span className="flex-shrink-0">{statusEmoji}</span>}
           </div>

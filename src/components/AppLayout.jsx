@@ -542,8 +542,13 @@ export default function AppLayout() {
 
 
   const handleAcceptRequest = async () => {
+    if (!selectedContact?.conversationId) return
     try {
-      const res = await fetch(getApiUrl(`/api/conversations/accept/${selectedContact.conversationId}`), {
+      const endpoint = selectedContact.isGroup
+        ? `/api/conversations/${selectedContact.conversationId}/accept-invite`
+        : `/api/conversations/accept/${selectedContact.conversationId}`
+
+      const res = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -555,13 +560,17 @@ export default function AppLayout() {
         setSelectedContact(prev => ({
           ...prev,
           status: 'accepted',
-          ...(otherParticipant ? {
+          isPendingInvite: false,
+          ...(selectedContact.isGroup ? {
+            participants: data.participants,
+          } : (otherParticipant ? {
             name: otherParticipant.displayName || otherParticipant.username,
             avatar: otherParticipant.avatar,
             presence: otherParticipant.presence,
             statusEmoji: otherParticipant.statusEmoji,
-          } : {})
+          } : {}))
         }))
+        joinPrivateRoom(selectedContact.conversationId)
         setRefreshSidebar(prev => prev + 1)
       }
     } catch (err) {
@@ -570,8 +579,13 @@ export default function AppLayout() {
   }
 
   const handleRejectRequest = async () => {
+    if (!selectedContact?.conversationId) return
     try {
-      const res = await fetch(getApiUrl(`/api/conversations/reject/${selectedContact.conversationId}`), {
+      const endpoint = selectedContact.isGroup
+        ? `/api/conversations/${selectedContact.conversationId}/decline-invite`
+        : `/api/conversations/reject/${selectedContact.conversationId}`
+
+      const res = await fetch(getApiUrl(endpoint), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -580,7 +594,7 @@ export default function AppLayout() {
         setRefreshSidebar(prev => prev + 1)
       }
     } catch (err) {
-      console.error(err)
+      console.error('Reject Request Error:', err)
     }
   }
 
