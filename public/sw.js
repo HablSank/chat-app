@@ -79,6 +79,9 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request
 
+  // Ignore non-http(s) schemes (e.g. chrome-extension://)
+  if (!request.url.startsWith('http')) return
+
   // Ignore non-GET requests, socket.io, and backend REST APIs
   if (request.method !== 'GET' || request.url.includes('/api/') || request.url.includes('/socket.io/')) {
     return

@@ -30,7 +30,7 @@ export default function ChatHeader({
   onOpenProfile,
   onOpenGroupInfo,
   onOpenTheme,
-  groupMemberNames,
+  groupMemberNames = '',
   formatLastSeen,
   isSearchOpen,
   onToggleSearch,
@@ -55,9 +55,16 @@ export default function ChatHeader({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
-  const isAccepted = contact.isGroup || contact.status === 'accepted'
+  const isAccepted = contact?.isGroup || contact?.status === 'accepted'
   const isSelectionMode = Array.isArray(selectedMessages) && selectedMessages.length > 0
   const selectedMsg = isSelectionMode ? selectedMessages[0] : null
+
+  // Safe fallback calculation for group member names
+  const displayGroupMembers = groupMemberNames || (
+    contact?.isGroup
+      ? (contact?.participants || contact?.members || []).map((m) => m?.displayName || m?.username || m?.name || 'Member').join(', ') || 'Group'
+      : ''
+  )
   const hasMedia = !!(selectedMsg?.imageUrl || selectedMsg?.imageUrls?.length || selectedMsg?.audioUrl)
   const hasText = !!(selectedMsg?.text || selectedMsg?.plainText)
 
@@ -243,7 +250,7 @@ export default function ChatHeader({
             {/* Status / Last seen line — Truncated & readable */}
             {contact.isGroup ? (
               <p className="text-xs text-zinc-400 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
-                {groupMemberNames}
+                {displayGroupMembers}
               </p>
             ) : !isAccepted ? (
               <div className="flex items-center gap-1 text-xs truncate text-amber-400/90 font-medium">

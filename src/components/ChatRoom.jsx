@@ -382,6 +382,23 @@ export default function ChatRoom({
     )
   }
 
+  // Format participant names for group header with robust fallbacks
+  const groupMemberNames = useMemo(() => {
+    if (!contact?.isGroup) return ''
+    const memberList = Array.isArray(contact?.participants)
+      ? contact.participants
+      : Array.isArray(contact?.members)
+      ? contact.members
+      : []
+    if (memberList.length === 0) return 'Group'
+    return memberList
+      .map((p) => {
+        const pId = (p?._id?.toString() || p?.id?.toString() || p?.toString())
+        return pId === currentUserId ? 'You' : (p?.displayName || p?.username || p?.name || 'Member')
+      })
+      .join(', ')
+  }, [contact?.isGroup, contact?.participants, contact?.members, currentUserId])
+
   // Action handlers for WhatsApp top action bar
   const handleToggleSelectMessage = (msg) => {
     setSelectedMessages((prev) => {
