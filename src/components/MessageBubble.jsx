@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
-import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2 } from 'lucide-react'
+import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check } from 'lucide-react'
 import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage } from '../utils/crypto'
+import { useAuth } from '../context/AuthContext'
+import { getApiUrl } from '../config/api'
 
 const bubbleVariants = {
   hidden: { opacity: 0, y: 10, scale: 0.95 },
@@ -449,6 +451,107 @@ function ReactionBubbles({ reactions, onReact }) {
   )
 }
 
+// ── WhatsApp-Style Group Invite Card ──────────────────────────────────────────
+function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, token }) {
+  const [isJoining, setIsJoining] = useState(false)
+  const [hasJoined, setHasJoined] = useState(false)
+
+  const groupId = inviteData?.groupId?._id || inviteData?.groupId
+  const groupName = inviteData?.groupName || 'Group'
+  const groupAvatar = inviteData?.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupName)}`
+
+  const handleJoin = async (e) => {
+    e.stopPropagation()
+    if (!groupId) return
+    setIsJoining(true)
+    try {
+      const res = await fetch(getApiUrl(`/api/conversations/${groupId}/join`), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setHasJoined(true)
+        onJoinGroup?.(data)
+      } else {
+        console.error('Failed to join group:', data.message)
+      }
+    } catch (err) {
+      console.error('Error joining group:', err)
+    } finally {
+      setIsJoining(false)
+    }
+  }
+
+  return (
+    <div
+      onClick={handleJoin}
+      className={`p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+        isOwn
+          ? 'bg-indigo-950/60 border-indigo-500/30 text-white shadow-lg shadow-indigo-950/40 hover:bg-indigo-950/80'
+          : 'bg-zinc-900/90 border-zinc-700/60 text-zinc-100 shadow-xl hover:bg-zinc-850'
+      } min-w-[240px] max-w-sm`}
+    >
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative flex-shrink-0">
+          <img
+            src={groupAvatar}
+            alt={groupName}
+            className="w-12 h-12 rounded-2xl bg-zinc-800 object-cover ring-2 ring-indigo-500/40 shadow-md"
+          />
+          <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-indigo-600 border-2 border-zinc-900 flex items-center justify-center text-white text-[10px]">
+            <Users size={10} />
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/15 px-1.5 py-0.5 rounded-md border border-indigo-500/20">
+              Undangan Grup
+            </span>
+          </div>
+          <h4 className="text-sm font-bold text-zinc-100 truncate">{groupName}</h4>
+          <p className="text-[11px] text-zinc-400 truncate">
+            {text || 'Undangan untuk bergabung ke grup'}
+          </p>
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+        <p className="text-[11px] text-zinc-400">
+          {isOwn ? 'Undangan Anda terkirim' : 'Ketuk untuk bergabung'}
+        </p>
+        <motion.button
+          type="button"
+          onClick={handleJoin}
+          disabled={isJoining}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          className="px-4 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/30 cursor-pointer disabled:opacity-50"
+        >
+          {isJoining ? (
+            <>
+              <Loader2 size={13} className="animate-spin" />
+              <span>Bergabung...</span>
+            </>
+          ) : hasJoined ? (
+            <>
+              <Check size={13} />
+              <span>Buka Grup</span>
+            </>
+          ) : (
+            <>
+              <Users size={13} />
+              <span>{isOwn ? 'Lihat Grup' : 'Gabung Grup'}</span>
+            </>
+          )}
+        </motion.button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main MessageBubble ────────────────────────────────────────────────────────
 export default function MessageBubble({
   message,
@@ -457,15 +560,19 @@ export default function MessageBubble({
   onEdit,
   onDelete,
   onPin,
+  onJoinGroup,
   conversationId,
   isGroup,
   totalParticipants,
   isSearchResult = false,
   isCurrentMatch = false,
 }) {
+  const { token } = useAuth()
   const {
     _id,
     text,
+    messageType,
+    inviteData,
     timestamp,
     isOwn,
     imageUrl,
@@ -792,19 +899,29 @@ export default function MessageBubble({
                 </div>
               )}
 
-              {/* Text bubble */}
-              {decryptedText && (
-                <div
-                  className={`
-                    px-4 py-2.5 text-sm leading-relaxed break-words select-text
-                    ${isOwn
-                      ? 'bg-indigo-500/90 text-white rounded-2xl rounded-br-sm'
-                      : 'bg-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm'}
-                    ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 shadow-sm' : 'border-2 border-dashed border-zinc-500 shadow-sm') : ''}
-                  `}
-                >
-                  {renderClickableText(decryptedText, isOwn)}
-                </div>
+              {/* Group Invite Card or Text bubble */}
+              {messageType === 'group_invite' || inviteData?.groupId ? (
+                <GroupInviteCard
+                  inviteData={inviteData}
+                  text={decryptedText || text}
+                  isOwn={isOwn}
+                  onJoinGroup={onJoinGroup}
+                  token={token}
+                />
+              ) : (
+                decryptedText && (
+                  <div
+                    className={`
+                      px-4 py-2.5 text-sm leading-relaxed break-words select-text
+                      ${isOwn
+                        ? 'bg-indigo-500/90 text-white rounded-2xl rounded-br-sm'
+                        : 'bg-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm'}
+                      ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 shadow-sm' : 'border-2 border-dashed border-zinc-500 shadow-sm') : ''}
+                    `}
+                  >
+                    {renderClickableText(decryptedText, isOwn)}
+                  </div>
+                )
               )}
 
               {/* Reaction bubbles */}

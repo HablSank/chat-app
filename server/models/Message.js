@@ -97,6 +97,24 @@ const messageSchema = new mongoose.Schema(
     expiresAt: {
       type: Date,
     },
+    messageType: {
+      type: String,
+      default: 'text',
+    },
+    inviteData: {
+      groupId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Conversation',
+      },
+      groupName: {
+        type: String,
+        default: '',
+      },
+      groupAvatar: {
+        type: String,
+        default: '',
+      },
+    },
   },
   { timestamps: true }
 )

@@ -152,6 +152,7 @@ export default function ChatRoom({
   onReact,
   onGroupUpdated,
   onGroupLeft,
+  onJoinGroup,
   currentUser,
 }) {
   const scrollRef          = useRef(null)
@@ -442,6 +443,8 @@ export default function ChatRoom({
               const displayMsg = {
                 _id:       msg._id,
                 text:      msg.text,
+                messageType: msg.messageType || 'text',
+                inviteData: msg.inviteData || null,
                 imageUrl:  msg.imageUrl,
                 imageUrls: msg.imageUrls,
                 audioUrl:  msg.audioUrl,
@@ -482,6 +485,7 @@ export default function ChatRoom({
                     onEdit={(targetMsg) => setEditingMessage(targetMsg)}
                     onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
                     onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
+                    onJoinGroup={onJoinGroup}
                     conversationId={contact?.conversationId}
                     isGroup={contact?.isGroup}
                     totalParticipants={safeParticipants.length || 2}

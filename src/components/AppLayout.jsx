@@ -610,6 +610,26 @@ export default function AppLayout() {
     })
   }, [])
 
+  const handleJoinGroup = useCallback((joinedGroup) => {
+    if (!joinedGroup) return
+    const convId = (joinedGroup._id || joinedGroup.id || '').toString()
+    setRefreshSidebar(prev => prev + 1)
+    if (convId) joinPrivateRoom(convId)
+    setSelectedContact({
+      id: convId,
+      conversationId: convId,
+      name: joinedGroup.groupName || 'Grup',
+      avatar: joinedGroup.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(joinedGroup.groupName || 'Grup')}`,
+      isGroup: true,
+      groupAdmin: joinedGroup.groupAdmin,
+      groupAdmins: joinedGroup.groupAdmins,
+      participants: joinedGroup.participants || [],
+      members: joinedGroup.members || joinedGroup.participants || [],
+      status: 'accepted',
+      isPendingInvite: false,
+    })
+  }, [joinPrivateRoom])
+
   const handleTypingStart = () => { 
     if (selectedContact?.conversationId) sendTyping(selectedContact.conversationId) 
   }
@@ -647,6 +667,7 @@ export default function AppLayout() {
               onReact={handleReact}
               onGroupUpdated={handleGroupUpdated}
               onGroupLeft={handleGroupLeft}
+              onJoinGroup={handleJoinGroup}
               currentUser={user}
             />
           ) : (
@@ -695,6 +716,7 @@ export default function AppLayout() {
               onReact={handleReact}
               onGroupUpdated={handleGroupUpdated}
               onGroupLeft={handleGroupLeft}
+              onJoinGroup={handleJoinGroup}
               currentUser={user}
             />
           ) : (

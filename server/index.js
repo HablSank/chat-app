@@ -350,21 +350,109 @@ app.get('/api/conversations/find/:userId', protect, async (req, res) => {
   }
 })
 
+// ── Helper: Send WhatsApp-Style Direct Message Group Invite ──────────────────
+async function sendDirectMessageGroupInvite(inviterUser, targetUserId, group) {
+  try {
+    const currentUserId = inviterUser._id.toString()
+    const targetIdStr = targetUserId.toString()
+    if (currentUserId === targetIdStr) return null
+
+    // 1. Find or create 1-on-1 Conversation between inviter and targetUser
+    let dmConv = await Conversation.findOne({
+      isGroup: { $ne: true },
+      participants: { $all: [inviterUser._id, targetUserId] },
+    })
+
+    if (!dmConv) {
+      dmConv = new Conversation({
+        isGroup: false,
+        participants: [inviterUser._id, targetUserId],
+        initiator: inviterUser._id,
+        status: 'accepted',
+      })
+      await dmConv.save()
+    } else if (dmConv.status === 'rejected') {
+      dmConv.status = 'accepted'
+      await dmConv.save()
+    }
+
+    const groupName = group.groupName || 'Grup'
+    const inviteText = `Saya mengundang Anda untuk bergabung ke grup: ${groupName}`
+
+    // 2. Create message in DM with messageType: 'group_invite'
+    const inviteMsg = new Message({
+      conversationId: dmConv._id,
+      sender: inviterUser._id,
+      text: inviteText,
+      messageType: 'group_invite',
+      inviteData: {
+        groupId: group._id,
+        groupName: groupName,
+        groupAvatar: group.groupAvatar || '',
+      },
+      status: 'delivered',
+    })
+    await inviteMsg.save()
+
+    dmConv.lastMessage = inviteMsg._id
+    await dmConv.save()
+
+    const populatedDm = await Conversation.findById(dmConv._id)
+      .populate('participants', '-password')
+      .populate('lastMessage')
+
+    const msgPayload = {
+      ...inviteMsg.toObject(),
+      sender: {
+        _id: inviterUser._id,
+        username: inviterUser.username,
+        displayName: inviterUser.displayName,
+        avatar: inviterUser.avatar,
+      },
+      conversationId: dmConv._id.toString(),
+    }
+
+    // 3. Broadcast to DM room
+    io.to(dmConv._id.toString()).emit('chat:private_message', msgPayload)
+
+    // Notify target user sockets specifically
+    const targetSockets = connectedUsers.get(targetIdStr)
+    if (targetSockets) {
+      targetSockets.forEach(sockId => {
+        io.to(sockId).emit('chat:private_message', msgPayload)
+        io.to(sockId).emit('conversation:new', populatedDm.toObject())
+      })
+    }
+
+    // Also notify inviter sockets
+    const inviterSockets = connectedUsers.get(currentUserId)
+    if (inviterSockets) {
+      inviterSockets.forEach(sockId => {
+        io.to(sockId).emit('chat:private_message', msgPayload)
+        io.to(sockId).emit('conversation:new', populatedDm.toObject())
+      })
+    }
+
+    return inviteMsg
+  } catch (err) {
+    console.error('Error sending DM group invite:', err)
+    return null
+  }
+}
+
 app.get('/api/conversations', protect, async (req, res) => {
   try {
     const userId = req.user._id
-    // Get all conversations where user is a participant OR has a pending group invitation
+    // Get all conversations where user is a participant or member
     const conversations = await Conversation.find({
       $or: [
         { participants: userId },
         { members: userId },
-        { isGroup: true, pendingMembers: userId },
       ],
       status: { $ne: 'rejected' },
     })
       .populate('participants', '-password')
       .populate('members', '-password')
-      .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')
@@ -379,10 +467,6 @@ app.get('/api/conversations', protect, async (req, res) => {
         })
         const convObj = conv.toObject()
         convObj.unreadCount = unreadCount
-        if (conv.isGroup && (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === userId.toString())) {
-          convObj.isPendingInvite = true
-          convObj.status = 'pending'
-        }
         return convObj
       })
     )
@@ -407,7 +491,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
       return res.status(400).json({ message: 'At least one other member is required' })
     }
 
-    // Pending invited members (strictly excluding creator)
+    // Target invited members (strictly excluding creator)
     const invitedUserIds = Array.from(
       new Set(memberIds.map(id => id.toString()).filter(id => id !== req.user._id.toString()))
     )
@@ -415,6 +499,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
     const avatarUrl = groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupName.trim())}`
     const now = new Date()
 
+    // Phase 15.20: Group initially contains ONLY the creator in members and participants
     const newGroup = new Conversation({
       isGroup: true,
       groupName: groupName.trim(),
@@ -425,7 +510,7 @@ app.post('/api/conversations/group', protect, async (req, res) => {
       initiator: req.user._id,
       participants: [req.user._id],
       members: [req.user._id],
-      pendingMembers: invitedUserIds,
+      pendingMembers: [],
       status: 'accepted',
     })
 
@@ -448,7 +533,6 @@ app.post('/api/conversations/group', protect, async (req, res) => {
     const populatedGroup = await Conversation.findById(newGroup._id)
       .populate('participants', '-password')
       .populate('members', '-password')
-      .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')
@@ -468,18 +552,10 @@ app.post('/api/conversations/group', protect, async (req, res) => {
     // Notify creator
     io.to(newGroup._id.toString()).emit('group:created', groupObj)
 
-    // Notify invited members with pending invite state
-    invitedUserIds.forEach(uid => {
-      const uSockets = connectedUsers.get(uid)
-      if (uSockets) {
-        const inviteObj = { ...groupObj, status: 'pending', isPendingInvite: true }
-        uSockets.forEach(sockId => {
-          io.to(sockId).emit('conversation:new', inviteObj)
-          io.to(sockId).emit('group_invite_sent', inviteObj)
-          io.to(sockId).emit('group:created', inviteObj)
-        })
-      }
-    })
+    // Auto-send 1-on-1 DM Group Invite Card to each invited member
+    for (const uid of invitedUserIds) {
+      await sendDirectMessageGroupInvite(req.user, uid, newGroup)
+    }
 
     res.status(201).json(groupObj)
   } catch (error) {
@@ -521,29 +597,25 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
     let newlyInvitedIds = []
     if (Array.isArray(memberIds)) {
       const oldParticipantIds = conversation.participants.map(p => (p._id?.toString() || p.toString()))
-      const oldPendingIds = (conversation.pendingMembers || []).map(p => (p._id?.toString() || p.toString()))
 
       const requestedIds = Array.from(
         new Set([req.user._id.toString(), ...memberIds.map(id => id.toString())])
       )
 
-      // Newly invited members (not in participants, not already in pending)
-      const addedIds = requestedIds.filter(id => !oldParticipantIds.includes(id) && !oldPendingIds.includes(id))
+      // Newly invited members (not currently in participants)
+      const addedIds = requestedIds.filter(id => !oldParticipantIds.includes(id))
       // Removed members (were in participants, but omitted from memberIds)
       const removedIds = oldParticipantIds.filter(id => !requestedIds.includes(id))
 
-      // Update pendingMembers with added members (do NOT put directly into participants)
+      // Phase 15.20: Auto-send 1-on-1 DM Group Invite Card for each invited member
       if (addedIds.length > 0) {
         newlyInvitedIds = addedIds
         const addedUsers = await User.find({ _id: { $in: addedIds } }).select('username displayName')
         const addedNames = addedUsers.map(u => u.displayName || u.username).join(', ')
 
-        if (!conversation.pendingMembers) conversation.pendingMembers = []
-        addedIds.forEach(uid => {
-          if (!conversation.pendingMembers.some(p => (p._id?.toString() || p.toString()) === uid)) {
-            conversation.pendingMembers.push(uid)
-          }
-        })
+        for (const uid of addedIds) {
+          await sendDirectMessageGroupInvite(req.user, uid, conversation)
+        }
 
         systemNotifications.push(`${actorName} mengundang ${addedNames} ke grup`)
       }
@@ -602,28 +674,11 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
     const populatedGroup = await Conversation.findById(conversation._id)
       .populate('participants', '-password')
       .populate('members', '-password')
-      .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')
 
     io.to(conversation._id.toString()).emit('group:updated', populatedGroup)
-
-    // Notify newly invited members with pending invite state
-    if (newlyInvitedIds.length > 0) {
-      const groupObj = populatedGroup.toObject()
-      newlyInvitedIds.forEach(uid => {
-        const uSockets = connectedUsers.get(uid)
-        if (uSockets) {
-          const inviteObj = { ...groupObj, status: 'pending', isPendingInvite: true }
-          uSockets.forEach(sockId => {
-            io.to(sockId).emit('conversation:new', inviteObj)
-            io.to(sockId).emit('group_invite_sent', inviteObj)
-            io.to(sockId).emit('group:created', inviteObj)
-          })
-        }
-      })
-    }
 
     res.json(populatedGroup)
   } catch (error) {
@@ -911,7 +966,7 @@ app.post('/api/conversations/reject/:id', protect, async (req, res) => {
   }
 })
 
-// ── REST API: Add Members to Group Exclusively as Pending ────────────────────
+// ── REST API: Add Members to Group via Direct Message Invites ────────────────
 app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
   try {
     const { userIds, memberIds } = req.body
@@ -932,21 +987,18 @@ app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
     }
 
     const existingParticipantIds = conversation.participants.map(p => p._id?.toString() || p.toString())
-    const existingPendingIds = (conversation.pendingMembers || []).map(p => p._id?.toString() || p.toString())
     const toAdd = Array.from(new Set(rawIds.map(id => id.toString())))
-      .filter(id => !existingParticipantIds.includes(id) && !existingPendingIds.includes(id))
+      .filter(id => !existingParticipantIds.includes(id))
 
     if (toAdd.length > 0) {
-      if (!conversation.pendingMembers) conversation.pendingMembers = []
-      toAdd.forEach(uid => {
-        if (!conversation.pendingMembers.some(p => (p._id?.toString() || p.toString()) === uid)) {
-          conversation.pendingMembers.push(uid)
-        }
-      })
-
       const addedUsers = await User.find({ _id: { $in: toAdd } }).select('username displayName')
       const addedNames = addedUsers.map(u => u.displayName || u.username).join(', ')
       const actorName = req.user.displayName || req.user.username
+
+      // Phase 15.20: Auto-send 1-on-1 DM Group Invite Card for each invited member
+      for (const uid of toAdd) {
+        await sendDirectMessageGroupInvite(req.user, uid, conversation)
+      }
 
       const sysMsg = new Message({
         conversationId: conversation._id,
@@ -962,23 +1014,9 @@ app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
       const populatedGroup = await Conversation.findById(conversation._id)
         .populate('participants', '-password')
         .populate('members', '-password')
-        .populate('pendingMembers', '-password')
         .populate('groupAdmin', '-password')
         .populate('groupAdmins', '-password')
         .populate('lastMessage')
-
-      const groupObj = populatedGroup.toObject()
-      toAdd.forEach(uid => {
-        const uSockets = connectedUsers.get(uid)
-        if (uSockets) {
-          const inviteObj = { ...groupObj, status: 'pending', isPendingInvite: true }
-          uSockets.forEach(sockId => {
-            io.to(sockId).emit('conversation:new', inviteObj)
-            io.to(sockId).emit('group_invite_sent', inviteObj)
-            io.to(sockId).emit('group:created', inviteObj)
-          })
-        }
-      })
 
       io.to(conversation._id.toString()).emit('chat:private_message', {
         ...sysMsg.toObject(),
@@ -997,7 +1035,6 @@ app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
     const populatedCurrent = await Conversation.findById(conversation._id)
       .populate('participants', '-password')
       .populate('members', '-password')
-      .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')
@@ -1009,78 +1046,86 @@ app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
   }
 })
 
-// ── REST API: Group Invite Accept & Decline ──────────────────────────────────
-const handleAcceptGroupInvite = async (req, res) => {
+// ── REST API: Join Group Endpoint (WhatsApp-Style DM Invite Click) ───────────
+const handleJoinGroup = async (req, res) => {
   try {
-    const conversation = await Conversation.findById(req.params.id)
+    const groupId = req.params.groupId || req.params.id
+    const conversation = await Conversation.findById(groupId)
     if (!conversation) return res.status(404).json({ message: 'Group not found' })
     if (!conversation.isGroup) return res.status(400).json({ message: 'Not a group conversation' })
 
     const userIdStr = req.user._id.toString()
-
-    // Remove from pendingMembers
-    if (conversation.pendingMembers) {
-      conversation.pendingMembers = conversation.pendingMembers.filter(
-        (p) => (p._id?.toString() || p.toString()) !== userIdStr
-      )
-    }
-
-    // Add to participants if not already present
-    if (!conversation.participants.some((p) => (p._id?.toString() || p.toString()) === userIdStr)) {
-      conversation.participants.push(req.user._id)
-    }
-
-    // Add to members if not already present
-    if (!conversation.members) conversation.members = []
-    if (!conversation.members.some((p) => (p._id?.toString() || p.toString()) === userIdStr)) {
-      conversation.members.push(req.user._id)
-    }
-
-    // Add to memberDetails
-    const now = new Date()
-    if (!conversation.memberDetails) conversation.memberDetails = []
-    const existingIdx = conversation.memberDetails.findIndex(
-      (m) => (m.user?.toString() || m.user?._id?.toString()) === userIdStr
+    const isAlreadyMember = (conversation.participants || []).some(
+      (p) => (p._id?.toString() || p.toString()) === userIdStr
     )
-    if (existingIdx !== -1) {
-      conversation.memberDetails[existingIdx].joinedAt = now
-    } else {
-      conversation.memberDetails.push({ user: req.user._id, joinedAt: now })
+
+    if (!isAlreadyMember) {
+      if (!conversation.participants) conversation.participants = []
+      conversation.participants.push(req.user._id)
+
+      if (!conversation.members) conversation.members = []
+      conversation.members.push(req.user._id)
+
+      if (conversation.pendingMembers) {
+        conversation.pendingMembers = conversation.pendingMembers.filter(
+          (p) => (p._id?.toString() || p.toString()) !== userIdStr
+        )
+      }
+
+      const now = new Date()
+      if (!conversation.memberDetails) conversation.memberDetails = []
+      const existingIdx = conversation.memberDetails.findIndex(
+        (m) => (m.user?.toString() || m.user?._id?.toString()) === userIdStr
+      )
+      if (existingIdx !== -1) {
+        conversation.memberDetails[existingIdx].joinedAt = now
+      } else {
+        conversation.memberDetails.push({ user: req.user._id, joinedAt: now })
+      }
+
+      const actorName = req.user.displayName || req.user.username
+      const systemMsg = new Message({
+        conversationId: conversation._id,
+        sender: req.user._id,
+        isSystem: true,
+        systemText: `${actorName} joined the group`,
+        status: 'delivered',
+      })
+      await systemMsg.save()
+      conversation.lastMessage = systemMsg._id
+
+      await conversation.save()
+
+      // Broadcast system message to group room
+      io.to(conversation._id.toString()).emit('chat:private_message', {
+        ...systemMsg.toObject(),
+        sender: {
+          _id: req.user._id,
+          username: req.user.username,
+          displayName: req.user.displayName,
+          avatar: req.user.avatar,
+        },
+        conversationId: conversation._id.toString(),
+      })
     }
-
-    // Add system message
-    const actorName = req.user.displayName || req.user.username
-    const systemMsg = new Message({
-      conversationId: conversation._id,
-      sender: req.user._id,
-      isSystem: true,
-      systemText: `${actorName} joined the group`,
-      status: 'delivered',
-    })
-    await systemMsg.save()
-    conversation.lastMessage = systemMsg._id
-
-    await conversation.save()
 
     const populatedGroup = await Conversation.findById(conversation._id)
       .populate('participants', '-password')
       .populate('members', '-password')
-      .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')
 
-    // Auto-join socket room for accepting user
+    // Auto-join socket room for joining user
     const userSockets = connectedUsers.get(userIdStr)
     if (userSockets) {
       userSockets.forEach((sockId) => {
         const s = io.sockets.sockets.get(sockId)
         if (s) s.join(conversation._id.toString())
+        io.to(sockId).emit('conversation:new', populatedGroup.toObject())
       })
     }
 
-    // Broadcast system message & group update
-    io.to(conversation._id.toString()).emit('message:received', systemMsg)
     io.to(conversation._id.toString()).emit('group:updated', populatedGroup)
     io.emit('chat:request_action', {
       conversationId: conversation._id.toString(),
@@ -1090,13 +1135,15 @@ const handleAcceptGroupInvite = async (req, res) => {
 
     res.json(populatedGroup)
   } catch (error) {
-    console.error('Accept Group Invite Error:', error)
+    console.error('Join Group Error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 }
 
-app.post('/api/conversations/:id/accept-invite', protect, handleAcceptGroupInvite)
-app.post('/api/conversations/:id/accept-group', protect, handleAcceptGroupInvite)
+app.post('/api/conversations/:groupId/join', protect, handleJoinGroup)
+app.post('/api/conversations/:id/join', protect, handleJoinGroup)
+app.post('/api/conversations/:id/accept-group', protect, handleJoinGroup)
+app.post('/api/conversations/:id/accept-invite', protect, handleJoinGroup)
 
 const handleDeclineGroupInvite = async (req, res) => {
   try {
