@@ -170,6 +170,52 @@ app.get('/api/auth/me', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Change Password ───────────────────────────────────────────────
+app.put('/api/auth/change-password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Kata sandi saat ini dan kata sandi baru harus diisi' })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Kata sandi baru minimal 6 karakter' })
+    }
+
+    const user = await User.findById(req.user._id)
+    if (!user) {
+      return res.status(404).json({ message: 'Pengguna tidak ditemukan' })
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password)
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Kata sandi saat ini salah' })
+    }
+
+    const salt = await bcrypt.genSalt(10)
+    user.password = await bcrypt.hash(newPassword, salt)
+    await user.save()
+
+    res.json({ message: 'Kata sandi berhasil diperbarui' })
+  } catch (error) {
+    console.error('Change Password Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// ── REST API: Upload Group Avatar ──────────────────────────────────────────
+app.post('/api/conversations/group-avatar', protect, uploadAvatar.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file || !req.file.path) {
+      return res.status(400).json({ message: 'Gambar avatar diperlukan' })
+    }
+    res.json({ avatarUrl: req.file.path })
+  } catch (error) {
+    console.error('Group Avatar Upload Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Users ─────────────────────────────────────────────────────────
 app.get('/api/users/search', protect, async (req, res) => {
   try {

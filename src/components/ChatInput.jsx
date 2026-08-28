@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Paperclip, Send, X, Loader2, ImageIcon, Mic, Trash2, CornerUpLeft, Volume2, Pencil, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
 import GiphyPicker from './GiphyPicker'
@@ -18,6 +19,7 @@ export default function ChatInput({
   onSaveEdit,
 }) {
   const { token } = useAuth()
+  const { t } = useLanguage()
   const [value, setValue]             = useState('')
   const [imageFiles, setImageFiles]   = useState([]) // up to 4
   const [previews, setPreviews]       = useState([])
@@ -550,10 +552,10 @@ export default function ChatInput({
             data-form-type="other"
             placeholder={
               editingMessage
-                ? 'Edit message…'
+                ? t('editingMessage')
                 : imageFiles.length > 0
-                ? (isVanishMode ? 'Caption pesan sementara…' : 'Add a caption…')
-                : (isVanishMode ? 'Pesan sementara (24 jam)...' : 'Type a message…')
+                ? (isVanishMode ? t('vanishModePlaceholder') : t('typeMessagePlaceholder'))
+                : (isVanishMode ? t('vanishModePlaceholder') : t('typeMessagePlaceholder'))
             }
             style={{ overflowY: 'hidden' }}
             className={`

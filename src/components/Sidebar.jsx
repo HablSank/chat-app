@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, LogOut, Settings, Users, Edit, Download, Archive, ArrowLeft } from 'lucide-react'
+import { Search, LogOut, Settings, Users, User, Download, Archive, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useAutoUpdate } from '../hooks/useAutoUpdate'
 import { decryptMessage } from '../utils/crypto'
 import { getApiUrl } from '../config/api'
 import ChatItem from './ChatItem'
 import ProfileSettings from './ProfileSettings'
+import SettingsModal from './SettingsModal'
 import CreateGroupModal from './CreateGroupModal'
 import PWAInstallBanner from './PWAInstallBanner'
 import PWAInstallGuideModal from './PWAInstallGuideModal'
@@ -15,6 +17,7 @@ import AppUpdateBanner from './AppUpdateBanner'
 
 export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const { user, token, logout, isProfileOpen, setIsProfileOpen } = useAuth()
+  const { t } = useLanguage()
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const { updateAvailable, reloadApp, setUpdateAvailable } = useAutoUpdate()
   const [query, setQuery] = useState('')
@@ -109,18 +112,6 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     }
   }
 
-  // Sync modal state with AuthContext isProfileOpen
-  useEffect(() => {
-    if (isProfileOpen) {
-      setIsSettingsOpen(true)
-    }
-  }, [isProfileOpen])
-
-  const handleCloseSettings = () => {
-    setIsSettingsOpen(false)
-    setIsProfileOpen?.(false)
-  }
-
   const handleInstallPWA = async () => {
     if (isIOS) {
       setShowInstallGuide(true)
@@ -136,7 +127,6 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   useEffect(() => {
     if (sessionStorage.getItem('ping_first_time_signup') === 'true') {
       sessionStorage.removeItem('ping_first_time_signup')
-      setIsSettingsOpen(true)
       setIsProfileOpen?.(true)
     }
   }, [setIsProfileOpen])
@@ -464,7 +454,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 id="sidebar-install-pwa-btn"
                 onClick={handleInstallPWA}
                 className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-full transition-colors cursor-pointer"
-                title="Install App (PWA)"
+                title={t('installApp')}
               >
                 <Download size={18} />
               </button>
@@ -474,7 +464,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               id="sidebar-create-group-btn"
               onClick={() => setIsCreateGroupOpen(true)}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
-              title="Buat Grup Baru"
+              title={t('createGroup')}
             >
               <Users size={18} />
             </button>
@@ -483,24 +473,24 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               id="sidebar-settings-btn"
               onClick={() => setIsSettingsOpen(true)}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
-              title="Settings"
+              title={t('settings')}
             >
               <Settings size={18} />
             </button>
             <button
               type="button"
-              id="sidebar-compose-btn"
-              onClick={() => searchInputRef.current?.focus()}
+              id="sidebar-profile-btn"
+              onClick={() => setIsProfileOpen?.(true)}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
-              title="Cari atau Mulai Chat Baru"
+              title={t('profile')}
             >
-              <Edit size={18} />
+              <User size={18} />
             </button>
             <button
               type="button"
               onClick={logout}
               className="p-2 text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
-              title="Log out"
+              title={t('logout')}
             >
               <LogOut size={18} />
             </button>
@@ -525,7 +515,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search users..."
+              placeholder={t('searchUsers')}
               className="bg-transparent text-sm text-zinc-100 placeholder-zinc-500 outline-none flex-1"
             />
           </div>
@@ -540,11 +530,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} />
-              <span>Kembali ke Pesan</span>
+              <span>{t('archivedChats')}</span>
             </button>
           ) : (
             <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-500">
-              {query ? 'Search Results' : 'Messages'}
+              {query ? t('searchPlaceholder') : t('allChats')}
             </p>
           )}
         </div>
@@ -554,7 +544,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           {query ? (
             /* Search Results */
             isSearching ? (
-              <p className="text-sm text-zinc-500 text-center mt-4">Searching...</p>
+              <p className="text-sm text-zinc-500 text-center mt-4">{t('checkingUpdates')}</p>
             ) : searchResults.length > 0 ? (
               searchResults.map((u) => (
                 <ChatItem
@@ -573,7 +563,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 />
               ))
             ) : (
-              <p className="text-sm text-zinc-500 text-center mt-8">No users found</p>
+              <p className="text-sm text-zinc-500 text-center mt-8">{t('noUsersFoundPrompt')}</p>
             )
           ) : isViewingArchive ? (
             /* Archived Conversations View */
@@ -584,8 +574,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 mx-auto mb-2">
                   <Archive size={20} />
                 </div>
-                <p className="text-sm font-semibold text-zinc-300">Tidak ada chat diarsipkan</p>
-                <p className="text-xs text-zinc-500 mt-1">Klik kanan atau tahan chat untuk mengarsipkan.</p>
+                <p className="text-sm font-semibold text-zinc-300">{t('noArchivedChats')}</p>
               </div>
             )
           ) : (
@@ -602,7 +591,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                     <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400">
                       <Archive size={15} />
                     </div>
-                    <span className="text-sm font-semibold text-zinc-200">Diarsipkan</span>
+                    <span className="text-sm font-semibold text-zinc-200">{t('archivedChats')}</span>
                   </div>
                   <span className="text-xs font-bold text-indigo-400 bg-indigo-500/15 border border-indigo-500/25 px-2 py-0.5 rounded-full">
                     {archivedConversations.length}
@@ -614,7 +603,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 displayActiveConversations.map((conv) => renderConversationItem(conv))
               ) : (
                 <p className="text-sm text-zinc-500 text-center mt-8">
-                  Search for users or create a group to start chatting
+                  {t('startChatting')}
                 </p>
               )}
             </>
@@ -622,7 +611,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         </div>
       </div>
 
-      <ProfileSettings isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <ProfileSettings isOpen={isProfileOpen} onClose={() => setIsProfileOpen?.(false)} />
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}

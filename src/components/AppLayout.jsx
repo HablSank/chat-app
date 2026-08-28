@@ -4,12 +4,14 @@ import Sidebar from './Sidebar'
 import ChatRoom from './ChatRoom'
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { encryptMessage } from '../utils/crypto'
 import { playSendSound, playReceiveSound } from '../utils/sound'
 import { getApiUrl } from '../config/api'
 
 // ── Empty-state illustration when no chat is selected (Mobile & Desktop) ──
 function NoChatSelected() {
+  const { t } = useLanguage()
   return (
     <div className="flex flex-col items-center justify-center h-full w-full gap-4 text-center select-none p-6">
       {/* Decorative rings with logo */}
@@ -35,9 +37,9 @@ function NoChatSelected() {
         </div>
       </div>
       <div>
-        <p className="text-zinc-200 font-bold text-lg sm:text-xl">Your Messages</p>
+        <p className="text-zinc-200 font-bold text-lg sm:text-xl">{t('allChats')}</p>
         <p className="text-sm text-zinc-500 mt-1 max-w-[220px] leading-relaxed">
-          Select a conversation from the sidebar to get started
+          {t('startChatting')}
         </p>
       </div>
     </div>
