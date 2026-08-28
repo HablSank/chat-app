@@ -48,6 +48,34 @@ function formatLastSeen(lastSeenDate) {
   }
 }
 
+function getDateSeparatorLabel(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return ''
+
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(today.getDate() - 1)
+
+  const isSameDay = (d1, d2) =>
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+
+  if (isSameDay(date, today)) {
+    return 'Hari ini'
+  }
+  if (isSameDay(date, yesterday)) {
+    return 'Kemarin'
+  }
+
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 // ── Notification Toast ────────────────────────────────────────────────────────
 function Toast({ message, visible }) {
   return (
@@ -108,7 +136,7 @@ function PinnedMessageBanner({ message, decryptedText, onScrollTo, onUnpin }) {
 
 export default function ChatRoom({
   contact,
-  messages,
+  messages = [],
   onSendMessage,
   onEditMessage,
   onDeleteMessage,
@@ -139,24 +167,29 @@ export default function ChatRoom({
   const [searchQuery, setSearchQuery]       = useState('')
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
   const [decryptedMap, setDecryptedMap]     = useState({})
-  const isPending  = contact.status === 'pending'
-  const initiatorId = contact.initiator?._id
-    ? contact.initiator._id.toString()
-    : (contact.initiator ? contact.initiator.toString() : '')
-  const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
-  const isInitiator = isPending && initiatorId === currentUserId
-  const isReceiver = isPending && !isInitiator
 
-  const pinnedMessages = messages.filter(m => m.isPinned && !m.isDeleted)
+  const safeMessages = Array.isArray(messages) ? messages : []
+  const safeParticipants = Array.isArray(contact?.participants) ? contact.participants : []
+  const isPending  = contact?.status === 'pending' || !!contact?.isPendingInvite
+  const isGroupInvite = !!contact?.isGroup && isPending
+  const initiatorId = contact?.initiator?._id
+    ? contact.initiator._id.toString()
+    : (contact?.initiator ? contact.initiator.toString() : '')
+  const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
+  const isInitiator = !contact?.isGroup && isPending && initiatorId === currentUserId
+  const isReceiver = !contact?.isGroup && isPending && !isInitiator
+
+  const pinnedMessages = safeMessages.filter(m => m?.isPinned && !m?.isDeleted)
 
   // Decrypt messages in background to enable client-side E2EE search
   useEffect(() => {
     let isMounted = true
     const decryptAll = async () => {
       const map = {}
-      for (const msg of messages) {
+      for (const msg of safeMessages) {
+        if (!msg) continue
         if (msg.text && !msg.isSystem) {
-          map[msg._id] = await decryptMessage(msg.text, contact.conversationId)
+          map[msg._id] = await decryptMessage(msg.text, contact?.conversationId)
         } else if (msg.systemText) {
           map[msg._id] = msg.systemText
         }
@@ -165,22 +198,22 @@ export default function ChatRoom({
     }
     decryptAll()
     return () => { isMounted = false }
-  }, [messages, contact.conversationId])
+  }, [safeMessages, contact?.conversationId])
 
   // Filter message matches
   const matchedMessageIds = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q || !isSearchOpen) return []
-    return messages
+    return safeMessages
       .filter((msg) => {
-        if (msg.isDeleted) return false
+        if (!msg || msg.isDeleted) return false
         const plain = (decryptedMap[msg._id] || msg.text || '').toLowerCase()
         const senderName = (msg.sender?.displayName || msg.sender?.username || '').toLowerCase()
         const sysText = (msg.systemText || '').toLowerCase()
         return plain.includes(q) || senderName.includes(q) || sysText.includes(q)
       })
       .map((m) => m._id)
-  }, [messages, decryptedMap, searchQuery, isSearchOpen])
+  }, [safeMessages, decryptedMap, searchQuery, isSearchOpen])
 
   // Auto-scroll to active match
   useEffect(() => {
@@ -206,7 +239,9 @@ export default function ChatRoom({
     }
     setReplyingTo(null)
     setEditingMessage(null)
-  }, [messages.length, contact.id, isTyping, isSearchOpen])
+  }, [safeMessages.length, contact?.id, isTyping, isSearchOpen])
+
+  if (!contact) return null
 
   const triggerToast = (msg = '🚀 Feature coming soon!') => {
     setToastMessage(msg)
@@ -394,9 +429,15 @@ export default function ChatRoom({
           ref={scrollRef}
           className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
         >
-          {messages.length > 0 ? (
-            messages.map((msg) => {
-              const isOwn = (msg.sender?._id || msg.sender) === currentUser.id
+          {safeMessages.length > 0 ? (
+            safeMessages.map((msg, index) => {
+              if (!msg) return null
+              const msgDateStr = msg.createdAt ? new Date(msg.createdAt).toDateString() : ''
+              const prevDateStr = index > 0 && safeMessages[index - 1]?.createdAt ? new Date(safeMessages[index - 1].createdAt).toDateString() : null
+              const isNewDay = index === 0 || msgDateStr !== prevDateStr
+              const dateLabel = getDateSeparatorLabel(msg.createdAt)
+
+              const isOwn = (msg.sender?._id || msg.sender) === (currentUser?.id || currentUser?._id)
               const displayMsg = {
                 _id:       msg._id,
                 text:      msg.text,
@@ -418,40 +459,48 @@ export default function ChatRoom({
                 systemText: msg.systemText,
                 isEphemeral: msg.isEphemeral,
                 expiresAt: msg.expiresAt ? new Date(msg.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
-                timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                timestamp: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
                 isOwn,
               }
               const isSearchResult = matchedMessageIds.includes(msg._id)
               const isCurrentMatch = isSearchResult && matchedMessageIds[currentMatchIdx] === msg._id
 
               return (
-                <MessageBubble
-                  key={msg._id}
-                  message={displayMsg}
-                  onReact={onReact}
-                  onReply={(targetMsg) => setReplyingTo(targetMsg)}
-                  onEdit={(targetMsg) => setEditingMessage(targetMsg)}
-                  onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
-                  onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
-                  conversationId={contact.conversationId}
-                  isGroup={contact.isGroup}
-                  totalParticipants={contact.participants?.length || 2}
-                  isSearchResult={isSearchResult}
-                  isCurrentMatch={isCurrentMatch}
-                />
+                <div key={msg._id || index} className="space-y-2">
+                  {isNewDay && dateLabel && (
+                    <div className="flex justify-center my-3 select-none sticky top-2 z-10">
+                      <span className="bg-zinc-800/90 border border-zinc-700/60 backdrop-blur-md text-zinc-400 text-[11px] font-semibold px-3.5 py-1 rounded-full shadow-md">
+                        {dateLabel}
+                      </span>
+                    </div>
+                  )}
+                  <MessageBubble
+                    message={displayMsg}
+                    onReact={onReact}
+                    onReply={(targetMsg) => setReplyingTo(targetMsg)}
+                    onEdit={(targetMsg) => setEditingMessage(targetMsg)}
+                    onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
+                    onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
+                    conversationId={contact?.conversationId}
+                    isGroup={contact?.isGroup}
+                    totalParticipants={safeParticipants.length || 2}
+                    isSearchResult={isSearchResult}
+                    isCurrentMatch={isCurrentMatch}
+                  />
+                </div>
               )
             })
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-800">
                 <img
-                  src={contact.avatar}
-                  alt={contact.name}
+                  src={contact?.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=avatar'}
+                  alt={contact?.name || 'Chat'}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div>
-                <p className="text-zinc-300 font-semibold">{contact.name}</p>
+                <p className="text-zinc-300 font-semibold">{contact?.name || 'Chat'}</p>
                 <p className="text-sm text-zinc-500 mt-1">
                   Send a message to start the conversation 👋
                 </p>
@@ -465,18 +514,50 @@ export default function ChatRoom({
               <TypingIndicator
                 key="typing-indicator"
                 typingUsers={typingUsers}
-                isGroup={contact.isGroup}
+                isGroup={contact?.isGroup}
               />
             )}
           </AnimatePresence>
         </div>
 
         {/* ── Fixed Bottom Input or Banner ───────────────────────── */}
-        {isReceiver ? (
+        {isGroupInvite ? (
+          <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
+            <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center mx-auto mb-2.5 shadow-inner">
+                <Users size={20} />
+              </div>
+              <p className="text-sm text-zinc-100 font-semibold mb-1">
+                Undangan Bergabung ke Grup
+              </p>
+              <p className="text-xs text-zinc-400 mb-3.5">
+                Anda diundang untuk bergabung ke grup <strong>"{contact?.name || 'Group'}"</strong>. Terima undangan untuk membaca pesan dan mulai mengobrol.
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <motion.button
+                  onClick={onReject}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-6 py-2 rounded-xl bg-zinc-700 hover:bg-rose-500/80 text-zinc-200 text-sm font-semibold transition-colors cursor-pointer"
+                >
+                  Tolak
+                </motion.button>
+                <motion.button
+                  onClick={onAccept}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-6 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-indigo-500/30"
+                >
+                  Gabung Grup
+                </motion.button>
+              </div>
+            </div>
+          </div>
+        ) : isReceiver ? (
           <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
             <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
               <p className="text-sm text-zinc-100 font-semibold mb-1">
-                {contact.name} ingin mengirim pesan kepada Anda
+                {contact?.name} ingin mengirim pesan kepada Anda
               </p>
               <p className="text-xs text-zinc-400 mb-3">
                 Terima permintaan untuk melihat foto profil lengkap dan membalas pesan.
@@ -511,7 +592,7 @@ export default function ChatRoom({
                 Permintaan Pesan Terkirim
               </p>
               <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Menunggu persetujuan dari {contact.name}. Foto profil dan info lengkap akan terbuka setelah permintaan disetujui.
+                Menunggu persetujuan dari {contact?.name}. Foto profil dan info lengkap akan terbuka setelah permintaan disetujui.
               </p>
             </div>
           </div>
