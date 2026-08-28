@@ -513,47 +513,34 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
       systemNotifications.push(`${actorName} changed the group icon`)
     }
 
+    let newlyInvitedIds = []
     if (Array.isArray(memberIds)) {
-      const oldParticipantIds = conversation.participants.map(p => p.toString())
-      const newParticipantIds = Array.from(
+      const oldParticipantIds = conversation.participants.map(p => (p._id?.toString() || p.toString()))
+      const oldPendingIds = (conversation.pendingMembers || []).map(p => (p._id?.toString() || p.toString()))
+
+      const requestedIds = Array.from(
         new Set([req.user._id.toString(), ...memberIds.map(id => id.toString())])
       )
 
-      // Newly added members
-      const addedIds = newParticipantIds.filter(id => !oldParticipantIds.includes(id))
-      // Removed members
-      const removedIds = oldParticipantIds.filter(id => !newParticipantIds.includes(id))
+      // Newly invited members (not in participants, not already in pending)
+      const addedIds = requestedIds.filter(id => !oldParticipantIds.includes(id) && !oldPendingIds.includes(id))
+      // Removed members (were in participants, but omitted from memberIds)
+      const removedIds = oldParticipantIds.filter(id => !requestedIds.includes(id))
 
-      const now = new Date()
-
-      // Update memberDetails for added members
+      // Update pendingMembers with added members (do NOT put directly into participants)
       if (addedIds.length > 0) {
+        newlyInvitedIds = addedIds
         const addedUsers = await User.find({ _id: { $in: addedIds } }).select('username displayName')
         const addedNames = addedUsers.map(u => u.displayName || u.username).join(', ')
 
-        if (!conversation.memberDetails) conversation.memberDetails = []
-
+        if (!conversation.pendingMembers) conversation.pendingMembers = []
         addedIds.forEach(uid => {
-          const existingIdx = conversation.memberDetails.findIndex(m => m.user?.toString() === uid)
-          if (existingIdx !== -1) {
-            conversation.memberDetails[existingIdx].joinedAt = now
-          } else {
-            conversation.memberDetails.push({ user: uid, joinedAt: now })
+          if (!conversation.pendingMembers.some(p => (p._id?.toString() || p.toString()) === uid)) {
+            conversation.pendingMembers.push(uid)
           }
         })
 
-        systemNotifications.push(`${actorName} added ${addedNames}`)
-
-        // Auto-join newly added members to the socket room
-        addedIds.forEach(uid => {
-          const socketId = connectedUsers.get(uid)
-          if (socketId) {
-            const targetSocket = io.sockets.sockets.get(socketId)
-            if (targetSocket) {
-              targetSocket.join(conversation._id.toString())
-            }
-          }
-        })
+        systemNotifications.push(`${actorName} mengundang ${addedNames} ke grup`)
       }
 
       // Handle removed members
@@ -566,14 +553,15 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
         const removedUsers = await User.find({ _id: { $in: removedIds } }).select('username displayName')
         const removedNames = removedUsers.map(u => u.displayName || u.username).join(', ')
 
-        // Remove from admins and memberDetails
-        conversation.groupAdmins = conversation.groupAdmins.filter(a => !removedIds.includes(a.toString()))
-        conversation.memberDetails = conversation.memberDetails.filter(m => !removedIds.includes(m.user?.toString()))
+        // Remove from participants, admins, and memberDetails
+        conversation.participants = conversation.participants.filter(p => !removedIds.includes(p._id?.toString() || p.toString()))
+        conversation.groupAdmins = conversation.groupAdmins.filter(a => !removedIds.includes(a._id?.toString() || a.toString()))
+        if (conversation.memberDetails) {
+          conversation.memberDetails = conversation.memberDetails.filter(m => !removedIds.includes(m.user?.toString() || m.user?._id?.toString()))
+        }
 
         systemNotifications.push(`${actorName} removed ${removedNames}`)
       }
-
-      conversation.participants = newParticipantIds
     }
 
     await conversation.save()
@@ -605,11 +593,28 @@ app.put('/api/conversations/:id/members', protect, async (req, res) => {
 
     const populatedGroup = await Conversation.findById(conversation._id)
       .populate('participants', '-password')
+      .populate('pendingMembers', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')
 
     io.to(conversation._id.toString()).emit('group:updated', populatedGroup)
+
+    // Notify newly invited members with pending invite state
+    if (newlyInvitedIds.length > 0) {
+      const groupObj = populatedGroup.toObject()
+      newlyInvitedIds.forEach(uid => {
+        const uSockets = connectedUsers.get(uid)
+        if (uSockets) {
+          const inviteObj = { ...groupObj, status: 'pending', isPendingInvite: true }
+          uSockets.forEach(sockId => {
+            io.to(sockId).emit('conversation:new', inviteObj)
+            io.to(sockId).emit('group_invite_sent', inviteObj)
+            io.to(sockId).emit('group:created', inviteObj)
+          })
+        }
+      })
+    }
 
     res.json(populatedGroup)
   } catch (error) {

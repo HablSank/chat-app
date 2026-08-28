@@ -151,6 +151,10 @@ export function useSocket({
     socket.on('chat:message_deleted', (data)    => onMessageDeletedRef.current?.(data))
     socket.on('chat:message_pinned',  (data)    => onMessagePinnedRef.current?.(data))
     socket.on('group:created',        (data)    => onGroupCreatedRef.current?.(data))
+    socket.on('group_invite_sent',    (data)    => {
+      onNewConvRef.current?.(data)
+      onGroupCreatedRef.current?.(data)
+    })
     socket.on('group:updated',        (data)    => onGroupUpdatedRef.current?.(data))
 
     return () => {

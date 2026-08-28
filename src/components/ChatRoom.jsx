@@ -170,12 +170,13 @@ export default function ChatRoom({
 
   const safeMessages = Array.isArray(messages) ? messages : []
   const safeParticipants = Array.isArray(contact?.participants) ? contact.participants : []
-  const isPending  = contact?.status === 'pending' || !!contact?.isPendingInvite
-  const isGroupInvite = !!contact?.isGroup && isPending
+  const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
+  const safePendingMembers = (contact?.pendingMembers || []).map(p => (p?._id?.toString() || p?.toString()))
+  const isPending  = contact?.status === 'pending' || !!contact?.isPendingInvite || (contact?.isGroup && safePendingMembers.includes(currentUserId))
+  const isGroupInvite = !!contact?.isGroup && (isPending || safePendingMembers.includes(currentUserId))
   const initiatorId = contact?.initiator?._id
     ? contact.initiator._id.toString()
     : (contact?.initiator ? contact.initiator.toString() : '')
-  const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
   const isInitiator = !contact?.isGroup && isPending && initiatorId === currentUserId
   const isReceiver = !contact?.isGroup && isPending && !isInitiator
 
