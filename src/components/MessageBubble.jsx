@@ -260,6 +260,31 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
   )
 }
 
+// ── Blob-based Image Download Helper ──────────────────────────────────────────
+const downloadImage = async (imageUrl, fileName) => {
+  try {
+    const response = await fetch(imageUrl)
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName || 'ping-attachment.jpg'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.warn('Blob download fallback:', err)
+    const a = document.createElement('a')
+    a.href = imageUrl
+    a.download = fileName || 'ping-attachment.jpg'
+    a.target = '_blank'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+}
+
 // ── Image Grid (1–4 images) ───────────────────────────────────────────────────
 function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
   const count = urls.length
@@ -279,17 +304,17 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
           className={`max-w-xs max-h-72 w-full object-cover transition-all duration-300 ${isUploading ? 'opacity-60 blur-[0.5px]' : 'hover:opacity-90'}`}
         />
         {!isUploading && (
-          <a
-            href={urls[0]}
-            download={`ping-image-${Date.now()}.jpg`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              downloadImage(urls[0], 'ping-image.jpg')
+            }}
             className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
             title="Unduh Gambar"
           >
             <Download size={13} />
-          </a>
+          </button>
         )}
         {isUploading && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 text-white select-none">
@@ -326,17 +351,17 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
             className={`w-full h-36 object-cover transition-all duration-300 ${isUploading ? 'opacity-60' : 'hover:opacity-90'}`}
           />
           {!isUploading && (
-            <a
-              href={url}
-              download={`ping-image-${Date.now()}-${i + 1}.jpg`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                downloadImage(url, `ping-image-${i + 1}.jpg`)
+              }}
               className="absolute bottom-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
               title="Unduh Gambar"
             >
               <Download size={12} />
-            </a>
+            </button>
           )}
           {/* "+N more" overlay on the 4th tile */}
           {i === 3 && urls.length > 4 && !isUploading && (
@@ -809,9 +834,19 @@ export default function MessageBubble({
   }
 
   const handleCopyText = async () => {
-    if (!decryptedText) return
+    const textToCopy = decryptedText || message.plainText || message.text || ''
+    if (!textToCopy) return
     try {
-      await navigator.clipboard.writeText(decryptedText)
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = textToCopy
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
       setShowCopiedToast(true)
       setTimeout(() => setShowCopiedToast(false), 2000)
     } catch (err) {

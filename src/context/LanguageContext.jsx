@@ -67,7 +67,8 @@ const translations = {
     themeNotice: 'Catatan: Tema dan Wallpaper Chat diatur langsung di dalam masing-masing Room Chat melalui Menu Header Chat.',
     appTheme: 'Tema Aplikasi',
     darkTheme: 'Mode Gelap (Bawaan)',
-    lightTheme: 'Mode Terang',
+    lightTheme: 'Mode Terang (Maintenance)',
+    lightThemeMaintenance: 'Mode Terang sedang dalam pemeliharaan (Maintenance) untuk peningkatan performa visual.',
 
     // Security Tab
     securitySettings: 'Keamanan Akun',
@@ -204,7 +205,8 @@ const translations = {
     themeNotice: 'Note: Chat Themes and Wallpapers are configured directly per room via the Top Menu (⋮) inside each Chat Room.',
     appTheme: 'App Theme',
     darkTheme: 'Dark Mode (Default)',
-    lightTheme: 'Light Mode',
+    lightTheme: 'Light Mode (Maintenance)',
+    lightThemeMaintenance: 'Light Mode is currently under maintenance for visual and performance enhancements.',
 
     // Security Tab
     securitySettings: 'Account Security',

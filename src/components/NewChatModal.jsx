@@ -6,12 +6,14 @@ import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
 import ChatItem from './ChatItem'
 
-export default function NewChatModal({ isOpen, onClose, onSelectUser }) {
+export default function NewChatModal({ isOpen, onClose, onSelectUser, existingUserIds }) {
   const { t } = useLanguage()
   const { token, user: currentUser } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [isSearching, setIsSearching] = useState(false)
+
+  const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
 
   useEffect(() => {
     if (!isOpen) {
@@ -31,8 +33,14 @@ export default function NewChatModal({ isOpen, onClose, onSelectUser }) {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await res.json()
-        if (res.ok) {
-          const filtered = data.filter((u) => u._id !== (currentUser?.id || currentUser?._id))
+        if (res.ok && Array.isArray(data)) {
+          const filtered = data.filter((u) => {
+            const uid = (u?._id || u?.id || '').toString()
+            if (!uid) return false
+            const isMe = uid === currentUserId
+            const isExistingFriend = existingUserIds instanceof Set ? existingUserIds.has(uid) : false
+            return !isMe && !isExistingFriend
+          })
           setSearchResults(filtered)
         }
       } catch (err) {
@@ -44,7 +52,7 @@ export default function NewChatModal({ isOpen, onClose, onSelectUser }) {
 
     const timer = setTimeout(search, trimmed ? 250 : 0)
     return () => clearTimeout(timer)
-  }, [searchQuery, isOpen, token, currentUser])
+  }, [searchQuery, isOpen, token, currentUserId, existingUserIds])
 
   if (!isOpen) return null
 

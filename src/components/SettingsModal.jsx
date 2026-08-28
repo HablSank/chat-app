@@ -544,35 +544,33 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     <button
                       type="button"
                       onClick={() => setTheme('dark')}
-                      className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
-                        theme !== 'light'
-                          ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
-                          : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                      }`}
+                      className="p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm"
                     >
-                      <Moon size={16} className={theme !== 'light' ? 'text-indigo-400' : 'text-zinc-500'} />
+                      <Moon size={16} className="text-indigo-400" />
                       <div className="text-left">
                         <p className="text-xs font-bold text-zinc-100">{t('darkTheme')}</p>
-                        <p className="text-[10px] text-zinc-500">Gelap & Elegan</p>
+                        <p className="text-[10px] text-zinc-400">Gelap & Elegan</p>
                       </div>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setTheme('light')}
-                      className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
-                        theme === 'light'
-                          ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
-                          : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                      }`}
+                      disabled
+                      className="p-3 rounded-2xl border flex items-center gap-2.5 transition-all bg-zinc-950/20 border-zinc-800/60 text-zinc-500 opacity-60 cursor-not-allowed"
                     >
-                      <Sun size={16} className={theme === 'light' ? 'text-amber-400' : 'text-zinc-500'} />
+                      <Sun size={16} className="text-zinc-600" />
                       <div className="text-left">
-                        <p className="text-xs font-bold text-zinc-100">{t('lightTheme')}</p>
-                        <p className="text-[10px] text-zinc-500">Cerah & Bersih</p>
+                        <p className="text-xs font-bold text-zinc-400">{t('lightTheme')}</p>
+                        <p className="text-[10px] text-zinc-600">Under Maintenance</p>
                       </div>
                     </button>
                   </div>
+
+                  {/* Light Mode Maintenance Notice */}
+                  <p className="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>{t('lightThemeMaintenance')}</span>
+                  </p>
                 </div>
 
                 {/* Chat Custom Wallpaper Trigger */}

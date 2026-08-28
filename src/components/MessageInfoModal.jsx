@@ -46,7 +46,7 @@ export default function MessageInfoModal({ isOpen, onClose, message, conversatio
   const formatTimestamp = (dateStr) => {
     if (!dateStr) return 'Just now'
     const date = new Date(dateStr)
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
   // Filter out the sender themselves from receipt lists

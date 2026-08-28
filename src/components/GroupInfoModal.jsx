@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
+import ImageCropperModal from './ImageCropperModal'
 
 export default function GroupInfoModal({
   isOpen,
@@ -42,6 +43,8 @@ export default function GroupInfoModal({
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false)
   const [error, setError] = useState('')
   const [confirmModal, setConfirmModal] = useState(null) // { title, message, onConfirm, isDanger }
+  const [cropImageSrc, setCropImageSrc] = useState(null)
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false)
 
   const avatarInputRef = useRef(null)
 
@@ -58,6 +61,8 @@ export default function GroupInfoModal({
       setIsEditingName(false)
       setIsAddingMembers(false)
       setError('')
+      setCropImageSrc(null)
+      setIsCropModalOpen(false)
     }
   }, [contact, isOpen])
 
@@ -92,17 +97,26 @@ export default function GroupInfoModal({
     return () => clearTimeout(timer)
   }, [searchQuery, isAddingMembers, token, participants])
 
-  // ── Upload Avatar ──
-  const handleAvatarChange = async (e) => {
+  // ── Open Cropper on file select ──
+  const handleAvatarChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const objectUrl = URL.createObjectURL(file)
+    setCropImageSrc(objectUrl)
+    setIsCropModalOpen(true)
+    e.target.value = ''
+  }
+
+  // ── Upload Cropped Avatar ──
+  const handleCropFinished = async (croppedBlob) => {
+    if (!croppedBlob || !contact?.conversationId) return
 
     setIsUploadingAvatar(true)
     setError('')
     try {
-      const compressed = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
+      const compressed = await compressImage(croppedBlob, { maxWidth: 500, maxHeight: 500, quality: 0.85 })
       const formData = new FormData()
-      formData.append('avatar', compressed || file, file.name || 'avatar.jpg')
+      formData.append('avatar', compressed || croppedBlob, 'group-avatar.jpg')
 
       const res = await fetch(getApiUrl(`/api/conversations/${contact.conversationId}/avatar`), {
         method: 'POST',
@@ -119,7 +133,6 @@ export default function GroupInfoModal({
       setError(err.message || 'Failed to upload avatar')
     } finally {
       setIsUploadingAvatar(false)
-      e.target.value = ''
     }
   }
 
@@ -723,6 +736,13 @@ export default function GroupInfoModal({
               </div>
             )}
           </AnimatePresence>
+
+          <ImageCropperModal
+            isOpen={isCropModalOpen}
+            imageSrc={cropImageSrc}
+            onClose={() => setIsCropModalOpen(false)}
+            onCropFinished={handleCropFinished}
+          />
         </div>
       )}
     </AnimatePresence>

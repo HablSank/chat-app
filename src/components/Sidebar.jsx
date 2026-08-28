@@ -292,6 +292,32 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     }
   }, [conversations, currentUserId])
 
+  // Filter conversations locally based on active query with complete null-safety
+  const searchFilteredConversations = useMemo(() => {
+    const q = (query || '').trim().toLowerCase().replace(/^@/, '')
+    if (!q) return []
+    const sourceList = Array.isArray(isViewingArchive ? archivedConversations : displayActiveConversations)
+      ? (isViewingArchive ? archivedConversations : displayActiveConversations)
+      : []
+    return sourceList.filter((conv) => {
+      if (!conv) return false
+      if (conv.isGroup) {
+        return (conv.groupName || '').toLowerCase().includes(q)
+      }
+      const other = Array.isArray(conv.participants)
+        ? conv.participants.find(
+            (p) => (p?._id?.toString() || p?.toString()) !== currentUserId
+          )
+        : null
+      const nameMatch = other?.displayName ? other.displayName.toLowerCase().includes(q) : false
+      const usernameMatch = other?.username ? other.username.toLowerCase().includes(q) : false
+      const otherNameMatch = other?.name ? other.name.toLowerCase().includes(q) : false
+      const lastMsgMatch = conv.lastMessage?.text ? conv.lastMessage.text.toLowerCase().includes(q) : false
+      const sysMsgMatch = conv.lastMessage?.systemText ? conv.lastMessage.systemText.toLowerCase().includes(q) : false
+      return nameMatch || usernameMatch || otherNameMatch || lastMsgMatch || sysMsgMatch
+    })
+  }, [query, isViewingArchive, archivedConversations, displayActiveConversations, currentUserId])
+
   const renderConversationItem = (conv) => {
     const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
     const isArchived = Array.isArray(conv.archivedBy) && conv.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
@@ -379,6 +405,22 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       </div>
     )
   }
+
+  // Set of user IDs of existing direct conversations / friends to exclude from Global New Chat Search
+  const existingFriendIds = useMemo(() => {
+    const ids = new Set()
+    conversations.forEach((conv) => {
+      if (!conv.isGroup && Array.isArray(conv.participants)) {
+        conv.participants.forEach((p) => {
+          const id = (p?._id?.toString() || p?.toString())
+          if (id && id !== currentUserId) {
+            ids.add(id)
+          }
+        })
+      }
+    })
+    return ids
+  }, [conversations, currentUserId])
 
   return (
     <>
@@ -634,6 +676,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         isOpen={isNewChatOpen}
         onClose={() => setIsNewChatOpen(false)}
         onSelectUser={handleSelectUser}
+        existingUserIds={existingFriendIds}
       />
       <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
     </>

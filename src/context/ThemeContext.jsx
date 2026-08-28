@@ -3,34 +3,23 @@ import { createContext, useContext, useState, useEffect } from 'react'
 const ThemeContext = createContext()
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ping_app_theme') || 'dark'
-    }
-    return 'dark'
-  })
+  // Phase 15.39: Locked strictly to 'dark' while Light Mode is under maintenance
+  const [theme, setTheme] = useState('dark')
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-
-    localStorage.setItem('ping_app_theme', theme)
+    localStorage.setItem('ping_app_theme', 'dark')
     const root = document.documentElement
-
-    if (theme === 'light') {
-      root.classList.add('light', 'light-theme')
-      root.classList.remove('dark')
-    } else {
-      root.classList.add('dark')
-      root.classList.remove('light', 'light-theme')
-    }
-  }, [theme])
+    root.classList.add('dark')
+    root.classList.remove('light', 'light-theme')
+  }, [])
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+    // Under maintenance - locked to dark
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, isDark: theme === 'dark' }}>
+    <ThemeContext.Provider value={{ theme: 'dark', setTheme, toggleTheme, isDark: true }}>
       {children}
     </ThemeContext.Provider>
   )
