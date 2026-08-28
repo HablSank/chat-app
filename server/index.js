@@ -1064,6 +1064,27 @@ const handleJoinGroup = async (req, res) => {
     )
 
     if (!isAlreadyMember) {
+      // Phase 15.21 Check: Verify if invite was received via a pending 1-on-1 message request
+      const pendingInviteConv = await Conversation.findOne({
+        isGroup: { $ne: true },
+        participants: req.user._id,
+        status: 'pending',
+        initiator: { $ne: req.user._id },
+      })
+
+      if (pendingInviteConv) {
+        const inviteMsg = await Message.findOne({
+          conversationId: pendingInviteConv._id,
+          messageType: 'group_invite',
+          'inviteData.groupId': conversation._id,
+        })
+        if (inviteMsg) {
+          return res.status(403).json({
+            message: 'Harap terima permintaan pesan dari pengirim undangan terlebih dahulu sebelum bergabung ke grup.',
+          })
+        }
+      }
+
       if (!conversation.participants) conversation.participants = []
       conversation.participants.push(req.user._id)
 

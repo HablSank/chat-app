@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
-import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, Lock } from 'lucide-react'
+import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, Lock, X } from 'lucide-react'
 import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage } from '../utils/crypto'
@@ -455,6 +455,7 @@ function ReactionBubbles({ reactions, onReact }) {
 function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConversation, token }) {
   const [isJoining, setIsJoining] = useState(false)
   const [hasJoined, setHasJoined] = useState(false)
+  const [isDeclined, setIsDeclined] = useState(false)
 
   const groupId = inviteData?.groupId?._id || inviteData?.groupId
   const groupName = inviteData?.groupName || 'Group'
@@ -465,7 +466,7 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
 
   const handleJoin = async (e) => {
     e.stopPropagation()
-    if (isLocked) return
+    if (isLocked || isDeclined) return
     if (!groupId) return
     setIsJoining(true)
     try {
@@ -489,18 +490,26 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
     }
   }
 
+  const handleDecline = (e) => {
+    e.stopPropagation()
+    if (isLocked) return
+    setIsDeclined(true)
+  }
+
   return (
     <div
-      onClick={handleJoin}
+      onClick={!isDeclined && !isLocked ? handleJoin : undefined}
       className={`p-3.5 rounded-2xl border transition-all select-none ${
         isLocked
           ? 'cursor-not-allowed opacity-90'
+          : isDeclined
+          ? 'cursor-default opacity-85'
           : 'cursor-pointer'
       } ${
         isOwn
           ? 'bg-indigo-950/60 border-indigo-500/30 text-white shadow-lg shadow-indigo-950/40 hover:bg-indigo-950/80'
           : 'bg-zinc-900/90 border-zinc-700/60 text-zinc-100 shadow-xl hover:bg-zinc-850'
-      } min-w-[240px] max-w-sm`}
+      } min-w-[250px] max-w-sm`}
     >
       <div className="flex items-center gap-3 mb-3">
         <div className="relative flex-shrink-0">
@@ -526,48 +535,110 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
         </div>
       </div>
 
-      <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-zinc-400">
-          {isOwn
-            ? 'Undangan Anda terkirim'
-            : isLocked
-            ? 'Terima pesan terlebih dahulu'
-            : 'Ketuk untuk bergabung'}
-        </p>
-        <motion.button
-          type="button"
-          onClick={handleJoin}
-          disabled={isJoining || isLocked}
-          whileHover={!isLocked ? { scale: 1.03 } : {}}
-          whileTap={!isLocked ? { scale: 0.97 } : {}}
-          className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md ${
-            isLocked
-              ? 'bg-zinc-700/60 text-zinc-400 cursor-not-allowed opacity-75 border border-zinc-600/30 shadow-none'
-              : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-500/30 cursor-pointer'
-          } disabled:opacity-50`}
-        >
-          {isJoining ? (
-            <>
-              <Loader2 size={13} className="animate-spin" />
-              <span>Bergabung...</span>
-            </>
+      <div className="pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+        <div className="text-[11px] font-medium min-w-0 truncate">
+          {isOwn ? (
+            <span className="text-zinc-400">Undangan Anda terkirim</span>
+          ) : isDeclined ? (
+            <span className="text-rose-400">Undangan ditolak</span>
+          ) : isLocked ? (
+            <span className="text-amber-400/90">Terima pesan terlebih dahulu</span>
           ) : hasJoined ? (
-            <>
+            <span className="text-emerald-400">Sudah bergabung</span>
+          ) : (
+            <span className="text-zinc-400">Ketuk untuk bergabung</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {isOwn ? (
+            <motion.button
+              type="button"
+              onClick={handleJoin}
+              disabled={isJoining}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/30 cursor-pointer disabled:opacity-50"
+            >
+              {isJoining ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Memuat...</span>
+                </>
+              ) : (
+                <>
+                  <Users size={13} />
+                  <span>Lihat Grup</span>
+                </>
+              )}
+            </motion.button>
+          ) : isDeclined ? (
+            <span className="px-2.5 py-1 text-[11px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg">
+              Ditolak
+            </span>
+          ) : hasJoined ? (
+            <motion.button
+              type="button"
+              onClick={handleJoin}
+              disabled={isJoining}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer disabled:opacity-50"
+            >
               <Check size={13} />
               <span>Buka Grup</span>
-            </>
-          ) : isLocked ? (
-            <>
-              <Lock size={12} className="opacity-70" />
-              <span>Gabung Grup</span>
-            </>
+            </motion.button>
           ) : (
             <>
-              <Users size={13} />
-              <span>{isOwn ? 'Lihat Grup' : 'Gabung Grup'}</span>
+              <motion.button
+                type="button"
+                onClick={handleDecline}
+                disabled={isJoining || isLocked}
+                whileHover={!isLocked ? { scale: 1.03 } : {}}
+                whileTap={!isLocked ? { scale: 0.97 } : {}}
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all ${
+                  isLocked
+                    ? 'bg-zinc-800/60 text-zinc-500 cursor-not-allowed opacity-50 border border-zinc-700/30'
+                    : 'bg-zinc-800 hover:bg-rose-500/20 text-zinc-300 hover:text-rose-300 border border-zinc-700/60 cursor-pointer'
+                } disabled:opacity-50`}
+                title="Tolak gabung grup"
+              >
+                <X size={12} />
+                <span>Tolak</span>
+              </motion.button>
+
+              <motion.button
+                type="button"
+                onClick={handleJoin}
+                disabled={isJoining || isLocked}
+                whileHover={!isLocked ? { scale: 1.03 } : {}}
+                whileTap={!isLocked ? { scale: 0.97 } : {}}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md ${
+                  isLocked
+                    ? 'bg-zinc-700/60 text-zinc-400 cursor-not-allowed opacity-75 border border-zinc-600/30 shadow-none'
+                    : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-500/30 cursor-pointer'
+                } disabled:opacity-50`}
+              >
+                {isJoining ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>Bergabung...</span>
+                  </>
+                ) : isLocked ? (
+                  <>
+                    <Lock size={12} className="opacity-70" />
+                    <span>Gabung Grup</span>
+                  </>
+                ) : (
+                  <>
+                    <Users size={13} />
+                    <span>Gabung Grup</span>
+                  </>
+                )}
+              </motion.button>
             </>
           )}
-        </motion.button>
+        </div>
       </div>
     </div>
   )
