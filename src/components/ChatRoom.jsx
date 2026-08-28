@@ -259,34 +259,50 @@ export default function ChatRoom({
     }
   }, [currentMatchIdx, matchedMessageIds, isSearchOpen])
 
-  const prevContactIdRef = useRef(contact?.id)
+  const activeRoomId = contact?.conversationId || contact?.id
+  const prevRoomIdRef = useRef(null)
+  const initialScrollDoneRef = useRef(false)
+  const prevMsgLengthRef = useRef(safeMessages.length)
 
-  // Guarded auto-scroll: Scroll on contact switch, or on new message ONLY if near bottom (<= 150px)
+  // 1. Instant scrollToBottom('auto') when opening or switching a chat room
   useEffect(() => {
-    if (isSearchOpen || !scrollRef.current) return
-
-    const container = scrollRef.current
-    const isContactSwitched = prevContactIdRef.current !== contact?.id
-    prevContactIdRef.current = contact?.id
-
-    if (isContactSwitched) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'auto',
-      })
+    if (!activeRoomId) return
+    const isSwitched = prevRoomIdRef.current !== activeRoomId
+    if (isSwitched) {
+      prevRoomIdRef.current = activeRoomId
+      initialScrollDoneRef.current = false
       setReplyingTo(null)
       setEditingMessage(null)
-      return
     }
 
-    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 150
-    if (isNearBottom) {
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: 'smooth',
+    if (scrollRef.current && (!initialScrollDoneRef.current || isSwitched)) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      initialScrollDoneRef.current = true
+
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        }
       })
     }
-  }, [safeMessages.length, contact?.id, isSearchOpen])
+  }, [activeRoomId, safeMessages.length])
+
+  // 2. Incremental auto-scroll on new incoming messages only if user is already near bottom (<= 180px)
+  useEffect(() => {
+    if (isSearchOpen || !scrollRef.current) return
+    const container = scrollRef.current
+
+    if (safeMessages.length > prevMsgLengthRef.current && prevRoomIdRef.current === activeRoomId) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 180
+      if (isNearBottom) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        })
+      }
+    }
+    prevMsgLengthRef.current = safeMessages.length
+  }, [safeMessages.length, isSearchOpen, activeRoomId])
 
   useEffect(() => {
     return () => {

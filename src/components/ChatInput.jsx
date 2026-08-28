@@ -49,7 +49,13 @@ export default function ChatInput({
     const el = messageInputRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+    const newHeight = Math.min(el.scrollHeight, 128)
+    el.style.height = `${newHeight}px`
+    if (el.scrollHeight > 128) {
+      el.style.overflowY = 'auto'
+    } else {
+      el.style.overflowY = 'hidden'
+    }
   }
 
   // Adjust height whenever value changes
@@ -549,8 +555,9 @@ export default function ChatInput({
                 ? (isVanishMode ? 'Caption pesan sementara…' : 'Add a caption…')
                 : (isVanishMode ? 'Pesan sementara (24 jam)...' : 'Type a message…')
             }
+            style={{ overflowY: 'hidden' }}
             className={`
-              flex-1 text-sm placeholder-zinc-500 rounded-2xl px-4 py-2.5 outline-none resize-none max-h-32 min-h-[42px] leading-relaxed transition-all overflow-y-auto
+              flex-1 text-sm placeholder-zinc-500 rounded-2xl px-4 py-2.5 outline-none resize-none max-h-32 min-h-[42px] leading-relaxed transition-all
               ${editingMessage
                 ? 'bg-amber-950/20 text-amber-100 border border-amber-500/40 focus:border-amber-400'
                 : isVanishMode
