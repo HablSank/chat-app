@@ -63,7 +63,7 @@ export default function ChatHeader({
   }
 
   return (
-    <div className="h-16 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30">
+    <div id="chatroom-header" className="h-16 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30">
       {/* Left: Back button (Mobile only) + Contact / Group Info */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {isMobile && (

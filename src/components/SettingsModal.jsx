@@ -250,7 +250,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
           className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-10"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/90 flex-shrink-0">
+          <div id="settings-modal-header" className="flex items-center justify-between px-5 py-3.5 border-b border-zinc-800 bg-zinc-900/90 flex-shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                 <Sparkles size={16} />

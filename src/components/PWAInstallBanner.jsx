@@ -43,6 +43,7 @@ export default function PWAInstallBanner() {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -10, scale: 0.98 }}
         transition={{ duration: 0.2 }}
+        id="pwa-install-banner"
         className="mx-3 mt-2 mb-1 p-3 rounded-2xl bg-gradient-to-r from-indigo-900/60 via-indigo-950/80 to-zinc-900 border border-indigo-500/30 shadow-lg shadow-indigo-950/40 relative overflow-hidden flex-shrink-0"
       >
         {/* Glow effect */}

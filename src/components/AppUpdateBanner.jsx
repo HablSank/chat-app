@@ -11,6 +11,7 @@ export default function AppUpdateBanner({ isVisible, onUpdate, onDismiss }) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -10, scale: 0.98 }}
         transition={{ duration: 0.2 }}
+        id="app-update-banner"
         className="mx-3 mt-2 mb-1 p-3 rounded-2xl bg-gradient-to-r from-emerald-900/60 via-emerald-950/80 to-zinc-900 border border-emerald-500/30 shadow-lg shadow-emerald-950/40 relative overflow-hidden flex-shrink-0"
       >
         {/* Glow effect */}

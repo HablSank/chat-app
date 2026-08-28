@@ -11,6 +11,9 @@ import ChatHeader from './ChatHeader'
 import ThemeModal, { BUILTIN_WALLPAPERS } from './ThemeModal'
 import { decryptMessage } from '../utils/crypto'
 
+import { useLanguage } from '../context/LanguageContext'
+import { useTheme } from '../context/ThemeContext'
+
 const slideInVariants = {
   hidden: { x: '100%', opacity: 0 },
   visible: {
@@ -25,10 +28,10 @@ const slideInVariants = {
   },
 }
 
-function formatLastSeen(lastSeenDate) {
-  if (!lastSeenDate) return 'Offline'
+function formatLastSeen(lastSeenDate, t, language = 'id') {
+  if (!lastSeenDate) return t('offlineStatus')
   const date = new Date(lastSeenDate)
-  if (isNaN(date.getTime())) return 'Offline'
+  if (isNaN(date.getTime())) return t('offlineStatus')
 
   const now = new Date()
   const isToday = date.toDateString() === now.toDateString()
@@ -40,16 +43,16 @@ function formatLastSeen(lastSeenDate) {
   const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
   if (isToday) {
-    return `Last seen today at ${timeStr}`
+    return `${t('lastSeenTodayAt')} ${timeStr}`
   } else if (isYesterday) {
-    return `Last seen yesterday at ${timeStr}`
+    return `${t('lastSeenYesterdayAt')} ${timeStr}`
   } else {
-    const dateStr = date.toLocaleDateString([], { day: 'numeric', month: 'short' })
-    return `Last seen on ${dateStr} at ${timeStr}`
+    const dateStr = date.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'short' })
+    return `${t('lastSeenOn')} ${dateStr} ${t('atTime')} ${timeStr}`
   }
 }
 
-function getDateSeparatorLabel(dateStr) {
+function getDateSeparatorLabel(dateStr, t, language = 'id') {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   if (isNaN(date.getTime())) return ''
@@ -64,13 +67,13 @@ function getDateSeparatorLabel(dateStr) {
     d1.getDate() === d2.getDate()
 
   if (isSameDay(date, today)) {
-    return 'Hari ini'
+    return t('today')
   }
   if (isSameDay(date, yesterday)) {
-    return 'Kemarin'
+    return t('yesterday')
   }
 
-  return date.toLocaleDateString('id-ID', {
+  return date.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -87,10 +90,10 @@ function Toast({ message, visible }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="absolute top-16 left-1/2 -translate-x-1/2 z-30
-            bg-zinc-800/95 border border-zinc-700/80 text-zinc-100 text-xs font-medium
-            px-3.5 py-1.5 rounded-full shadow-2xl backdrop-blur-md pointer-events-none text-center
-            max-w-[90%] sm:max-w-xs truncate"
+          className="fixed top-16 left-4 right-4 sm:left-auto sm:right-6 sm:w-auto z-50
+            bg-zinc-850/95 border border-zinc-700/80 text-zinc-100 text-xs font-semibold
+            px-4 py-2 rounded-2xl shadow-2xl backdrop-blur-md pointer-events-none text-center
+            max-w-[88vw] sm:max-w-md mx-auto truncate"
         >
           {message}
         </motion.div>
@@ -156,6 +159,8 @@ export default function ChatRoom({
   onJoinGroup,
   currentUser,
 }) {
+  const { t, language } = useLanguage()
+  const { theme } = useTheme()
   const scrollRef          = useRef(null)
   const toastTimerRef      = useRef(null)
   const [toastMessage, setToastMessage]     = useState('🚀 Feature coming soon!')
@@ -190,12 +195,25 @@ export default function ChatRoom({
         backgroundRepeat: 'no-repeat',
       }
     }
+    const isLight = theme === 'light'
+    let styleVal = activeWallpaper
+    if (activeWallpaper.includes('radial-gradient') && activeWallpaper.includes('1px')) {
+      // Dots
+      styleVal = isLight
+        ? 'radial-gradient(rgba(100, 116, 139, 0.28) 1.2px, transparent 1.2px)'
+        : 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)'
+    } else if (activeWallpaper.includes('linear-gradient') && activeWallpaper.includes('1px')) {
+      // Cyber grid
+      styleVal = isLight
+        ? 'linear-gradient(to right, rgba(100, 116, 139, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(100, 116, 139, 0.2) 1px, transparent 1px)'
+        : 'linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)'
+    }
     const builtin = BUILTIN_WALLPAPERS.find(w => w.value === activeWallpaper)
     return {
-      backgroundImage: activeWallpaper,
+      backgroundImage: styleVal,
       backgroundSize: builtin?.bgSize || 'auto',
     }
-  }, [activeWallpaper])
+  }, [activeWallpaper, theme])
 
   const safeMessages = Array.isArray(messages) ? messages : []
   const safeParticipants = Array.isArray(contact?.participants) ? contact.participants : []
@@ -206,8 +224,8 @@ export default function ChatRoom({
   const initiatorId = contact?.initiator?._id
     ? contact.initiator._id.toString()
     : (contact?.initiator ? contact.initiator.toString() : '')
-  const isInitiator = !contact?.isGroup && isPending && initiatorId === currentUserId
-  const isReceiver = !contact?.isGroup && isPending && !isInitiator
+  const isInitiator = !contact?.isGroup && isPending && (initiatorId === currentUserId || contact?.status === 'new' || !contact?.conversationId)
+  const isReceiver = !contact?.isGroup && isPending && !isInitiator && !!initiatorId && initiatorId !== currentUserId
 
   const pinnedMessages = safeMessages.filter(m => m?.isPinned && !m?.isDeleted)
 
@@ -406,7 +424,7 @@ export default function ChatRoom({
           onOpenGroupInfo={() => setIsGroupInfoOpen(true)}
           onOpenTheme={() => setIsThemeModalOpen(true)}
           groupMemberNames={groupMemberNames}
-          formatLastSeen={formatLastSeen}
+          formatLastSeen={(date) => formatLastSeen(date, t, language)}
           isSearchOpen={isSearchOpen}
           onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
           isMediaSidebarOpen={isMediaSidebarOpen}
@@ -527,7 +545,7 @@ export default function ChatRoom({
               const msgDateStr = msg.createdAt ? new Date(msg.createdAt).toDateString() : ''
               const prevDateStr = index > 0 && safeMessages[index - 1]?.createdAt ? new Date(safeMessages[index - 1].createdAt).toDateString() : null
               const isNewDay = index === 0 || msgDateStr !== prevDateStr
-              const dateLabel = getDateSeparatorLabel(msg.createdAt)
+              const dateLabel = getDateSeparatorLabel(msg.createdAt, t, language)
 
               const isOwn = (msg.sender?._id || msg.sender) === (currentUser?.id || currentUser?._id)
               const displayMsg = {
@@ -655,10 +673,10 @@ export default function ChatRoom({
           <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
             <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
               <p className="text-sm text-zinc-100 font-semibold mb-1">
-                {contact?.name} ingin mengirim pesan kepada Anda
+                {contact?.name} {t('wantsToMessage')}
               </p>
               <p className="text-xs text-zinc-400 mb-3">
-                Terima permintaan untuk melihat foto profil lengkap dan membalas pesan.
+                {t('acceptPrompt')}
               </p>
               <div className="flex items-center justify-center gap-3">
                 <motion.button
@@ -667,7 +685,7 @@ export default function ChatRoom({
                   whileTap={{ scale: 0.98 }}
                   className="px-6 py-2 rounded-xl bg-zinc-700 hover:bg-rose-500/80 text-zinc-200 text-sm font-semibold transition-colors cursor-pointer"
                 >
-                  Tolak
+                  {t('reject')}
                 </motion.button>
                 <motion.button
                   onClick={onAccept}
@@ -675,22 +693,22 @@ export default function ChatRoom({
                   whileTap={{ scale: 0.98 }}
                   className="px-6 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-indigo-500/30"
                 >
-                  Terima
+                  {t('accept')}
                 </motion.button>
               </div>
             </div>
           </div>
-        ) : isInitiator ? (
+        ) : (isInitiator && safeMessages.length > 0) ? (
           <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
             <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
               <div className="w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-2">
                 <Clock size={16} />
               </div>
               <p className="text-sm text-zinc-100 font-semibold mb-1">
-                Permintaan Pesan Terkirim
+                {t('messageRequestSent')}
               </p>
               <p className="text-xs text-zinc-400 max-w-xs mx-auto">
-                Menunggu persetujuan dari {contact?.name}. Foto profil dan info lengkap akan terbuka setelah permintaan disetujui.
+                {t('awaitingApproval')}
               </p>
             </div>
           </div>

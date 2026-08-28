@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
-import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, CheckCheck, Lock, X } from 'lucide-react'
+import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, CheckCheck, Lock, X, Copy, Download } from 'lucide-react'
 import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage, getCachedDecryptedMessage } from '../utils/crypto'
@@ -23,40 +23,47 @@ function isValidHttpUrl(string) {
   try {
     const url = new URL(string)
     return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
+  } catch (_) {
     return false
   }
 }
 
+// ── Audio Duration Formatter ──────────────────────────────────────────────────
+function formatTime(secs) {
+  if (!secs || isNaN(secs) || !isFinite(secs) || secs < 0) return '0:00'
+  const m = Math.floor(secs / 60)
+  const s = Math.floor(secs % 60)
+  return `${m}:${s < 10 ? '0' : ''}${s}`
+}
+
 function renderClickableText(text, isOwn) {
   if (!text) return null
-  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
+
+  // URL extraction regex
+  const urlRegex = /(https?:\/\/[^\s]+)/g
   const parts = text.split(urlRegex)
 
-  return parts.map((part, index) => {
-    if (part.match(urlRegex)) {
-      const candidateUrl = part.startsWith('http://') || part.startsWith('https://')
-        ? part
-        : `https://${part}`
-
-      if (isValidHttpUrl(candidateUrl)) {
-        return (
-          <a
-            key={index}
-            href={candidateUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className={`underline break-all font-medium transition-opacity hover:opacity-80 ${
-              isOwn ? 'text-white underline-offset-2' : 'text-indigo-400 hover:text-indigo-300 underline-offset-2'
-            }`}
-          >
-            {part}
-          </a>
-        )
-      }
+  return parts.map((part, i) => {
+    if (isValidHttpUrl(part)) {
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`underline break-all font-medium transition-opacity hover:opacity-80 ${
+            isOwn ? 'text-white underline-offset-2' : 'text-indigo-400 hover:text-indigo-300 underline-offset-2'
+          }`}
+        >
+          {part}
+        </a>
+      )
     }
-    return part
+
+    // Markdown basic bold/italic inline parsing
+    let content = part
+    return <span key={i}>{content}</span>
   })
 }
 
@@ -120,7 +127,7 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
 function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1) // 1 -> 1.5 -> 2 -> 1
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
 
   const initialDuration = (isFinite(audioDuration) && !isNaN(audioDuration) && audioDuration > 0)
     ? Number(audioDuration)
@@ -179,7 +186,7 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
 
   const effectiveDuration = (isFinite(duration) && duration > 0)
     ? duration
-    : (isFinite(audioDuration) && audioDuration > 0 ? Number(audioDuration) : 0)
+    : (isFinite(initialDuration) && initialDuration > 0 ? initialDuration : 0)
 
   const handleSeek = (e) => {
     e.stopPropagation()
@@ -188,13 +195,6 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
       audioRef.current.currentTime = newTime
       setCurrentTime(newTime)
     }
-  }
-
-  const formatTime = (sec) => {
-    if (isNaN(sec) || !isFinite(sec) || sec <= 0) return '0:00'
-    const m = Math.floor(sec / 60)
-    const s = Math.floor(sec % 60)
-    return `${m}:${s.toString().padStart(2, '0')}`
   }
 
   const progress = effectiveDuration > 0
@@ -248,14 +248,11 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
       {/* Voice speedup button (1x / 1.5x / 2x) */}
       <motion.button
         type="button"
-        whileTap={{ scale: 0.92 }}
         onClick={toggleSpeed}
-        className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight transition-all cursor-pointer flex-shrink-0 ${
-          playbackSpeed > 1
-            ? (isOwn ? 'bg-white text-indigo-700 font-extrabold shadow-sm' : 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/40')
-            : (isOwn ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-zinc-850 text-zinc-300 hover:bg-zinc-700 border border-zinc-700/60')
+        whileTap={{ scale: 0.9 }}
+        className={`px-1.5 py-0.5 text-[10px] font-bold rounded-md font-mono flex-shrink-0 transition-colors ${
+          isOwn ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
         }`}
-        title="Ubah Kecepatan Suara (1x / 1.5x / 2x)"
       >
         {playbackSpeed}x
       </motion.button>
@@ -270,7 +267,7 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
   if (count === 1) {
     return (
       <div
-        className={`relative overflow-hidden rounded-2xl cursor-pointer ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 p-0.5' : 'border-2 border-dashed border-zinc-500 p-0.5') : ''}`}
+        className={`group relative overflow-hidden rounded-2xl cursor-pointer ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 p-0.5' : 'border-2 border-dashed border-zinc-500 p-0.5') : ''}`}
         onClick={(e) => {
           e.stopPropagation()
           if (!isUploading) onOpenLightbox(urls[0])
@@ -281,6 +278,19 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
           alt="Shared image"
           className={`max-w-xs max-h-72 w-full object-cover transition-all duration-300 ${isUploading ? 'opacity-60 blur-[0.5px]' : 'hover:opacity-90'}`}
         />
+        {!isUploading && (
+          <a
+            href={urls[0]}
+            download={`ping-image-${Date.now()}.jpg`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
+            title="Unduh Gambar"
+          >
+            <Download size={13} />
+          </a>
+        )}
         {isUploading && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 text-white select-none">
             <Loader2 size={24} className="animate-spin text-indigo-400" />
@@ -302,7 +312,7 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
       {urls.slice(0, 4).map((url, i) => (
         <div
           key={url + i}
-          className={`relative overflow-hidden ${
+          className={`group relative overflow-hidden ${
             count === 3 && i === 2 ? 'col-span-2' : ''
           }`}
           onClick={(e) => {
@@ -315,6 +325,19 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
             alt={`Image ${i + 1}`}
             className={`w-full h-36 object-cover transition-all duration-300 ${isUploading ? 'opacity-60' : 'hover:opacity-90'}`}
           />
+          {!isUploading && (
+            <a
+              href={url}
+              download={`ping-image-${Date.now()}-${i + 1}.jpg`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute bottom-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
+              title="Unduh Gambar"
+            >
+              <Download size={12} />
+            </a>
+          )}
           {/* "+N more" overlay on the 4th tile */}
           {i === 3 && urls.length > 4 && !isUploading && (
             <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -341,6 +364,8 @@ function ActionPicker({
   onDelete,
   onPin,
   onInfo,
+  onCopy,
+  hasText,
   isOwn,
   isPinned,
   isDeleted,
@@ -388,6 +413,23 @@ function ActionPicker({
           title="Reply"
         >
           <Reply size={15} />
+        </motion.button>
+      )}
+
+      {/* Copy Text button */}
+      {!isDeleted && hasText && (
+        <motion.button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onCopy?.()
+          }}
+          whileHover={{ scale: 1.15 }}
+          whileTap={{ scale: 0.9 }}
+          className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
+          title="Salin Teks"
+        >
+          <Copy size={14} />
         </motion.button>
       )}
 
@@ -749,6 +791,7 @@ export default function MessageBubble({
   })
   const [isFlashing, setIsFlashing]             = useState(false)
   const [dragX, setDragX]                       = useState(0)
+  const [showCopiedToast, setShowCopiedToast]   = useState(false)
 
   const timerRef = useRef(null)
   const isLongPressRef = useRef(false)
@@ -763,6 +806,17 @@ export default function MessageBubble({
       imageUrls,
       audioUrl,
     })
+  }
+
+  const handleCopyText = async () => {
+    if (!decryptedText) return
+    try {
+      await navigator.clipboard.writeText(decryptedText)
+      setShowCopiedToast(true)
+      setTimeout(() => setShowCopiedToast(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text', err)
+    }
   }
 
   // Trigger temporary background line flash when focused from search
@@ -963,6 +1017,8 @@ export default function MessageBubble({
                 isPinned={isPinned}
                 isDeleted={isDeleted}
                 canEdit={canEdit}
+                hasText={!!decryptedText}
+                onCopy={handleCopyText}
                 onReact={(emoji) => {
                   onReact?.(_id, emoji)
                   setShowPicker(false)
@@ -991,6 +1047,20 @@ export default function MessageBubble({
                   setShowPicker(false)
                 }}
               />
+            )}
+          </AnimatePresence>
+
+          {/* Copied Feedback Toast */}
+          <AnimatePresence>
+            {showCopiedToast && (
+              <motion.div
+                initial={{ opacity: 0, y: 5, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 5, scale: 0.9 }}
+                className="absolute -top-8 left-1/2 -translate-x-1/2 z-40 bg-zinc-800/95 border border-zinc-700 text-zinc-100 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-lg pointer-events-none whitespace-nowrap"
+              >
+                📋 Teks disalin
+              </motion.div>
             )}
           </AnimatePresence>
 
@@ -1048,8 +1118,8 @@ export default function MessageBubble({
                     p-2 rounded-2xl
                     ${isOwn
                       ? `${!customTheme?.bubbleColor ? 'bg-indigo-500/90' : ''} text-white rounded-br-sm shadow-md`
-                      : 'bg-zinc-800 text-zinc-100 rounded-bl-sm'}
-                    ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 shadow-sm' : 'border-2 border-dashed border-zinc-500 shadow-sm') : ''}
+                      : 'bg-zinc-800 text-zinc-100 rounded-bl-sm border border-zinc-700/50 shadow-md'}
+                    ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70' : 'border-2 border-dashed border-zinc-500') : ''}
                   `}
                 >
                   <AudioPlayer audioUrl={audioUrl} isOwn={isOwn} audioDuration={audioDuration} />
@@ -1118,4 +1188,3 @@ export default function MessageBubble({
     </>
   )
 }
-

@@ -64,9 +64,43 @@
   }
 
   html.light #sidebar-user-header,
-  html.light-theme #sidebar-user-header {
+  html.light-theme #sidebar-user-header,
+  html.light #chatroom-header,
+  html.light-theme #chatroom-header,
+  html.light #settings-modal-header,
+  html.light-theme #settings-modal-header {
     background-color: #ffffff !important;
-    border-color: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
+  html.light #chatroom-header p,
+  html.light-theme #chatroom-header p {
+    color: #475569 !important;
+  }
+
+  html.light #pwa-install-banner,
+  html.light-theme #pwa-install-banner,
+  html.light #app-update-banner,
+  html.light-theme #app-update-banner {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  html.light #pwa-install-banner span,
+  html.light-theme #pwa-install-banner span,
+  html.light #app-update-banner span,
+  html.light-theme #app-update-banner span {
+    color: #0f172a !important;
+  }
+
+  html.light #pwa-install-banner p,
+  html.light-theme #pwa-install-banner p,
+  html.light #app-update-banner p,
+  html.light-theme #app-update-banner p {
+    color: #475569 !important;
   }
 
   html.light #sidebar-search-container,

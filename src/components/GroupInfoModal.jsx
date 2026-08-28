@@ -102,7 +102,7 @@ export default function GroupInfoModal({
     try {
       const compressed = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
       const formData = new FormData()
-      formData.append('avatar', compressed)
+      formData.append('avatar', compressed || file, file.name || 'avatar.jpg')
 
       const res = await fetch(getApiUrl(`/api/conversations/${contact.conversationId}/avatar`), {
         method: 'POST',
@@ -364,19 +364,19 @@ export default function GroupInfoModal({
 
                 {/* Group Name Display / Inline Edit */}
                 {isEditingName ? (
-                  <div className="flex items-center gap-2 w-full max-w-xs">
+                  <div className="flex items-center gap-1.5 w-full max-w-xs justify-center">
                     <input
                       type="text"
                       value={groupName}
                       onChange={(e) => setGroupName(e.target.value)}
-                      className="flex-1 px-3 py-1.5 bg-zinc-900 border border-indigo-500/60 rounded-xl text-zinc-100 text-sm outline-none"
+                      className="flex-1 min-w-0 px-3 py-1.5 bg-zinc-900 border border-indigo-500/60 rounded-xl text-zinc-100 text-sm outline-none"
                       autoFocus
                     />
                     <button
                       type="button"
                       onClick={handleSaveName}
                       disabled={isSavingName}
-                      className="w-8 h-8 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
+                      className="w-8 h-8 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     >
                       {isSavingName ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                     </button>
@@ -386,7 +386,7 @@ export default function GroupInfoModal({
                         setGroupName(contact.groupName || contact.name)
                         setIsEditingName(false)
                       }}
-                      className="w-8 h-8 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
+                      className="w-8 h-8 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                     >
                       <X size={14} />
                     </button>

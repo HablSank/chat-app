@@ -156,7 +156,7 @@ export default function ImageCropperModal({
               className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
             >
               {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              <span>Terapkan & Potong</span>
+              <span>Terapkan</span>
             </button>
           </div>
         </motion.div>
