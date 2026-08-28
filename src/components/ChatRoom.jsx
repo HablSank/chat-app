@@ -7,6 +7,7 @@ import TypingIndicator from './TypingIndicator'
 import FriendProfile from './FriendProfile'
 import MediaSidebar from './MediaSidebar'
 import GroupInfoModal from './GroupInfoModal'
+import MessageInfoModal from './MessageInfoModal'
 import ChatHeader from './ChatHeader'
 import ThemeModal, { BUILTIN_WALLPAPERS } from './ThemeModal'
 import { decryptMessage } from '../utils/crypto'
@@ -367,6 +368,23 @@ export default function ChatRoom({
     }
   }, [])
 
+  // Format participant names for group header with robust fallbacks
+  const groupMemberNames = useMemo(() => {
+    if (!contact?.isGroup) return ''
+    const memberList = Array.isArray(contact?.participants)
+      ? contact.participants
+      : Array.isArray(contact?.members)
+      ? contact.members
+      : []
+    if (memberList.length === 0) return 'Group'
+    return memberList
+      .map((p) => {
+        const pId = (p?._id?.toString() || p?.id?.toString() || p?.toString())
+        return pId === currentUserId ? 'You' : (p?.displayName || p?.username || p?.name || 'Member')
+      })
+      .join(', ')
+  }, [contact?.isGroup, contact?.participants, contact?.members, currentUserId])
+
   if (!contact) return null
 
   const triggerToast = (msg = '🚀 Feature coming soon!') => {
@@ -385,23 +403,6 @@ export default function ChatRoom({
         : 'Pesan Sementara Dinonaktifkan'
     )
   }
-
-  // Format participant names for group header with robust fallbacks
-  const groupMemberNames = useMemo(() => {
-    if (!contact?.isGroup) return ''
-    const memberList = Array.isArray(contact?.participants)
-      ? contact.participants
-      : Array.isArray(contact?.members)
-      ? contact.members
-      : []
-    if (memberList.length === 0) return 'Group'
-    return memberList
-      .map((p) => {
-        const pId = (p?._id?.toString() || p?.id?.toString() || p?.toString())
-        return pId === currentUserId ? 'You' : (p?.displayName || p?.username || p?.name || 'Member')
-      })
-      .join(', ')
-  }, [contact?.isGroup, contact?.participants, contact?.members, currentUserId])
 
   // Action handlers for WhatsApp top action bar
   const handleToggleSelectMessage = (msg) => {

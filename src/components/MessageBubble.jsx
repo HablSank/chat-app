@@ -856,6 +856,7 @@ export default function MessageBubble({
   totalParticipants,
   _isSearchResult = false,
   isCurrentMatch = false,
+  customTheme = null,
   // Phase 15.42 & 15.44: WhatsApp Selection Mode & Quick Reactions
   onSelectMessage,
   isSelected = false,
