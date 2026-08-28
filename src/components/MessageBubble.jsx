@@ -298,17 +298,26 @@ function ImageGrid({
   readBy,
   deliveredTo,
   totalParticipants,
+  isSelectionActive,
+  onSelectMessage,
+  message,
 }) {
   const count = urls.length
+
+  const handleImageClick = (e, url) => {
+    e.stopPropagation()
+    if (isSelectionActive) {
+      onSelectMessage?.(message)
+      return
+    }
+    if (!isUploading) onOpenLightbox(url)
+  }
 
   if (count === 1) {
     return (
       <div
         className={`group relative overflow-hidden rounded-2xl cursor-pointer ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'} ${isEphemeral ? (isOwn ? 'border-2 border-dashed border-white/70 p-0.5' : 'border-2 border-dashed border-zinc-500 p-0.5') : ''}`}
-        onClick={(e) => {
-          e.stopPropagation()
-          if (!isUploading) onOpenLightbox(urls[0])
-        }}
+        onClick={(e) => handleImageClick(e, urls[0])}
       >
         <img
           src={urls[0]}
@@ -369,10 +378,7 @@ function ImageGrid({
           className={`group relative overflow-hidden ${
             count === 3 && i === 2 ? 'col-span-2' : ''
           }`}
-          onClick={(e) => {
-            e.stopPropagation()
-            if (!isUploading) onOpenLightbox(url)
-          }}
+          onClick={(e) => handleImageClick(e, url)}
         >
           <img
             src={url}
@@ -605,6 +611,7 @@ function ReactionBubbles({ reactions, onReact }) {
 
 // ── WhatsApp-Style Group Invite Card ──────────────────────────────────────────
 function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPendingConversation, token }) {
+  const { t } = useLanguage()
   const [isJoining, setIsJoining] = useState(false)
   const initialStatus = inviteData?.inviteStatus || 'pending'
   const [inviteStatus, setInviteStatus] = useState(initialStatus)
@@ -714,12 +721,12 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 mb-0.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/15 px-1.5 py-0.5 rounded-md border border-indigo-500/20">
-              Undangan Grup
+              {t('groupInviteBadge')}
             </span>
           </div>
           <h4 className="text-sm font-bold text-zinc-100 truncate">{groupName}</h4>
           <p className="text-[11px] text-zinc-400 truncate">
-            {text || 'Undangan untuk bergabung ke grup'}
+            {text || t('groupInviteDefaultDesc')}
           </p>
         </div>
       </div>
@@ -727,15 +734,15 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
       <div className="pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-2">
         <div className="text-[11px] font-medium min-w-0 truncate">
           {isOwn ? (
-            <span className="text-zinc-400">Undangan Anda terkirim</span>
+            <span className="text-zinc-400">{t('groupInviteSent')}</span>
           ) : isDeclined ? (
-            <span className="text-rose-400">✕ Undangan grup ditolak</span>
+            <span className="text-rose-400">{t('groupInviteDeclined')}</span>
           ) : isLocked ? (
-            <span className="text-amber-400/90">Terima pesan terlebih dahulu</span>
+            <span className="text-amber-400/90">{t('groupInviteAcceptRequired')}</span>
           ) : hasJoined ? (
-            <span className="text-emerald-400">✓ Anda telah bergabung</span>
+            <span className="text-emerald-400">{t('groupInviteJoined')}</span>
           ) : (
-            <span className="text-zinc-400">Ketuk untuk bergabung</span>
+            <span className="text-zinc-400">{t('groupInviteTapToJoin')}</span>
           )}
         </div>
 
@@ -757,13 +764,13 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
               ) : (
                 <>
                   <Users size={13} />
-                  <span>Gabung</span>
+                  <span>{t('groupInviteJoin')}</span>
                 </>
               )}
             </motion.button>
           ) : isDeclined ? (
             <span className="px-2.5 py-1 text-[11px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-              Ditolak
+              {t('groupInviteDeclinedTag')}
             </span>
           ) : hasJoined ? (
             <motion.button
@@ -775,7 +782,7 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
               className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer disabled:opacity-50"
             >
               <Check size={13} />
-              <span>Buka Grup</span>
+              <span>{t('groupInviteOpen')}</span>
             </motion.button>
           ) : (
             <>
@@ -790,10 +797,10 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
                     ? 'bg-zinc-800/60 text-zinc-500 cursor-not-allowed opacity-50 border border-zinc-700/30'
                     : 'bg-zinc-800 hover:bg-rose-500/20 text-zinc-300 hover:text-rose-300 border border-zinc-700/60 cursor-pointer'
                 } disabled:opacity-50`}
-                title="Tolak gabung grup"
+                title={t('groupInviteDecline')}
               >
                 <X size={12} />
-                <span>Tolak</span>
+                <span>{t('groupInviteDecline')}</span>
               </motion.button>
 
               <motion.button
@@ -848,10 +855,11 @@ export default function MessageBubble({
   totalParticipants,
   _isSearchResult = false,
   isCurrentMatch = false,
-  customTheme = null,
-  // Phase 15.42: WhatsApp Selection Mode
+  // Phase 15.42 & 15.44: WhatsApp Selection Mode & Quick Reactions
   onSelectMessage,
   isSelected = false,
+  isSelectionActive = false,
+  isSingleSelected = false,
 }) {
   const { token } = useAuth()
   const {
@@ -1056,6 +1064,15 @@ export default function MessageBubble({
     )
   }
 
+  const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥']
+
+  const handleContainerClick = (e) => {
+    if (isSelectionActive) {
+      e.stopPropagation()
+      onSelectMessage?.(message)
+    }
+  }
+
   return (
     <>
       <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
@@ -1072,11 +1089,7 @@ export default function MessageBubble({
         variants={bubbleVariants}
         initial="hidden"
         animate="visible"
-        onClick={() => {
-          if (isSelected) {
-            onSelectMessage?.(message)
-          }
-        }}
+        onClick={handleContainerClick}
         className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-0.5 transition-colors duration-200 ${
           isSelected ? 'bg-indigo-600/15 rounded-xl' : isFlashing ? 'bg-indigo-500/20 rounded-xl' : 'bg-transparent'
         }`}
@@ -1095,7 +1108,7 @@ export default function MessageBubble({
         )}
 
         <motion.div
-          drag={!isDeleted ? 'x' : false}
+          drag={!isDeleted && !isSelectionActive ? 'x' : false}
           dragDirectionLock
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={{ left: 0.04, right: 0.35 }}
@@ -1123,6 +1136,35 @@ export default function MessageBubble({
           onTouchMove={handleTouchMove}
           onContextMenu={handleContextMenu}
         >
+          {/* Contextual Quick Reactions Bar when EXACTLY 1 message is selected */}
+          <AnimatePresence>
+            {isSelected && isSingleSelected && !isDeleted && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+                className={`absolute -top-10 ${isOwn ? 'right-0' : 'left-0'} z-30 flex items-center gap-1 bg-zinc-900/95 border border-zinc-700/80 px-2 py-1 rounded-full shadow-2xl backdrop-blur-md`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {QUICK_EMOJIS.map((emoji) => (
+                  <motion.button
+                    key={emoji}
+                    type="button"
+                    whileHover={{ scale: 1.25 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      onReact?.(_id, emoji)
+                      onSelectMessage?.(message) // dismiss selection after reacting
+                    }}
+                    className="w-7 h-7 flex items-center justify-center text-sm rounded-full hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    {emoji}
+                  </motion.button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* Group Chat Sender Info */}
           {isGroup && !isOwn && !isDeleted && message.sender && (
             <div className="flex items-center gap-1.5 mb-0.5 ml-1">
@@ -1200,6 +1242,9 @@ export default function MessageBubble({
                   readBy={readBy}
                   deliveredTo={deliveredTo}
                   totalParticipants={totalParticipants}
+                  isSelectionActive={isSelectionActive}
+                  onSelectMessage={onSelectMessage}
+                  message={message}
                 />
               )}
 

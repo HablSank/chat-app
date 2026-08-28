@@ -156,11 +156,32 @@ const translations = {
     messageDetails: 'Info Pesan',
     groupSettings: 'Pengaturan Grup',
     addMembers: 'Tambah Anggota',
-    leaveGroup: 'Keluar dari Grup',
     leaveGroupConfirmTitle: 'Keluar dari grup?',
     leaveGroupConfirmMsg: 'Anda tidak akan menerima pesan baru dari grup ini.',
     removeMemberConfirmTitle: 'Keluarkan anggota?',
     removeMemberConfirmMsg: 'Anggota ini akan dikeluarkan dari grup.',
+
+    // Group Invite i18n
+    groupInviteBadge: 'Undangan Grup',
+    groupInviteDefaultDesc: 'Undangan untuk bergabung ke grup',
+    groupInviteSent: 'Undangan Anda terkirim',
+    groupInviteJoined: '✓ Anda telah bergabung',
+    groupInviteDeclined: '✕ Undangan grup ditolak',
+    groupInviteAcceptRequired: 'Terima pesan terlebih dahulu',
+    groupInviteTapToJoin: 'Ketuk untuk bergabung',
+    groupInviteView: 'Lihat Grup',
+    groupInviteJoin: 'Gabung',
+    groupInviteOpen: 'Buka Grup',
+    groupInviteDeclinedTag: 'Ditolak',
+    groupInviteDecline: 'Tolak',
+
+    // Settings Cards i18n
+    standalonePwaTitle: 'Aplikasi Web Mandiri (PWA)',
+    standalonePwaDesc: 'Buka langsung dari desktop atau layar utama.',
+    themeCardTitle: 'Tema & Tampilan Aplikasi',
+    themeCardDesc: 'Pilih tema terang atau gelap sesuai kenyamanan mata Anda.',
+    themeDarkOption: 'Gelap & Elegan',
+    themeLightOption: 'Terang & Bersih',
   },
   en: {
     // App & Nav
@@ -322,6 +343,28 @@ const translations = {
     leaveGroupConfirmMsg: 'You will no longer receive messages from this group.',
     removeMemberConfirmTitle: 'Remove member?',
     removeMemberConfirmMsg: 'This member will be removed from the group.',
+
+    // Group Invite i18n
+    groupInviteBadge: 'Group Invite',
+    groupInviteDefaultDesc: 'Invitation to join a group',
+    groupInviteSent: 'Your invitation was sent',
+    groupInviteJoined: '✓ You joined this group',
+    groupInviteDeclined: '✕ Group invitation declined',
+    groupInviteAcceptRequired: 'Accept message request first',
+    groupInviteTapToJoin: 'Tap to join',
+    groupInviteView: 'View Group',
+    groupInviteJoin: 'Join',
+    groupInviteOpen: 'Open Group',
+    groupInviteDeclinedTag: 'Declined',
+    groupInviteDecline: 'Decline',
+
+    // Settings Cards i18n
+    standalonePwaTitle: 'Standalone Web App (PWA)',
+    standalonePwaDesc: 'Launch directly from desktop or home screen.',
+    themeCardTitle: 'App Theme & Appearance',
+    themeCardDesc: 'Choose light or dark theme for optimal viewing comfort.',
+    themeDarkOption: 'Dark & Elegant',
+    themeLightOption: 'Light & Clean',
   }
 }
 

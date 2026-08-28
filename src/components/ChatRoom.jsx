@@ -783,6 +783,8 @@ export default function ChatRoom({
                     onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
                     onSelectMessage={handleToggleSelectMessage}
                     isSelected={isSelected}
+                    isSelectionActive={selectedMessages.length > 0}
+                    isSingleSelected={selectedMessages.length === 1}
                     onJoinGroup={onJoinGroup}
                     conversationId={contact?.conversationId}
                     isGroup={contact?.isGroup}

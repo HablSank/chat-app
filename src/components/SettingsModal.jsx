@@ -352,10 +352,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                 <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold text-zinc-200">
-                      {isInstalled ? t('appInstalled') : t('pwaInstallTitle')}
+                      {isInstalled ? t('appInstalled') : t('standalonePwaTitle')}
                     </p>
                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                      {isInstalled ? 'Ping! aktif sebagai standalone PWA.' : 'Buka langsung dari desktop/layar utama.'}
+                      {isInstalled ? 'Ping! aktif sebagai standalone PWA.' : t('standalonePwaDesc')}
                     </p>
                   </div>
 
@@ -447,17 +447,17 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                       <Volume2 size={13} className="text-zinc-400" />
                       <span>{t('testSound')}</span>
                     </button>
-                    {/* Standardized pixel-perfect toggle switch: h-6 w-11 p-0.5 with translate-x-5 */}
+                    {/* Strict bounded pixel-perfect toggle switch */}
                     <button
                       type="button"
                       onClick={handleToggleSound}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                      className={`w-11 h-6 rounded-full p-0.5 transition-colors relative overflow-hidden flex items-center cursor-pointer ${
                         !soundMuted ? 'bg-indigo-600' : 'bg-zinc-700'
                       }`}
                     >
                       <span
-                        className={`block h-5 w-5 rounded-full bg-white transition-transform ${
-                          !soundMuted ? 'translate-x-5' : 'translate-x-0'
+                        className={`w-5 h-5 rounded-full bg-white transition-transform transform ${
+                          !soundMuted ? 'translate-x-[20px]' : 'translate-x-0'
                         }`}
                       />
                     </button>
@@ -512,17 +512,17 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     </div>
                   </div>
 
-                  {/* Standardized pixel-perfect toggle switch: h-6 w-11 p-0.5 with translate-x-5 */}
+                  {/* Strict bounded pixel-perfect toggle switch */}
                   <button
                     type="button"
                     onClick={handleToggleOnlinePresence}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                    className={`w-11 h-6 rounded-full p-0.5 transition-colors relative overflow-hidden flex items-center cursor-pointer ${
                       isOnlineVisible ? 'bg-emerald-600' : 'bg-zinc-700'
                     }`}
                   >
                     <span
-                      className={`block h-5 w-5 rounded-full bg-white transition-transform ${
-                        isOnlineVisible ? 'translate-x-5' : 'translate-x-0'
+                      className={`w-5 h-5 rounded-full bg-white transition-transform transform ${
+                        isOnlineVisible ? 'translate-x-[20px]' : 'translate-x-0'
                       }`}
                     />
                   </button>
@@ -535,8 +535,8 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                       {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-zinc-100">{t('appTheme')}</p>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">Pilih tampilan terang atau gelap untuk aplikasi Ping!.</p>
+                      <p className="text-xs font-bold text-zinc-100">{t('themeCardTitle')}</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">{t('themeCardDesc')}</p>
                     </div>
                   </div>
 
@@ -549,7 +549,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                       <Moon size={16} className="text-indigo-400" />
                       <div className="text-left">
                         <p className="text-xs font-bold text-zinc-100">{t('darkTheme')}</p>
-                        <p className="text-[10px] text-zinc-400">Gelap & Elegan</p>
+                        <p className="text-[10px] text-zinc-400">{t('themeDarkOption')}</p>
                       </div>
                     </button>
 
@@ -561,7 +561,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                       <Sun size={16} className="text-zinc-600" />
                       <div className="text-left">
                         <p className="text-xs font-bold text-zinc-400">{t('lightTheme')}</p>
-                        <p className="text-[10px] text-zinc-600">Under Maintenance</p>
+                        <p className="text-[10px] text-zinc-600">{t('themeLightOption')}</p>
                       </div>
                     </button>
                   </div>
