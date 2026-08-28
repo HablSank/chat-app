@@ -970,6 +970,107 @@ app.post('/api/conversations/reject/:id', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Toggle Pin Conversation ─────────────────────────────────────────
+app.patch('/api/conversations/:id/pin', protect, async (req, res) => {
+  try {
+    const conversation = await Conversation.findById(req.params.id)
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' })
+
+    const userIdStr = req.user._id.toString()
+    const isParticipant = (conversation.participants || []).some(p => (p._id?.toString() || p.toString()) === userIdStr) ||
+                          (conversation.members || []).some(m => (m._id?.toString() || m.toString()) === userIdStr)
+    if (!isParticipant) return res.status(403).json({ message: 'Not a member of this conversation' })
+
+    if (!conversation.pinnedBy) conversation.pinnedBy = []
+    const isAlreadyPinned = conversation.pinnedBy.some(id => (id?._id?.toString() || id?.toString()) === userIdStr)
+
+    if (isAlreadyPinned) {
+      conversation.pinnedBy = conversation.pinnedBy.filter(id => (id?._id?.toString() || id?.toString()) !== userIdStr)
+    } else {
+      const userPinnedCount = await Conversation.countDocuments({
+        pinnedBy: req.user._id,
+        _id: { $ne: conversation._id },
+      })
+      if (userPinnedCount >= 3) {
+        return res.status(400).json({ message: 'Maksimal 3 chat yang dapat disematkan' })
+      }
+      conversation.pinnedBy.push(req.user._id)
+    }
+
+    await conversation.save()
+
+    const populatedConv = await Conversation.findById(conversation._id)
+      .populate('participants', '-password')
+      .populate('members', '-password')
+      .populate('initiator', '-password')
+      .populate('groupAdmin', '-password')
+      .populate('groupAdmins', '-password')
+      .populate('lastMessage')
+
+    // Broadcast update to user's connected devices
+    const userSockets = connectedUsers.get(userIdStr)
+    if (userSockets) {
+      userSockets.forEach(sockId => {
+        io.to(sockId).emit('conversation:updated', populatedConv.toObject())
+      })
+    }
+
+    res.json(populatedConv)
+  } catch (error) {
+    console.error('Toggle Pin Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// ── REST API: Toggle Archive Conversation ─────────────────────────────────────
+app.patch('/api/conversations/:id/archive', protect, async (req, res) => {
+  try {
+    const conversation = await Conversation.findById(req.params.id)
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' })
+
+    const userIdStr = req.user._id.toString()
+    const isParticipant = (conversation.participants || []).some(p => (p._id?.toString() || p.toString()) === userIdStr) ||
+                          (conversation.members || []).some(m => (m._id?.toString() || m.toString()) === userIdStr)
+    if (!isParticipant) return res.status(403).json({ message: 'Not a member of this conversation' })
+
+    if (!conversation.archivedBy) conversation.archivedBy = []
+    const isAlreadyArchived = conversation.archivedBy.some(id => (id?._id?.toString() || id?.toString()) === userIdStr)
+
+    if (isAlreadyArchived) {
+      conversation.archivedBy = conversation.archivedBy.filter(id => (id?._id?.toString() || id?.toString()) !== userIdStr)
+    } else {
+      conversation.archivedBy.push(req.user._id)
+      // If archiving, unpin from user's pinnedBy
+      if (conversation.pinnedBy) {
+        conversation.pinnedBy = conversation.pinnedBy.filter(id => (id?._id?.toString() || id?.toString()) !== userIdStr)
+      }
+    }
+
+    await conversation.save()
+
+    const populatedConv = await Conversation.findById(conversation._id)
+      .populate('participants', '-password')
+      .populate('members', '-password')
+      .populate('initiator', '-password')
+      .populate('groupAdmin', '-password')
+      .populate('groupAdmins', '-password')
+      .populate('lastMessage')
+
+    // Broadcast update to user's connected devices
+    const userSockets = connectedUsers.get(userIdStr)
+    if (userSockets) {
+      userSockets.forEach(sockId => {
+        io.to(sockId).emit('conversation:updated', populatedConv.toObject())
+      })
+    }
+
+    res.json(populatedConv)
+  } catch (error) {
+    console.error('Toggle Archive Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Add Members to Group via Direct Message Invites ────────────────
 app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
   try {

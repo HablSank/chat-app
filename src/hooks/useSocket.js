@@ -37,6 +37,7 @@ export function useSocket({
   onMessagePinned,
   onGroupCreated,
   onGroupUpdated,
+  onConversationUpdated,
 }) {
   const { user } = useAuth()
   const socketRef          = useRef(null)
@@ -54,6 +55,7 @@ export function useSocket({
   const onMessagePinnedRef  = useRef(onMessagePinned)
   const onGroupCreatedRef   = useRef(onGroupCreated)
   const onGroupUpdatedRef   = useRef(onGroupUpdated)
+  const onConversationUpdatedRef = useRef(onConversationUpdated)
 
   // Sync refs each render
   useEffect(() => { onMessageRef.current      = onMessage        }, [onMessage])
@@ -70,6 +72,7 @@ export function useSocket({
   useEffect(() => { onMessagePinnedRef.current  = onMessagePinned  }, [onMessagePinned])
   useEffect(() => { onGroupCreatedRef.current   = onGroupCreated   }, [onGroupCreated])
   useEffect(() => { onGroupUpdatedRef.current   = onGroupUpdated   }, [onGroupUpdated])
+  useEffect(() => { onConversationUpdatedRef.current = onConversationUpdated }, [onConversationUpdated])
 
   // Create the socket once on mount, tear down on unmount
   useEffect(() => {
@@ -156,6 +159,7 @@ export function useSocket({
       onGroupCreatedRef.current?.(data)
     })
     socket.on('group:updated',        (data)    => onGroupUpdatedRef.current?.(data))
+    socket.on('conversation:updated', (data)    => onConversationUpdatedRef.current?.(data))
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)

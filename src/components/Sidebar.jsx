@@ -22,9 +22,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
 
-  // Phase 15.22: Pin and Archive states
-  const [pinnedChatIds, setPinnedChatIds] = useState([])
-  const [archivedChatIds, setArchivedChatIds] = useState([])
+  // Phase 15.22-FIX: Pin and Archive states from MongoDB with real-time sync
   const [isViewingArchive, setIsViewingArchive] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
   const [showToast, setShowToast] = useState(false)
@@ -33,20 +31,6 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   const currentUserId = (user?.id || user?._id || '').toString()
 
-  // Load pinned and archived chat IDs from localStorage
-  useEffect(() => {
-    if (!currentUserId) return
-    try {
-      const savedPins = JSON.parse(localStorage.getItem(`ping_pinned_chats_${currentUserId}`) || '[]')
-      const savedArchives = JSON.parse(localStorage.getItem(`ping_archived_chats_${currentUserId}`) || '[]')
-      setPinnedChatIds(Array.isArray(savedPins) ? savedPins : [])
-      setArchivedChatIds(Array.isArray(savedArchives) ? savedArchives : [])
-    } catch {
-      setPinnedChatIds([])
-      setArchivedChatIds([])
-    }
-  }, [currentUserId])
-
   const triggerToast = (msg) => {
     setToastMessage(msg)
     setShowToast(true)
@@ -54,54 +38,72 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     toastTimerRef.current = setTimeout(() => setShowToast(false), 2400)
   }
 
-  const handleTogglePin = (contact) => {
+  // Cross-device synced toggle pin
+  const handleTogglePin = async (contact) => {
     const convId = (contact.conversationId || contact.id || '').toString()
     if (!convId || !currentUserId) return
 
-    setPinnedChatIds(prev => {
-      const isPinned = prev.includes(convId)
-      if (isPinned) {
-        const next = prev.filter(id => id !== convId)
-        localStorage.setItem(`ping_pinned_chats_${currentUserId}`, JSON.stringify(next))
-        triggerToast('📌 Sematan chat dilepas')
-        return next
-      } else {
-        if (prev.length >= 3) {
-          triggerToast('⚠️ Maksimal 3 chat yang dapat disematkan')
-          return prev
+    try {
+      const res = await fetch(getApiUrl(`/api/conversations/${convId}/pin`), {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        let decryptedText = data.lastMessage?.text || ''
+        if (data.lastMessage?.text) {
+          decryptedText = await decryptMessage(data.lastMessage.text, data._id)
         }
-        const next = [convId, ...prev]
-        localStorage.setItem(`ping_pinned_chats_${currentUserId}`, JSON.stringify(next))
-        triggerToast('📌 Chat disematkan ke atas')
-        return next
+        const updatedObj = {
+          ...data,
+          lastMessage: data.lastMessage ? { ...data.lastMessage, text: decryptedText } : null,
+        }
+        setConversations(prev => prev.map(c => c._id.toString() === data._id.toString() ? updatedObj : c))
+
+        const isNowPinned = Array.isArray(data.pinnedBy) && data.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+        triggerToast(isNowPinned ? '📌 Chat disematkan ke atas' : '📌 Sematan chat dilepas')
+      } else {
+        triggerToast(`⚠️ ${data.message || 'Gagal mengubah sematan chat'}`)
       }
-    })
+    } catch (err) {
+      console.error('Failed to toggle pin:', err)
+    }
   }
 
-  const handleToggleArchive = (contact) => {
+  // Cross-device synced toggle archive
+  const handleToggleArchive = async (contact) => {
     const convId = (contact.conversationId || contact.id || '').toString()
     if (!convId || !currentUserId) return
 
-    setArchivedChatIds(prev => {
-      const isArchived = prev.includes(convId)
-      if (isArchived) {
-        const next = prev.filter(id => id !== convId)
-        localStorage.setItem(`ping_archived_chats_${currentUserId}`, JSON.stringify(next))
-        triggerToast('📦 Chat dipindahkan dari arsip')
-        return next
+    try {
+      const res = await fetch(getApiUrl(`/api/conversations/${convId}/archive`), {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      const data = await res.json()
+      if (res.ok) {
+        let decryptedText = data.lastMessage?.text || ''
+        if (data.lastMessage?.text) {
+          decryptedText = await decryptMessage(data.lastMessage.text, data._id)
+        }
+        const updatedObj = {
+          ...data,
+          lastMessage: data.lastMessage ? { ...data.lastMessage, text: decryptedText } : null,
+        }
+        setConversations(prev => prev.map(c => c._id.toString() === data._id.toString() ? updatedObj : c))
+
+        const isNowArchived = Array.isArray(data.archivedBy) && data.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+        triggerToast(isNowArchived ? '📦 Chat berhasil diarsipkan' : '📦 Chat dipindahkan dari arsip')
       } else {
-        const next = [convId, ...prev]
-        localStorage.setItem(`ping_archived_chats_${currentUserId}`, JSON.stringify(next))
-        // If chat was pinned, unpin it
-        setPinnedChatIds(pins => {
-          const nextPins = pins.filter(id => id !== convId)
-          localStorage.setItem(`ping_pinned_chats_${currentUserId}`, JSON.stringify(nextPins))
-          return nextPins
-        })
-        triggerToast('📦 Chat berhasil diarsipkan')
-        return next
+        triggerToast(`⚠️ ${data.message || 'Gagal mengubah arsip chat'}`)
       }
-    })
+    } catch (err) {
+      console.error('Failed to toggle archive:', err)
+    }
   }
 
   // Sync modal state with AuthContext isProfileOpen
@@ -296,40 +298,34 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     handleSelectConversation(newGroup)
   }
 
-  // Split and organize conversations into Active (with Pinned on top) vs Archived
+  // Split and organize conversations into Active (with Pinned on top) vs Archived using MongoDB state
   const { displayActiveConversations, archivedConversations } = useMemo(() => {
     const archived = []
     const activePinned = []
     const activeUnpinned = []
 
     conversations.forEach((conv) => {
-      const convIdStr = conv._id.toString()
-      if (archivedChatIds.includes(convIdStr)) {
+      const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+      const isArchived = Array.isArray(conv.archivedBy) && conv.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+
+      if (isArchived) {
         archived.push(conv)
-      } else if (pinnedChatIds.includes(convIdStr)) {
+      } else if (isPinned) {
         activePinned.push(conv)
       } else {
         activeUnpinned.push(conv)
       }
     })
 
-    // Sort activePinned according to pinnedChatIds order
-    activePinned.sort((a, b) => {
-      const idxA = pinnedChatIds.indexOf(a._id.toString())
-      const idxB = pinnedChatIds.indexOf(b._id.toString())
-      return idxA - idxB
-    })
-
     return {
       displayActiveConversations: [...activePinned, ...activeUnpinned],
       archivedConversations: archived,
     }
-  }, [conversations, pinnedChatIds, archivedChatIds])
+  }, [conversations, currentUserId])
 
-  const renderConversationItem = (conv, isArchivedView = false) => {
-    const convIdStr = conv._id.toString()
-    const isPinned = pinnedChatIds.includes(convIdStr)
-    const isArchived = archivedChatIds.includes(convIdStr)
+  const renderConversationItem = (conv) => {
+    const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+    const isArchived = Array.isArray(conv.archivedBy) && conv.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
 
     if (conv.isGroup) {
       const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
@@ -572,7 +568,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           ) : isViewingArchive ? (
             /* Archived Conversations View */
             archivedConversations.length > 0 ? (
-              archivedConversations.map((conv) => renderConversationItem(conv, true))
+              archivedConversations.map((conv) => renderConversationItem(conv))
             ) : (
               <div className="text-center py-10 px-4">
                 <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-500 mx-auto mb-2">
@@ -605,7 +601,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               )}
 
               {displayActiveConversations.length > 0 ? (
-                displayActiveConversations.map((conv) => renderConversationItem(conv, false))
+                displayActiveConversations.map((conv) => renderConversationItem(conv))
               ) : (
                 <p className="text-sm text-zinc-500 text-center mt-8">
                   Search for users or create a group to start chatting

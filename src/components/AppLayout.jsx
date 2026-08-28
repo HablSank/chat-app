@@ -303,6 +303,10 @@ export default function AppLayout() {
     })
   }, [])
 
+  const handleConversationUpdated = useCallback(() => {
+    setRefreshSidebar(prev => prev + 1)
+  }, [])
+
   // ── Connect to Socket.IO ──────────────────────────────────────────────────────
   const { sendMessage, sendTyping, sendStopTyping, joinPrivateRoom, sendReaction, sendMarkRead } = useSocket({
     onMessage:         handleIncomingMessage,
@@ -319,6 +323,7 @@ export default function AppLayout() {
     onMessagePinned:   handleMessagePinned,
     onGroupCreated:    handleGroupCreated,
     onGroupUpdated:    handleGroupUpdated,
+    onConversationUpdated: handleConversationUpdated,
   })
 
   const sendMarkReadRef = useRef(sendMarkRead)
