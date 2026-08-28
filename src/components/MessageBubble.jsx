@@ -18,8 +18,6 @@ const bubbleVariants = {
   },
 }
 
-const QUICK_EMOJIS = ['👍', '❤️', '😂', '😭', '🔥']
-
 function isValidHttpUrl(string) {
   try {
     const url = new URL(string)
@@ -62,9 +60,7 @@ function renderClickableText(text, isOwn) {
       )
     }
 
-    // Markdown basic bold/italic inline parsing
-    let content = part
-    return <span key={i}>{content}</span>
+    return <span key={i}>{part}</span>
   })
 }
 
@@ -79,7 +75,6 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
     const readCount = Array.isArray(readBy) ? readBy.length : 0
     const deliveredCount = Array.isArray(deliveredTo) ? deliveredTo.length : 0
 
-    // Double blue checks when all other members have read the message
     if (readCount >= recipientCount || status === 'read') {
       return (
         <span className="text-indigo-400 select-none flex items-center" title="Dibaca oleh semua anggota">
@@ -87,7 +82,6 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
         </span>
       )
     }
-    // Double grey checks when delivered
     if (deliveredCount > 0 || readCount > 0 || status === 'delivered') {
       return (
         <span className="text-zinc-400 select-none flex items-center" title="Terkirim ke penerima">
@@ -95,14 +89,14 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
         </span>
       )
     }
-    // Single grey check for sent
     return (
       <span className="text-zinc-500 select-none flex items-center" title="Terkirim ke server">
-        <Check size={12} strokeWidth={2.5} />
+        <Check size={13} strokeWidth={2.5} />
       </span>
     )
   }
 
+  // 1-on-1 Chats
   if (status === 'read') {
     return (
       <span className="text-indigo-400 select-none flex items-center" title="Dibaca">
@@ -112,54 +106,46 @@ function ReadReceipt({ status, isGroup, readBy = [], deliveredTo = [], totalPart
   }
   if (status === 'delivered') {
     return (
-      <span className="text-zinc-400 select-none flex items-center" title="Terkirim">
+      <span className="text-zinc-400 select-none flex items-center" title="Terkirim ke penerima">
         <CheckCheck size={13} strokeWidth={2.5} />
       </span>
     )
   }
   return (
     <span className="text-zinc-500 select-none flex items-center" title="Terkirim ke server">
-      <Check size={12} strokeWidth={2.5} />
+      <Check size={13} strokeWidth={2.5} />
     </span>
   )
 }
 
-// ── Audio Player Component ─────────────────────────────────────────────────────
+// ── Audio Player Component ───────────────────────────────────────────────────
 function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
+  const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(audioDuration || 0)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
-
-  const initialDuration = (isFinite(audioDuration) && !isNaN(audioDuration) && audioDuration > 0)
-    ? Number(audioDuration)
-    : 0
-  const [duration, setDuration] = useState(initialDuration)
-  const audioRef = useRef(null)
 
   const togglePlay = (e) => {
     e.stopPropagation()
-    if (!audioRef.current) return
+    const audio = audioRef.current
+    if (!audio) return
     if (isPlaying) {
-      audioRef.current.pause()
+      audio.pause()
+      setIsPlaying(false)
     } else {
-      audioRef.current.play().catch(err => console.error('Audio play failed:', err))
+      document.querySelectorAll('audio').forEach((el) => {
+        if (el !== audio) el.pause()
+      })
+      audio.play().catch(() => {})
+      setIsPlaying(true)
     }
   }
 
-  const toggleSpeed = (e) => {
-    e.stopPropagation()
-    const nextSpeed = playbackSpeed === 1 ? 1.5 : playbackSpeed === 1.5 ? 2 : 1
-    setPlaybackSpeed(nextSpeed)
-    if (audioRef.current) {
-      audioRef.current.playbackRate = nextSpeed
-    }
-  }
-
-  const handlePlay = () => {
-    setIsPlaying(true)
-    if (audioRef.current) {
-      audioRef.current.playbackRate = playbackSpeed
-    }
+  const handlePlay = () => setIsPlaying(true)
+  const handleEnded = () => {
+    setIsPlaying(false)
+    setCurrentTime(0)
   }
 
   const handleTimeUpdate = () => {
@@ -169,34 +155,32 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
   }
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current) {
-      const d = audioRef.current.duration
-      if (isFinite(d) && !isNaN(d) && d > 0) {
-        setDuration(d)
-      } else if (initialDuration > 0) {
-        setDuration(initialDuration)
-      }
-      audioRef.current.playbackRate = playbackSpeed
+    if (audioRef.current && (!duration || isNaN(duration))) {
+      setDuration(audioRef.current.duration)
     }
   }
-
-  const handleEnded = () => {
-    setIsPlaying(false)
-    setCurrentTime(0)
-  }
-
-  const effectiveDuration = (isFinite(duration) && duration > 0)
-    ? duration
-    : (isFinite(initialDuration) && initialDuration > 0 ? initialDuration : 0)
 
   const handleSeek = (e) => {
     e.stopPropagation()
-    const newTime = parseFloat(e.target.value)
-    if (audioRef.current && isFinite(newTime)) {
-      audioRef.current.currentTime = newTime
-      setCurrentTime(newTime)
+    const val = parseFloat(e.target.value)
+    setCurrentTime(val)
+    if (audioRef.current) {
+      audioRef.current.currentTime = val
     }
   }
+
+  const toggleSpeed = (e) => {
+    e.stopPropagation()
+    const speeds = [1, 1.5, 2]
+    const nextIdx = (speeds.indexOf(playbackSpeed) + 1) % speeds.length
+    const nextSpeed = speeds[nextIdx]
+    setPlaybackSpeed(nextSpeed)
+    if (audioRef.current) {
+      audioRef.current.playbackRate = nextSpeed
+    }
+  }
+
+  const effectiveDuration = duration || audioDuration || 0
 
   const progress = effectiveDuration > 0
     ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
@@ -246,7 +230,7 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
         </div>
       </div>
 
-      {/* Voice speedup button (1x / 1.5x / 2x) */}
+      {/* Voice speedup button */}
       <motion.button
         type="button"
         onClick={toggleSpeed}
@@ -262,7 +246,7 @@ function AudioPlayer({ audioUrl, isOwn, audioDuration }) {
 }
 
 // ── Blob-based Image Download Helper ──────────────────────────────────────────
-const downloadImage = async (imageUrl, fileName) => {
+export const downloadImage = async (imageUrl, fileName) => {
   try {
     const response = await fetch(imageUrl)
     const blob = await response.blob()
@@ -327,7 +311,6 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
     )
   }
 
-  // 2 images → side by side, 3+ → 2-column grid (last item spans if odd)
   return (
     <div
       className={`relative grid gap-1 rounded-2xl overflow-hidden cursor-pointer ${
@@ -348,8 +331,8 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
         >
           <img
             src={url}
-            alt={`Image ${i + 1}`}
-            className={`w-full h-36 object-cover transition-all duration-300 ${isUploading ? 'opacity-60' : 'hover:opacity-90'}`}
+            alt={`Attachment ${i + 1}`}
+            className={`w-full h-32 object-cover transition-all duration-300 ${isUploading ? 'opacity-60 blur-[0.5px]' : 'hover:opacity-90'}`}
           />
           {!isUploading && (
             <button
@@ -361,179 +344,23 @@ function ImageGrid({ urls, onOpenLightbox, isOwn, isEphemeral, isUploading }) {
               className="absolute bottom-1.5 right-1.5 p-1 rounded-full bg-black/60 hover:bg-black/80 text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100 flex items-center justify-center"
               title="Unduh Gambar"
             >
-              <Download size={12} />
+              <Download size={11} />
             </button>
-          )}
-          {/* "+N more" overlay on the 4th tile */}
-          {i === 3 && urls.length > 4 && !isUploading && (
-            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-              <span className="text-white font-bold text-xl">+{urls.length - 4}</span>
-            </div>
           )}
         </div>
       ))}
       {isUploading && (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1.5 text-white select-none">
-          <Loader2 size={24} className="animate-spin text-indigo-400" />
-          <span className="text-[11px] font-medium text-zinc-200">Mengirim...</span>
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1 text-white select-none">
+          <Loader2 size={20} className="animate-spin text-indigo-400" />
+          <span className="text-[10px] font-medium text-zinc-200">Mengirim...</span>
         </div>
       )}
     </div>
   )
 }
 
-// ── Emoji Reaction & Action Picker ─────────────────────────────────────────────
-function ActionPicker({
-  onReact,
-  onReply,
-  onEdit,
-  onDelete,
-  onPin,
-  onInfo,
-  onCopy,
-  hasText,
-  isOwn,
-  isPinned,
-  isDeleted,
-  canEdit,
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.85, y: 4 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.85, y: 4 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-      onClick={(e) => e.stopPropagation()}
-      className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-11 z-30
-        flex items-center gap-1 bg-zinc-800/95 border border-zinc-700/90 backdrop-blur-md rounded-full px-2 py-1 shadow-2xl`}
-    >
-      {!isDeleted && QUICK_EMOJIS.map((emoji) => (
-        <motion.button
-          key={emoji}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onReact(emoji)
-          }}
-          whileHover={{ scale: 1.3 }}
-          whileTap={{ scale: 0.9 }}
-          className="text-lg leading-none p-1 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-        >
-          {emoji}
-        </motion.button>
-      ))}
-
-      {!isDeleted && <div className="w-[1px] h-4 bg-zinc-700 mx-0.5" />}
-
-      {/* Reply Action button */}
-      {!isDeleted && (
-        <motion.button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onReply()
-          }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Reply"
-        >
-          <Reply size={15} />
-        </motion.button>
-      )}
-
-      {/* Copy Text button */}
-      {!isDeleted && hasText && (
-        <motion.button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onCopy?.()
-          }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Salin Teks"
-        >
-          <Copy size={14} />
-        </motion.button>
-      )}
-
-      {/* Pin / Unpin button */}
-      {!isDeleted && (
-        <motion.button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onPin()
-          }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className={`p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer ${
-            isPinned ? 'text-indigo-400 hover:text-indigo-300' : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-          title={isPinned ? 'Unpin message' : 'Pin message'}
-        >
-          {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
-        </motion.button>
-      )}
-
-      {/* Message Info button (for own messages) */}
-      {isOwn && !isDeleted && (
-        <motion.button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onInfo?.()
-          }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Message info"
-        >
-          <Info size={14} />
-        </motion.button>
-      )}
-
-      {/* Edit button (for sender only and if text exists) */}
-      {isOwn && canEdit && !isDeleted && (
-        <motion.button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className="text-zinc-400 hover:text-amber-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Edit message"
-        >
-          <Pencil size={14} />
-        </motion.button>
-      )}
-
-      {/* Delete button (opens choice modal for Delete for Me / Delete for Everyone) */}
-      {!isDeleted && (
-        <motion.button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          whileHover={{ scale: 1.15 }}
-          whileTap={{ scale: 0.9 }}
-          className="text-zinc-400 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10 transition-colors cursor-pointer"
-          title="Delete message"
-        >
-          <Trash2 size={14} />
-        </motion.button>
-      )}
-    </motion.div>
-  )
-}
-
 // ── Delete Choice Modal (Delete for Me vs Delete for Everyone) ─────────────────
-function DeleteChoiceModal({ isOpen, onClose, isOwn, onDeleteForMe, onDeleteForEveryone }) {
+export function DeleteChoiceModal({ isOpen, onClose, isOwn, onDeleteForMe, onDeleteForEveryone }) {
   const { t } = useLanguage()
   if (!isOpen) return null
 
@@ -603,7 +430,6 @@ function DeleteChoiceModal({ isOpen, onClose, isOwn, onDeleteForMe, onDeleteForE
 function ReactionBubbles({ reactions, onReact }) {
   if (!reactions || reactions.length === 0) return null
 
-  // Group by emoji
   const grouped = reactions.reduce((acc, r) => {
     acc[r.emoji] = (acc[r.emoji] || 0) + 1
     return acc
@@ -641,7 +467,6 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
   const groupName = inviteData?.groupName || 'Group'
   const groupAvatar = inviteData?.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupName)}`
 
-  // Phase 15.21: Lock [Gabung Grup] button for recipient when 1-on-1 conversation is pending message request
   const isLocked = !isOwn && !!isPendingConversation
 
   const handleJoin = async (e) => {
@@ -698,105 +523,43 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
             alt={groupName}
             className="w-12 h-12 rounded-2xl bg-zinc-800 object-cover ring-2 ring-indigo-500/40 shadow-md"
           />
-          <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-indigo-600 border-2 border-zinc-900 flex items-center justify-center text-white text-[10px]">
-            <Users size={10} />
-          </span>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-500/15 px-1.5 py-0.5 rounded-md border border-indigo-500/20">
-              Undangan Grup
-            </span>
-          </div>
-          <h4 className="text-sm font-bold text-zinc-100 truncate">{groupName}</h4>
-          <p className="text-[11px] text-zinc-400 truncate">
-            {text || 'Undangan untuk bergabung ke grup'}
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Undangan Grup</p>
+          <p className="text-sm font-bold text-zinc-100 truncate">{groupName}</p>
+          <p className="text-xs text-zinc-400 truncate">
+            {inviteData?.groupMembersCount ? `${inviteData.groupMembersCount} anggota` : 'Grup Komunitas'}
           </p>
         </div>
       </div>
 
-      <div className="pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-2">
-        <div className="text-[11px] font-medium min-w-0 truncate">
-          {isOwn ? (
-            <span className="text-zinc-400">Undangan Anda terkirim</span>
-          ) : isDeclined ? (
-            <span className="text-rose-400">Undangan ditolak</span>
-          ) : isLocked ? (
-            <span className="text-amber-400/90">Terima pesan terlebih dahulu</span>
-          ) : hasJoined ? (
-            <span className="text-emerald-400">Sudah bergabung</span>
-          ) : (
-            <span className="text-zinc-400">Ketuk untuk bergabung</span>
-          )}
-        </div>
+      <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+        <span className="text-[11px] text-zinc-400">
+          {hasJoined ? '✅ Anda telah bergabung' : isDeclined ? '❌ Undangan ditolak' : isLocked ? '⚠️ Konfirmasi chat dulu' : 'Ketuk untuk bergabung'}
+        </span>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {isOwn ? (
-            <motion.button
-              type="button"
-              onClick={handleJoin}
-              disabled={isJoining}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              className="px-3.5 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/30 cursor-pointer disabled:opacity-50"
-            >
-              {isJoining ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Memuat...</span>
-                </>
-              ) : (
-                <>
-                  <Users size={13} />
-                  <span>Lihat Grup</span>
-                </>
-              )}
-            </motion.button>
-          ) : isDeclined ? (
-            <span className="px-2.5 py-1 text-[11px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-              Ditolak
-            </span>
-          ) : hasJoined ? (
-            <motion.button
-              type="button"
-              onClick={handleJoin}
-              disabled={isJoining}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-600/30 cursor-pointer disabled:opacity-50"
-            >
-              <Check size={13} />
-              <span>Buka Grup</span>
-            </motion.button>
-          ) : (
+        <div className="flex items-center gap-1.5">
+          {!hasJoined && !isDeclined && (
             <>
+              {!isLocked && (
+                <button
+                  type="button"
+                  onClick={handleDecline}
+                  className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  Tolak
+                </button>
+              )}
               <motion.button
                 type="button"
-                onClick={handleDecline}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 disabled={isJoining || isLocked}
-                whileHover={!isLocked ? { scale: 1.03 } : {}}
-                whileTap={!isLocked ? { scale: 0.97 } : {}}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all ${
-                  isLocked
-                    ? 'bg-zinc-800/60 text-zinc-500 cursor-not-allowed opacity-50 border border-zinc-700/30'
-                    : 'bg-zinc-800 hover:bg-rose-500/20 text-zinc-300 hover:text-rose-300 border border-zinc-700/60 cursor-pointer'
-                } disabled:opacity-50`}
-                title="Tolak gabung grup"
-              >
-                <X size={12} />
-                <span>Tolak</span>
-              </motion.button>
-
-              <motion.button
-                type="button"
                 onClick={handleJoin}
-                disabled={isJoining || isLocked}
-                whileHover={!isLocked ? { scale: 1.03 } : {}}
-                whileTap={!isLocked ? { scale: 0.97 } : {}}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md ${
+                className={`px-3 py-1 text-xs font-semibold rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1 ${
                   isLocked
-                    ? 'bg-zinc-700/60 text-zinc-400 cursor-not-allowed opacity-75 border border-zinc-600/30 shadow-none'
-                    : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-500/30 cursor-pointer'
+                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30'
                 } disabled:opacity-50`}
               >
                 {isJoining ? (
@@ -840,6 +603,8 @@ export default function MessageBubble({
   _isSearchResult = false,
   isCurrentMatch = false,
   customTheme = null,
+  isSelected = false,
+  onSelectMessage,
 }) {
   const { token } = useAuth()
   const {
@@ -868,10 +633,8 @@ export default function MessageBubble({
     systemText,
   } = message
 
-  const [showPicker, setShowPicker]             = useState(false)
   const [showMessageInfo, setShowMessageInfo]   = useState(false)
   const [lightboxSrc, setLightboxSrc]           = useState(null)
-  const [showDeleteModal, setShowDeleteModal]   = useState(false)
   const [decryptedText, setDecryptedText]       = useState(() => {
     if (message.plainText) return message.plainText
     if (isSystem) return systemText || text || ''
@@ -885,7 +648,6 @@ export default function MessageBubble({
   })
   const [isFlashing, setIsFlashing]             = useState(false)
   const [dragX, setDragX]                       = useState(0)
-  const [showCopiedToast, setShowCopiedToast]   = useState(false)
 
   const timerRef = useRef(null)
   const isLongPressRef = useRef(false)
@@ -895,32 +657,12 @@ export default function MessageBubble({
     onReply?.({
       _id,
       text: decryptedText,
+      plainText: decryptedText,
       sender: message.sender,
       imageUrl,
       imageUrls,
       audioUrl,
     })
-  }
-
-  const handleCopyText = async () => {
-    const textToCopy = decryptedText || message.plainText || message.text || ''
-    if (!textToCopy) return
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(textToCopy)
-      } else {
-        const textarea = document.createElement('textarea')
-        textarea.value = textToCopy
-        document.body.appendChild(textarea)
-        textarea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textarea)
-      }
-      setShowCopiedToast(true)
-      setTimeout(() => setShowCopiedToast(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy text', err)
-    }
   }
 
   // Trigger temporary background line flash when focused from search
@@ -949,108 +691,128 @@ export default function MessageBubble({
       setDecryptedText(message.plainText)
       return
     }
-    if (text && !isSystem) {
-      decryptMessage(text, conversationId).then((res) => {
-        if (isMounted) setDecryptedText(res)
-      })
-    } else {
-      setDecryptedText(isSystem ? (systemText || text || '') : '')
+    if (isSystem) {
+      setDecryptedText(systemText || text || '')
+      return
     }
-    return () => { isMounted = false }
-  }, [text, message.plainText, conversationId, isSystem, systemText])
+    if (!text) {
+      setDecryptedText('')
+      return
+    }
+    if (!text.startsWith('enc:v1:')) {
+      setDecryptedText(text)
+      return
+    }
 
-  // Decrypt replyTo text if present
+    const cached = getCachedDecryptedMessage(text, conversationId)
+    if (cached !== null) {
+      setDecryptedText(cached)
+      return
+    }
+
+    decryptMessage(text, conversationId)
+      .then((decrypted) => {
+        if (isMounted) setDecryptedText(decrypted)
+      })
+      .catch((err) => {
+        console.warn('Decryption error in MessageBubble:', err)
+        if (isMounted) setDecryptedText(text)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [text, conversationId, message.plainText, isSystem, systemText])
+
   useEffect(() => {
     let isMounted = true
     if (replyTo?.plainText) {
       setDecryptedReplyText(replyTo.plainText)
       return
     }
-    if (replyTo?.text) {
-      decryptMessage(replyTo.text, conversationId).then((res) => {
-        if (isMounted) setDecryptedReplyText(res)
-      })
-    } else {
+    if (!replyTo?.text) {
       setDecryptedReplyText('')
+      return
     }
-    return () => { isMounted = false }
-  }, [replyTo?.text, replyTo?.plainText, conversationId])
-
-  // Clean up timer on unmount
-  useEffect(() => {
+    if (!replyTo.text.startsWith('enc:v1:')) {
+      setDecryptedReplyText(replyTo.text)
+      return
+    }
+    const cached = getCachedDecryptedMessage(replyTo.text, conversationId)
+    if (cached !== null) {
+      setDecryptedReplyText(cached)
+      return
+    }
+    decryptMessage(replyTo.text, conversationId)
+      .then((decrypted) => {
+        if (isMounted) setDecryptedReplyText(decrypted)
+      })
+      .catch((err) => {
+        console.warn('Reply decryption error in MessageBubble:', err)
+        if (isMounted) setDecryptedReplyText(replyTo.text)
+      })
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      isMounted = false
     }
-  }, [])
+  }, [replyTo?.text, conversationId, replyTo?.plainText])
 
-  // ── Long-press implementation for Mobile UX ──
   const handleTouchStart = () => {
     isLongPressRef.current = false
     timerRef.current = setTimeout(() => {
       isLongPressRef.current = true
-      setShowPicker(true)
-      if (navigator.vibrate) {
-        try { navigator.vibrate(30) } catch {}
-      }
-    }, 500)
+      onSelectMessage?.({
+        ...message,
+        plainText: decryptedText,
+      })
+    }, 450)
   }
 
   const handleTouchEnd = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
+    clearTimeout(timerRef.current)
   }
 
   const handleTouchMove = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
+    clearTimeout(timerRef.current)
   }
 
   const handleContextMenu = (e) => {
     e.preventDefault()
-    setShowPicker((prev) => !prev)
+    e.stopPropagation()
+    onSelectMessage?.({
+      ...message,
+      plainText: decryptedText,
+    })
   }
 
-  const canEdit = !isDeleted && !!decryptedText && !audioUrl && allImages.length === 0
-
+  // System message banner rendering
   if (isSystem) {
     return (
-      <motion.div
-        id={`msg-${_id}`}
-        layout
-        variants={bubbleVariants}
-        initial="hidden"
-        animate="visible"
-        className={`relative flex w-full justify-center my-2 select-none py-1 transition-colors duration-700 ${
-          isFlashing ? 'bg-indigo-500/20 rounded-xl' : 'bg-transparent'
-        }`}
-      >
-        <div className="bg-zinc-800/80 border border-zinc-700/60 backdrop-blur-md text-zinc-300 text-xs font-medium px-4 py-1.5 rounded-full shadow-sm max-w-[85%] text-center">
-          {systemText || text}
+      <div className="flex justify-center my-2">
+        <div className="px-3.5 py-1 bg-zinc-800/80 border border-zinc-700/60 rounded-full text-zinc-300 text-xs font-medium max-w-sm text-center shadow-sm">
+          {decryptedText || systemText || text}
         </div>
-      </motion.div>
+      </div>
     )
   }
 
   return (
     <>
-      <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      <MessageInfoModal
-        isOpen={showMessageInfo}
-        onClose={() => setShowMessageInfo(false)}
-        message={message}
-        conversationId={conversationId}
-      />
-      <DeleteChoiceModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        isOwn={isOwn}
-        onDeleteForMe={() => onDelete?.(_id, false)}
-        onDeleteForEveryone={() => onDelete?.(_id, true)}
-      />
+      {lightboxSrc && (
+        <Lightbox
+          src={lightboxSrc}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
+
+      {showMessageInfo && (
+        <MessageInfoModal
+          message={message}
+          decryptedText={decryptedText}
+          isGroup={isGroup}
+          totalParticipants={totalParticipants}
+          onClose={() => setShowMessageInfo(false)}
+        />
+      )}
 
       <motion.div
         id={`msg-${_id}`}
@@ -1058,10 +820,19 @@ export default function MessageBubble({
         variants={bubbleVariants}
         initial="hidden"
         animate="visible"
-        className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-0.5 transition-colors duration-700 ${
-          isFlashing ? 'bg-indigo-500/20 rounded-xl' : 'bg-transparent'
+        onClick={() => {
+          onSelectMessage?.({
+            ...message,
+            plainText: decryptedText,
+          })
+        }}
+        className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-1 px-2 rounded-xl transition-colors duration-200 cursor-pointer ${
+          isSelected
+            ? 'bg-indigo-950/40 border-l-2 border-indigo-500'
+            : isFlashing
+            ? 'bg-indigo-500/20'
+            : 'hover:bg-zinc-800/20'
         }`}
-        onMouseLeave={() => setShowPicker(false)}
       >
         {/* Swipe-to-reply icon behind bubble */}
         {!isDeleted && (
@@ -1100,7 +871,6 @@ export default function MessageBubble({
           className={`relative flex flex-col max-w-[75%] sm:max-w-[70%] gap-1 select-none touch-manipulation z-10 ${
             isOwn ? 'items-end' : 'items-start'
           }`}
-          onMouseEnter={() => setShowPicker(true)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onTouchMove={handleTouchMove}
@@ -1119,61 +889,6 @@ export default function MessageBubble({
               </span>
             </div>
           )}
-
-          {/* Action & Emoji Picker on hover or long-press */}
-          <AnimatePresence>
-            {showPicker && !isDeleted && (
-              <ActionPicker
-                isOwn={isOwn}
-                isPinned={isPinned}
-                isDeleted={isDeleted}
-                canEdit={canEdit}
-                hasText={!!decryptedText}
-                onCopy={handleCopyText}
-                onReact={(emoji) => {
-                  onReact?.(_id, emoji)
-                  setShowPicker(false)
-                }}
-                onReply={() => {
-                  handleReplyAction()
-                  setShowPicker(false)
-                }}
-                onInfo={() => {
-                  setShowMessageInfo(true)
-                  setShowPicker(false)
-                }}
-                onEdit={() => {
-                  onEdit?.({
-                    _id,
-                    text: decryptedText,
-                  })
-                  setShowPicker(false)
-                }}
-                onDelete={() => {
-                  setShowDeleteModal(true)
-                  setShowPicker(false)
-                }}
-                onPin={() => {
-                  onPin?.(_id)
-                  setShowPicker(false)
-                }}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Copied Feedback Toast */}
-          <AnimatePresence>
-            {showCopiedToast && (
-              <motion.div
-                initial={{ opacity: 0, y: 5, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 5, scale: 0.9 }}
-                className="absolute -top-8 left-1/2 -translate-x-1/2 z-40 bg-zinc-800/95 border border-zinc-700 text-zinc-100 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-lg pointer-events-none whitespace-nowrap"
-              >
-                📋 Teks disalin
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Deleted Message Tombstone UI */}
           {isDeleted ? (

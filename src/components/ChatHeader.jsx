@@ -15,7 +15,14 @@ import {
   Info,
   Lock,
   Palette,
+  Reply,
+  Copy,
+  Download,
+  Pin,
+  PinOff,
+  Pencil,
 } from 'lucide-react'
+import { useLanguage } from '../context/LanguageContext'
 
 export default function ChatHeader({
   contact,
@@ -36,11 +43,21 @@ export default function ChatHeader({
   onVideoCall,
   onClearChat,
   onDeleteChat,
+  selectedMessage,
+  onClearSelection,
+  onReplySelected,
+  onDeleteSelected,
+  onCopySelected,
+  onDownloadSelected,
+  onPinSelected,
+  onEditSelected,
+  currentUserId,
 }) {
+  const { t } = useLanguage()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
-  const isAccepted = contact.isGroup || contact.status === 'accepted'
+  const isAccepted = contact?.isGroup || contact?.status === 'accepted'
 
   // Close dropdown menu when clicking outside
   useEffect(() => {
@@ -62,8 +79,124 @@ export default function ChatHeader({
     action?.()
   }
 
+  // ── WhatsApp-Style Message Selection Header ──────────────────────────────────
+  if (selectedMessage) {
+    const hasMedia = selectedMessage.imageUrls?.length > 0 || !!selectedMessage.imageUrl || !!selectedMessage.audioUrl
+    const isImage = selectedMessage.imageUrls?.length > 0 || !!selectedMessage.imageUrl
+    const imageUrlToDownload = selectedMessage.imageUrls?.[0] || selectedMessage.imageUrl
+    const hasText = !!(selectedMessage.plainText || selectedMessage.text) && !selectedMessage.isDeleted
+    const senderId = (selectedMessage.sender?._id || selectedMessage.sender || '').toString()
+    const isOwn = senderId === (currentUserId || '').toString()
+
+    return (
+      <div id="chatroom-header-selection" className="h-16 border-b border-zinc-800 bg-zinc-900 px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30 shadow-lg select-none">
+        {/* Left: Clear Selection + Count */}
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onClearSelection}
+            className="text-zinc-300 hover:text-white p-2 -ml-1 rounded-full hover:bg-zinc-800 transition-colors flex-shrink-0 cursor-pointer"
+            title={t('cancel')}
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <span className="text-sm sm:text-base font-bold text-zinc-100">
+            1
+          </span>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          {/* Direct Download Icon for Media */}
+          {isImage && imageUrlToDownload && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              onClick={onDownloadSelected}
+              className="p-2 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Unduh Gambar / Download"
+            >
+              <Download size={18} />
+            </motion.button>
+          )}
+
+          {/* Reply Icon */}
+          {!selectedMessage.isDeleted && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              onClick={onReplySelected}
+              className="p-2 text-zinc-300 hover:text-indigo-300 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Balas / Reply"
+            >
+              <Reply size={18} />
+            </motion.button>
+          )}
+
+          {/* Copy Icon for Text */}
+          {hasText && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              onClick={onCopySelected}
+              className="p-2 text-zinc-300 hover:text-indigo-300 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Salin Teks / Copy"
+            >
+              <Copy size={18} />
+            </motion.button>
+          )}
+
+          {/* Edit Icon (if own message, text only, not deleted) */}
+          {isOwn && hasText && !hasMedia && !selectedMessage.isDeleted && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              onClick={onEditSelected}
+              className="p-2 text-zinc-300 hover:text-amber-300 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title="Edit Pesan"
+            >
+              <Pencil size={18} />
+            </motion.button>
+          )}
+
+          {/* Pin / Unpin */}
+          {!selectedMessage.isDeleted && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              onClick={onPinSelected}
+              className="p-2 text-zinc-300 hover:text-indigo-300 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title={selectedMessage.isPinned ? 'Lepas Sematan / Unpin' : 'Sematkan / Pin'}
+            >
+              {selectedMessage.isPinned ? <PinOff size={18} /> : <Pin size={18} />}
+            </motion.button>
+          )}
+
+          {/* Delete Trash Icon */}
+          {!selectedMessage.isDeleted && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              onClick={onDeleteSelected}
+              className="p-2 text-zinc-300 hover:text-rose-400 hover:bg-rose-500/10 rounded-full transition-colors cursor-pointer"
+              title="Hapus Pesan / Delete"
+            >
+              <Trash2 size={18} />
+            </motion.button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div id="chatroom-header" className="h-16 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30">
+    <div id="chatroom-header" className="h-16 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30 select-none">
       {/* Left: Back button (Mobile only) + Contact / Group Info */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
         {isMobile && (
@@ -80,7 +213,7 @@ export default function ChatHeader({
           type="button"
           id="chatroom-friend-profile-btn"
           onClick={() => {
-            if (contact.isGroup) {
+            if (contact?.isGroup) {
               onOpenGroupInfo?.()
             } else {
               onOpenProfile?.()
@@ -90,28 +223,28 @@ export default function ChatHeader({
         >
           <div className="relative flex-shrink-0">
             <img
-              src={contact.avatar}
-              alt={contact.name}
+              src={contact?.avatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=fallback'}
+              alt={contact?.name || 'Chat'}
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-zinc-700 object-cover group-hover:opacity-90 transition-opacity"
             />
-            {contact.isGroup ? (
+            {contact?.isGroup ? (
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-indigo-600 border-2 border-zinc-900 flex items-center justify-center text-white">
                 <Users size={8} />
               </span>
             ) : isAccepted && (
-              (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (
+              (contact?.isOnline || (contact?.presence && contact?.presence !== 'offline')) && (
                 <span
                   className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-zinc-900 ${
-                    contact.presence === 'idle' || contact.presence === 'away'
+                    contact?.presence === 'idle' || contact?.presence === 'away'
                       ? 'bg-amber-400'
-                      : contact.presence === 'dnd' || contact.presence === 'busy'
+                      : contact?.presence === 'dnd' || contact?.presence === 'busy'
                       ? 'bg-red-400'
                       : 'bg-emerald-400 animate-pulse'
                   }`}
                   title={
-                    contact.presence === 'idle' || contact.presence === 'away'
+                    contact?.presence === 'idle' || contact?.presence === 'away'
                       ? 'Away'
-                      : contact.presence === 'dnd' || contact.presence === 'busy'
+                      : contact?.presence === 'dnd' || contact?.presence === 'busy'
                       ? 'Busy'
                       : 'Online'
                   }
@@ -123,9 +256,9 @@ export default function ChatHeader({
           <div className="flex-1 min-w-0 pr-1">
             <div className="flex items-center gap-1.5 min-w-0">
               <p className="text-sm sm:text-base font-semibold text-zinc-100 truncate group-hover:text-indigo-300 transition-colors">
-                {contact.name}
+                {contact?.name || 'Chat'}
               </p>
-              {contact.isGroup && (
+              {contact?.isGroup && (
                 <span className="chat-group-badge text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
                   Group
                 </span>
@@ -133,7 +266,7 @@ export default function ChatHeader({
             </div>
 
             {/* Status / Last seen line — Truncated & readable */}
-            {contact.isGroup ? (
+            {contact?.isGroup ? (
               <p className="text-xs text-zinc-400 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
                 {groupMemberNames}
               </p>
@@ -142,32 +275,32 @@ export default function ChatHeader({
                 <Lock size={10} className="flex-shrink-0" />
                 <span className="truncate">Menunggu Persetujuan</span>
               </div>
-            ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (contact.presence === 'idle' || contact.presence === 'away') ? (
+            ) : (contact?.isOnline || (contact?.presence && contact?.presence !== 'offline')) && (contact?.presence === 'idle' || contact?.presence === 'away') ? (
               <div className="flex items-center gap-1.5 text-xs truncate">
                 <span className="flex items-center gap-1 text-amber-400 font-medium truncate">
                   <span className="truncate">Away</span>
-                  {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
+                  {contact?.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
                 </span>
               </div>
-            ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) && (contact.presence === 'dnd' || contact.presence === 'busy') ? (
+            ) : (contact?.isOnline || (contact?.presence && contact?.presence !== 'offline')) && (contact?.presence === 'dnd' || contact?.presence === 'busy') ? (
               <div className="flex items-center gap-1.5 text-xs truncate">
                 <span className="flex items-center gap-1 text-red-400 font-medium truncate">
                   <span className="truncate">Busy</span>
-                  {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
+                  {contact?.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
                 </span>
               </div>
-            ) : (contact.isOnline || (contact.presence && contact.presence !== 'offline')) ? (
+            ) : (contact?.isOnline || (contact?.presence && contact?.presence !== 'offline')) ? (
               <div className="flex items-center gap-1.5 text-xs truncate">
                 <span className="flex items-center gap-1 text-emerald-400 font-medium truncate">
                   <span className="truncate">Online</span>
-                  {contact.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
+                  {contact?.statusEmoji && <span className="flex-shrink-0">{contact.statusEmoji}</span>}
                 </span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-xs truncate">
                 <span className="text-zinc-400 truncate">
-                  {formatLastSeen ? formatLastSeen(contact.lastSeen) : 'Offline'}
-                  {contact.statusEmoji && <span className="ml-1">{contact.statusEmoji}</span>}
+                  {formatLastSeen ? formatLastSeen(contact?.lastSeen) : 'Offline'}
+                  {contact?.statusEmoji && <span className="ml-1">{contact.statusEmoji}</span>}
                 </span>
               </div>
             )}
@@ -296,7 +429,7 @@ export default function ChatHeader({
                 type="button"
                 onClick={() => {
                   setIsMenuOpen(false)
-                  if (contact.isGroup) {
+                  if (contact?.isGroup) {
                     onOpenGroupInfo?.()
                   } else {
                     onOpenProfile?.()
@@ -306,13 +439,13 @@ export default function ChatHeader({
               >
                 <Info size={16} className="text-zinc-400 flex-shrink-0" />
                 <span className="flex-1 font-medium">
-                  {contact.isGroup ? 'Info Grup' : 'Info Kontak'}
+                  {contact?.isGroup ? 'Info Grup' : 'Info Kontak'}
                 </span>
               </button>
 
               <div className="h-px bg-zinc-800 my-1 mx-2" />
 
-              {/* 7. Clear Chat */}
+              {/* 8. Clear Chat */}
               <button
                 type="button"
                 onClick={() => handleMenuItemClick(onClearChat)}

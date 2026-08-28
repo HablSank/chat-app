@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Phone, Video, Clock, Pin, PinOff, Image as ImageIcon, Users, Search, ChevronUp, ChevronDown, X } from 'lucide-react'
-import MessageBubble from './MessageBubble'
+import MessageBubble, { DeleteChoiceModal, downloadImage } from './MessageBubble'
 import ChatInput from './ChatInput'
 import TypingIndicator from './TypingIndicator'
 import FriendProfile from './FriendProfile'
@@ -48,91 +48,73 @@ function formatLastSeen(lastSeenDate, t, language = 'id') {
     return `${t('lastSeenYesterdayAt')} ${timeStr}`
   } else {
     const dateStr = date.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', { day: 'numeric', month: 'short' })
-    return `${t('lastSeenOn')} ${dateStr} ${t('atTime')} ${timeStr}`
+    return `${t('lastSeenDateAt')} ${dateStr} ${timeStr}`
   }
 }
 
-function getDateSeparatorLabel(dateStr, t, language = 'id') {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return ''
+function getDateSeparatorLabel(dateString, t, language = 'id') {
+  if (!dateString) return null
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) return null
 
-  const today = new Date()
-  const yesterday = new Date()
-  yesterday.setDate(today.getDate() - 1)
-
-  const isSameDay = (d1, d2) =>
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate()
-
-  if (isSameDay(date, today)) {
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) {
     return t('today')
   }
-  if (isSameDay(date, yesterday)) {
+
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (d.toDateString() === yesterday.toDateString()) {
     return t('yesterday')
   }
 
-  return date.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+  return d.toLocaleDateString(language === 'en' ? 'en-US' : 'id-ID', {
+    weekday: 'short',
     day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+    month: 'short',
   })
 }
 
-// ── Notification Toast ────────────────────────────────────────────────────────
-function Toast({ message, visible }) {
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="fixed top-16 left-4 right-4 sm:left-auto sm:right-6 sm:w-auto z-50
-            bg-zinc-850/95 border border-zinc-700/80 text-zinc-100 text-xs font-semibold
-            px-4 py-2 rounded-2xl shadow-2xl backdrop-blur-md pointer-events-none text-center
-            max-w-[88vw] sm:max-w-md mx-auto truncate"
-        >
-          {message}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-// ── Pinned Message Banner Component (with decryption) ────────────────────────
+// ── Pinned Message Top Banner ──────────────────────────────────────────────────
 function PinnedMessageBanner({ message, decryptedText, onScrollTo, onUnpin }) {
-  if (!message) return null
-
-  const displayText =
-    decryptedText ||
-    (message.imageUrls?.length || message.imageUrl ? '📷 Photo' : message.audioUrl ? '🎵 Voice note' : 'Pinned message')
+  const { t } = useLanguage()
+  const preview = message.audioUrl
+    ? '🎵 Pesan Suara'
+    : message.imageUrls?.length || message.imageUrl
+    ? '📷 Foto'
+    : decryptedText || message.plainText || message.text || 'Pesan tersemat'
 
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
       onClick={onScrollTo}
-      className="bg-indigo-950/40 border-b border-indigo-500/20 px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-indigo-950/60 transition-colors z-9"
+      className="pinned-banner px-4 py-2 bg-zinc-900/95 border-b border-indigo-500/20 backdrop-blur-md flex items-center justify-between gap-3 cursor-pointer hover:bg-zinc-850 transition-colors z-20"
     >
-      <div className="flex items-center gap-2 text-xs truncate">
-        <Pin size={13} className="text-indigo-400 flex-shrink-0" />
-        <span className="font-semibold text-indigo-300">Pinned:</span>
-        <span className="text-zinc-300 truncate">{displayText}</span>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0">
+          <Pin size={12} className="rotate-45" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">
+            {t('pinnedMessage')}
+          </p>
+          <p className="text-xs text-zinc-300 truncate max-w-xs sm:max-w-md">
+            {preview}
+          </p>
+        </div>
       </div>
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          onUnpin?.(message._id)
+          onUnpin(message._id)
         }}
-        className="text-zinc-400 hover:text-indigo-300 p-1 rounded-lg hover:bg-zinc-800/60 transition-colors cursor-pointer"
-        title="Unpin message"
+        className="p-1 text-zinc-400 hover:text-rose-400 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer flex-shrink-0"
+        title="Lepas Sematan"
       >
-        <PinOff size={13} />
+        <PinOff size={14} />
       </button>
     </motion.div>
   )
@@ -140,13 +122,13 @@ function PinnedMessageBanner({ message, decryptedText, onScrollTo, onUnpin }) {
 
 export default function ChatRoom({
   contact,
-  messages = [],
+  messages,
   onSendMessage,
+  onTypingStart,
+  onTypingStop,
   onEditMessage,
   onDeleteMessage,
   onPinMessage,
-  onTypingStart,
-  onTypingStop,
   isTyping,
   typingUsers = [],
   onBack,
@@ -178,6 +160,10 @@ export default function ChatRoom({
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
   const [decryptedMap, setDecryptedMap]     = useState({})
 
+  // Phase 15.41: WhatsApp-style selection state
+  const [selectedMessage, setSelectedMessage] = useState(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
   // Keep localTheme in sync with contact customTheme
   useEffect(() => {
     setLocalTheme(contact?.customTheme || null)
@@ -198,12 +184,10 @@ export default function ChatRoom({
     const isLight = theme === 'light'
     let styleVal = activeWallpaper
     if (activeWallpaper.includes('radial-gradient') && activeWallpaper.includes('1px')) {
-      // Dots
       styleVal = isLight
         ? 'radial-gradient(rgba(100, 116, 139, 0.28) 1.2px, transparent 1.2px)'
         : 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)'
     } else if (activeWallpaper.includes('linear-gradient') && activeWallpaper.includes('1px')) {
-      // Cyber grid
       styleVal = isLight
         ? 'linear-gradient(to right, rgba(100, 116, 139, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(100, 116, 139, 0.2) 1px, transparent 1px)'
         : 'linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)'
@@ -248,42 +232,54 @@ export default function ChatRoom({
     return () => { isMounted = false }
   }, [safeMessages, contact?.conversationId])
 
-  // Filter message matches
+  const triggerToast = (msg) => {
+    setToastMessage(msg)
+    setShowToast(true)
+    clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 2400)
+  }
+
+  const handleToggleVanish = () => {
+    setIsVanishMode(prev => {
+      const next = !prev
+      triggerToast(next ? '👻 Pesan Sementara (Vanish Mode) diaktifkan' : '👻 Pesan Sementara dimatikan')
+      return next
+    })
+  }
+
+  // Filter matched messages for search
   const matchedMessageIds = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q || !isSearchOpen) return []
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
     return safeMessages
       .filter((msg) => {
         if (!msg || msg.isDeleted) return false
-        const plain = (decryptedMap[msg._id] || msg.text || '').toLowerCase()
-        const senderName = (msg.sender?.displayName || msg.sender?.username || '').toLowerCase()
-        const sysText = (msg.systemText || '').toLowerCase()
-        return plain.includes(q) || senderName.includes(q) || sysText.includes(q)
+        const plain = decryptedMap[msg._id] || msg.plainText || msg.text || ''
+        return plain.toLowerCase().includes(q)
       })
       .map((m) => m._id)
-  }, [safeMessages, decryptedMap, searchQuery, isSearchOpen])
+  }, [safeMessages, searchQuery, decryptedMap])
 
   // Auto-scroll to active match
   useEffect(() => {
-    if (isSearchOpen && matchedMessageIds.length > 0) {
-      const safeIdx = Math.min(currentMatchIdx, matchedMessageIds.length - 1)
-      const activeId = matchedMessageIds[safeIdx]
-      if (activeId) {
-        const el = document.getElementById(`msg-${activeId}`)
+    if (matchedMessageIds.length > 0) {
+      const targetId = matchedMessageIds[currentMatchIdx]
+      if (targetId) {
+        const el = document.getElementById(`msg-${targetId}`)
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }
       }
     }
-  }, [currentMatchIdx, matchedMessageIds, isSearchOpen])
+  }, [currentMatchIdx, matchedMessageIds])
 
+  // ── Instant Zero-Animation Bottom Positioning on Room Load ─────────────────
   const activeRoomId = contact?.conversationId || contact?.id
   const prevRoomIdRef = useRef(null)
   const initialScrollDoneRef = useRef(false)
   const prevMsgLengthRef = useRef(safeMessages.length)
   const messagesEndRef = useRef(null)
 
-  // 1. Instant scrollToBottom when opening or switching a chat room
   useLayoutEffect(() => {
     if (!activeRoomId) return
     const isSwitched = prevRoomIdRef.current !== activeRoomId
@@ -292,25 +288,18 @@ export default function ChatRoom({
       initialScrollDoneRef.current = false
       setReplyingTo(null)
       setEditingMessage(null)
+      setSelectedMessage(null)
     }
 
     if (!initialScrollDoneRef.current || isSwitched) {
       if (scrollRef.current) {
         scrollRef.current.scrollTop = scrollRef.current.scrollHeight
       }
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' })
       initialScrollDoneRef.current = true
-
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-        }
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' })
-      })
     }
   }, [activeRoomId, safeMessages.length])
 
-  // 2. Incremental auto-scroll on new incoming messages only if user is already near bottom (<= 180px)
+  // Incremental auto-scroll on new incoming messages only if user is already near bottom (<= 180px)
   useEffect(() => {
     if (isSearchOpen || !scrollRef.current) return
     const container = scrollRef.current
@@ -318,16 +307,13 @@ export default function ChatRoom({
     if (safeMessages.length > prevMsgLengthRef.current && prevRoomIdRef.current === activeRoomId) {
       const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 180
       if (isNearBottom) {
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'smooth',
-        })
+        container.scrollTop = container.scrollHeight
       }
     }
     prevMsgLengthRef.current = safeMessages.length
   }, [safeMessages.length, isSearchOpen, activeRoomId])
 
-  // 3. Keep message list scrolled to latest when mobile virtual keyboard opens/resizes viewport
+  // Keep message list scrolled to latest when mobile virtual keyboard opens/resizes viewport
   useEffect(() => {
     const handleViewportResize = () => {
       if (scrollRef.current) {
@@ -348,79 +334,121 @@ export default function ChatRoom({
 
   useEffect(() => {
     return () => {
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+      clearTimeout(toastTimerRef.current)
     }
   }, [])
 
-  if (!contact) return null
-
-  const triggerToast = (msg = '🚀 Feature coming soon!') => {
-    setToastMessage(msg)
-    setShowToast(true)
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = setTimeout(() => setShowToast(false), 3000)
+  // ── WhatsApp Selection Header Actions ──────────────────────────────────────
+  const handleCopySelected = async () => {
+    if (!selectedMessage) return
+    const textToCopy = selectedMessage.plainText || selectedMessage.text || ''
+    if (!textToCopy) return
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = textToCopy
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+      triggerToast('📋 Teks disalin')
+      setSelectedMessage(null)
+    } catch (err) {
+      console.error('Failed to copy', err)
+    }
   }
 
-  const handleToggleVanish = () => {
-    const nextMode = !isVanishMode
-    setIsVanishMode(nextMode)
-    triggerToast(
-      nextMode
-        ? 'Pesan Sementara Aktif (24 Jam)'
-        : 'Pesan Sementara Dinonaktifkan'
-    )
+  const handleDownloadSelected = async () => {
+    if (!selectedMessage) return
+    const url = selectedMessage.imageUrls?.[0] || selectedMessage.imageUrl
+    if (!url) return
+    downloadImage(url, 'ping-attachment.jpg')
+    setSelectedMessage(null)
   }
 
-  // Format participant names for group header
-  const groupMemberNames = contact.isGroup
-    ? (contact.participants?.length > 0
-        ? contact.participants.map(p => (p._id === currentUser.id ? 'You' : p.displayName || p.username)).join(', ')
-        : 'Group')
+  const handlePinSelected = () => {
+    if (!selectedMessage) return
+    onPinMessage?.(selectedMessage._id)
+    setSelectedMessage(null)
+  }
+
+  const handleEditSelected = () => {
+    if (!selectedMessage) return
+    setEditingMessage(selectedMessage)
+    setSelectedMessage(null)
+  }
+
+  const handleReplySelected = () => {
+    if (!selectedMessage) return
+    setReplyingTo(selectedMessage)
+    setSelectedMessage(null)
+  }
+
+  const groupMemberNames = contact?.isGroup
+    ? (contact?.participants || contact?.members || [])
+        .map((p) => p.displayName || p.username)
+        .filter(Boolean)
+        .join(', ')
     : ''
 
   return (
     <>
-      {!contact.isGroup && (
+      <motion.div
+        key={contact?.id || 'empty-room'}
+        variants={isMobile ? slideInVariants : {}}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="flex-1 flex flex-col h-full bg-zinc-950 overflow-hidden relative"
+      >
+        {/* ── Toast Notification Banner ─────────────────────────────────── */}
+        <AnimatePresence>
+          {showToast && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-zinc-900/95 border border-zinc-700/80 text-zinc-100 text-xs font-semibold shadow-2xl backdrop-blur-md pointer-events-none flex items-center gap-2 max-w-[88vw] text-center"
+            >
+              <span>{toastMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Friend Profile Modal (1-on-1 Contact) ───────────────────── */}
         <FriendProfile
           isOpen={showFriendProfile}
           onClose={() => setShowFriendProfile(false)}
-          userId={contact.id}
-          onOpenTheme={() => setIsThemeModalOpen(true)}
-        />
-      )}
-
-      {contact.isGroup && (
-        <GroupInfoModal
-          isOpen={isGroupInfoOpen}
-          onClose={() => setIsGroupInfoOpen(false)}
           contact={contact}
-          onGroupUpdated={onGroupUpdated}
-          onGroupLeft={onGroupLeft}
-          onOpenTheme={() => setIsThemeModalOpen(true)}
+          currentUserId={currentUserId}
+          onBlock={() => triggerToast('🚫 Pengguna diblokir')}
+          onDeleteChat={() => triggerToast('🗑️ Riwayat chat dihapus')}
         />
-      )}
 
-      <motion.div
-        key={contact.id}
-        variants={isMobile ? slideInVariants : undefined}
-        initial={isMobile ? 'hidden' : false}
-        animate={isMobile ? 'visible' : false}
-        exit={isMobile ? 'exit' : undefined}
-        className={`relative flex flex-col h-full w-full min-w-0 transition-all duration-700 overflow-hidden ${
-          isVanishMode ? 'bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-zinc-950 to-zinc-950' : 'bg-zinc-900'
-        }`}
-      >
-        {/* Toast */}
-        <Toast message={toastMessage} visible={showToast} />
+        {/* ── Group Info Modal (Group Details & Member Management) ────────── */}
+        {contact?.isGroup && (
+          <GroupInfoModal
+            isOpen={isGroupInfoOpen}
+            onClose={() => setIsGroupInfoOpen(false)}
+            group={contact}
+            currentUserId={currentUserId}
+            onGroupUpdated={onGroupUpdated}
+            onGroupLeft={onGroupLeft}
+          />
+        )}
 
-        {/* Media Sidebar Drawer */}
+        {/* ── Media Files Sidebar ────────────────────────────────────────── */}
         <MediaSidebar
           isOpen={isMediaSidebarOpen}
           onClose={() => setIsMediaSidebarOpen(false)}
           messages={messages}
         />
 
-        {/* ── Chat Header with clean mobile-friendly dropdown menu ── */}
+        {/* ── Chat Header (Switches dynamically to WhatsApp Selection Bar) ── */}
         <ChatHeader
           contact={contact}
           isMobile={isMobile}
@@ -439,6 +467,15 @@ export default function ChatRoom({
           onVoiceCall={() => triggerToast('🚀 Panggilan Suara segera hadir!')}
           onVideoCall={() => triggerToast('🚀 Panggilan Video segera hadir!')}
           onClearChat={() => triggerToast('🧹 Fitur Bersihkan Chat segera hadir!')}
+          selectedMessage={selectedMessage}
+          onClearSelection={() => setSelectedMessage(null)}
+          onReplySelected={handleReplySelected}
+          onDeleteSelected={() => setShowDeleteModal(true)}
+          onCopySelected={handleCopySelected}
+          onDownloadSelected={handleDownloadSelected}
+          onPinSelected={handlePinSelected}
+          onEditSelected={handleEditSelected}
+          currentUserId={currentUserId}
         />
 
         {/* ── Client-Side E2EE Message Search Bar ──────────────────────── */}
@@ -541,8 +578,8 @@ export default function ChatRoom({
         {/* ── Scrollable Message Thread ────────────────── */}
         <div
           ref={scrollRef}
-          style={wallpaperStyle}
-          className="flex-1 overflow-y-auto px-4 py-4 space-y-2 transition-all duration-300"
+          style={{ ...wallpaperStyle, overflowAnchor: 'auto' }}
+          className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
         >
           {safeMessages.length > 0 ? (
             safeMessages.map((msg, index) => {
@@ -607,6 +644,10 @@ export default function ChatRoom({
                     isSearchResult={isSearchResult}
                     isCurrentMatch={isCurrentMatch}
                     customTheme={localTheme}
+                    isSelected={selectedMessage?._id === msg._id}
+                    onSelectMessage={(selected) => {
+                      setSelectedMessage(prev => prev?._id === selected?._id ? null : selected)
+                    }}
                   />
                 </div>
               )
@@ -740,6 +781,28 @@ export default function ChatRoom({
           />
         )}
       </motion.div>
+
+      {/* ── Delete Choice Modal for Selected Message ── */}
+      {selectedMessage && (
+        <DeleteChoiceModal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false)
+            setSelectedMessage(null)
+          }}
+          isOwn={(selectedMessage.sender?._id || selectedMessage.sender) === (currentUser?.id || currentUser?._id)}
+          onDeleteForMe={() => {
+            onDeleteMessage?.(selectedMessage._id, false)
+            setShowDeleteModal(false)
+            setSelectedMessage(null)
+          }}
+          onDeleteForEveryone={() => {
+            onDeleteMessage?.(selectedMessage._id, true)
+            setShowDeleteModal(false)
+            setSelectedMessage(null)
+          }}
+        />
+      )}
 
       {/* ── Theme & Wallpaper Customization Modal ─────────────────── */}
       <ThemeModal

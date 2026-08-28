@@ -358,9 +358,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     const activePinned = []
     const activeUnpinned = []
 
-    conversations.forEach((conv) => {
-      const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
-      const isArchived = Array.isArray(conv.archivedBy) && conv.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+    const convList = Array.isArray(conversations) ? conversations : []
+    convList.forEach((conv) => {
+      if (!conv) return
+      const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.some((p) => (p?._id?.toString() || p?.toString()) === currentUserId)
+      const isArchived = Array.isArray(conv.archivedBy) && conv.archivedBy.some((p) => (p?._id?.toString() || p?.toString()) === currentUserId)
 
       if (isArchived) {
         archived.push(conv)
@@ -500,7 +502,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   // Set of user IDs of existing direct conversations / friends to exclude from Global New Chat Search
   const existingFriendIds = useMemo(() => {
     const ids = new Set()
-    conversations.forEach((conv) => {
+    const convList = Array.isArray(conversations) ? conversations : []
+    convList.forEach((conv) => {
+      if (!conv) return
       if (!conv.isGroup && Array.isArray(conv.participants)) {
         conv.participants.forEach((p) => {
           const id = (p?._id?.toString() || p?.toString())
