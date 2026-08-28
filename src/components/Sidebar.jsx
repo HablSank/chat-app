@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, LogOut, Settings, Users, Edit, Download, Archive, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
+import { useAutoUpdate } from '../hooks/useAutoUpdate'
 import { decryptMessage } from '../utils/crypto'
 import { getApiUrl } from '../config/api'
 import ChatItem from './ChatItem'
@@ -10,10 +11,12 @@ import ProfileSettings from './ProfileSettings'
 import CreateGroupModal from './CreateGroupModal'
 import PWAInstallBanner from './PWAInstallBanner'
 import PWAInstallGuideModal from './PWAInstallGuideModal'
+import AppUpdateBanner from './AppUpdateBanner'
 
 export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const { user, token, logout, isProfileOpen, setIsProfileOpen } = useAuth()
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+  const { updateAvailable, reloadApp, setUpdateAvailable } = useAutoUpdate()
   const [query, setQuery] = useState('')
   const [conversations, setConversations] = useState([])
   const [searchResults, setSearchResults] = useState([])
@@ -504,7 +507,12 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           </div>
         </div>
 
-        {/* ── PWA Install Banner ──────────────────────── */}
+        {/* ── Banners: App Version Update & PWA Install ─────── */}
+        <AppUpdateBanner
+          isVisible={updateAvailable}
+          onUpdate={reloadApp}
+          onDismiss={() => setUpdateAvailable(false)}
+        />
         <PWAInstallBanner />
 
         {/* ── Search Bar ──────────────────────────────── */}

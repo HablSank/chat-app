@@ -1935,11 +1935,21 @@ io.on('connection', (socket) => {
 
 // ── Serve Frontend Production Build (Single Port / Cloudflare Tunnel Support) ────
 const distPath = path.join(__dirname, '../dist')
-app.use(express.static(distPath))
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('sw.js') || filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+    } else if (filePath.includes('/assets/')) {
+      // Hashed static assets can be cached safely
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    }
+  }
+}))
 
 // SPA Fallback: Any non-API route serves index.html if dist exists
 app.use((req, res, next) => {
   if (req.method === 'GET' && !req.path.startsWith('/api') && !req.path.startsWith('/socket.io')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
     return res.sendFile(path.join(distPath, 'index.html'), (err) => {
       if (err) next()
     })
