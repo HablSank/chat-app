@@ -1127,6 +1127,60 @@ app.patch('/api/conversations/:id/theme', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Upload Chat Wallpaper (Cloudinary) ──────────────────────────────
+app.post('/api/conversations/:id/wallpaper', protect, uploadMedia.single('wallpaper'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No image file uploaded' })
+    const conversation = await Conversation.findById(req.params.id)
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' })
+
+    const userIdStr = req.user._id.toString()
+    const isParticipant = (conversation.participants || []).some(p => (p._id?.toString() || p.toString()) === userIdStr) ||
+                          (conversation.members || []).some(m => (m._id?.toString() || m.toString()) === userIdStr)
+    if (!isParticipant) return res.status(403).json({ message: 'Not a member of this conversation' })
+
+    if (!conversation.customTheme) {
+      conversation.customTheme = {}
+    }
+    conversation.customTheme.wallpaperUrl = req.file.path
+    if (conversation.customTheme.presetTheme !== 'custom') {
+      conversation.customTheme.presetTheme = 'custom'
+    }
+
+    await conversation.save()
+
+    const populatedConv = await Conversation.findById(conversation._id)
+      .populate('participants', '-password')
+      .populate('members', '-password')
+      .populate('initiator', '-password')
+      .populate('groupAdmin', '-password')
+      .populate('groupAdmins', '-password')
+      .populate('lastMessage')
+
+    const convObj = populatedConv.toObject()
+    io.to(conversation._id.toString()).emit('conversation:updated', convObj)
+
+    const allMembers = [
+      ...(conversation.participants || []),
+      ...(conversation.members || []),
+    ].map(u => (u._id?.toString() || u.toString()))
+    const uniqueMembers = Array.from(new Set(allMembers))
+    uniqueMembers.forEach(memId => {
+      const userSockets = connectedUsers.get(memId)
+      if (userSockets) {
+        userSockets.forEach(sockId => {
+          io.to(sockId).emit('conversation:updated', convObj)
+        })
+      }
+    })
+
+    res.json({ wallpaperUrl: req.file.path, conversation: populatedConv })
+  } catch (error) {
+    console.error('Upload Wallpaper Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Add Members to Group via Direct Message Invites ────────────────
 app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
   try {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, LogOut, Settings, Users, Edit, Download, Pin, Archive, ArrowLeft } from 'lucide-react'
+import { Search, LogOut, Settings, Users, Edit, Download, Archive, ArrowLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { decryptMessage } from '../utils/crypto'

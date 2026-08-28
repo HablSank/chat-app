@@ -690,7 +690,7 @@ export default function MessageBubble({
   isGroup,
   isPendingConversation = false,
   totalParticipants,
-  isSearchResult = false,
+  _isSearchResult = false,
   isCurrentMatch = false,
   customTheme = null,
 }) {

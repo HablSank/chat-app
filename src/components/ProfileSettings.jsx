@@ -6,6 +6,7 @@ import { usePWAInstall } from '../hooks/usePWAInstall'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
 import PWAInstallGuideModal from './PWAInstallGuideModal'
+import ImageCropperModal from './ImageCropperModal'
 
 const STATUS_OPTIONS = [
   { value: 'online', label: 'Online', color: 'bg-emerald-400' },
@@ -47,6 +48,10 @@ export default function ProfileSettings({ isOpen, onClose }) {
   const [error, setError]             = useState('')
   const [isSaved, setIsSaved]         = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
+  // Cropper modal state
+  const [cropperRawSrc, setCropperRawSrc] = useState(null)
+  const [isCropperOpen, setIsCropperOpen] = useState(false)
 
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
@@ -90,18 +95,26 @@ export default function ProfileSettings({ isOpen, onClose }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleAvatarChange = async (e) => {
+  const handleAvatarChange = (e) => {
     const file = e.target.files?.[0]
     if (file) {
-      try {
-        const compressed = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
-        setAvatarFile(compressed)
-        setAvatarPreview(URL.createObjectURL(compressed))
-      } catch (err) {
-        console.warn('Image compression fallback:', err)
-        setAvatarFile(file)
-        setAvatarPreview(URL.createObjectURL(file))
-      }
+      const url = URL.createObjectURL(file)
+      setCropperRawSrc(url)
+      setIsCropperOpen(true)
+    }
+    e.target.value = ''
+  }
+
+  const handleCropFinished = async (croppedBlob) => {
+    if (!croppedBlob) return
+    try {
+      const compressed = await compressImage(croppedBlob, { maxWidth: 500, maxHeight: 500, quality: 0.75 })
+      setAvatarFile(compressed)
+      setAvatarPreview(URL.createObjectURL(compressed))
+    } catch (err) {
+      console.warn('Image compression error:', err)
+      setAvatarFile(croppedBlob)
+      setAvatarPreview(URL.createObjectURL(croppedBlob))
     }
   }
 
@@ -438,6 +451,18 @@ export default function ProfileSettings({ isOpen, onClose }) {
         </div>
       )}
       <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
+      <ImageCropperModal
+        isOpen={isCropperOpen}
+        imageSrc={cropperRawSrc}
+        cropShape="round"
+        aspect={1}
+        title="Sesuaikan Foto Profil"
+        onClose={() => {
+          setIsCropperOpen(false)
+          setCropperRawSrc(null)
+        }}
+        onCropFinished={handleCropFinished}
+      />
     </AnimatePresence>
   )
 }

@@ -255,7 +255,7 @@ export default function AppLayout() {
     setRefreshSidebar(prev => prev + 1)
   }, [])
 
-  const handleMessageDeleted = useCallback(({ messageId, conversationId, isDeleted }) => {
+  const handleMessageDeleted = useCallback(({ messageId, conversationId, _isDeleted }) => {
     setChatMessages(prev => {
       if (!prev[conversationId]) return prev
       return {
@@ -710,7 +710,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-zinc-900">
-      <div className="w-80 flex-shrink-0 h-full">
+      <div className="w-80 md:w-80 lg:w-96 flex-shrink-0 h-full">
         <Sidebar
           selectedId={selectedContact?.id}
           onSelect={handleSelectContact}
@@ -718,7 +718,7 @@ export default function AppLayout() {
         />
       </div>
 
-      <div className="flex-1 h-full overflow-hidden">
+      <div className="flex-1 min-w-0 h-full overflow-hidden">
         <AnimatePresence mode="wait">
           {selectedContact ? (
             <ChatRoom

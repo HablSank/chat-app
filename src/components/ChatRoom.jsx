@@ -90,7 +90,7 @@ function Toast({ message, visible }) {
           className="absolute top-16 left-1/2 -translate-x-1/2 z-30
             bg-zinc-800/95 border border-zinc-700/80 text-zinc-100 text-xs font-medium
             px-4 py-1.5 rounded-full shadow-2xl backdrop-blur-md pointer-events-none text-center
-            whitespace-nowrap max-w-[90vw]"
+            whitespace-nowrap max-w-[90%]"
         >
           {message}
         </motion.div>
@@ -157,6 +157,7 @@ export default function ChatRoom({
   currentUser,
 }) {
   const scrollRef          = useRef(null)
+  const toastTimerRef      = useRef(null)
   const [toastMessage, setToastMessage]     = useState('🚀 Feature coming soon!')
   const [showToast, setShowToast]           = useState(false)
   const [showFriendProfile, setShowFriendProfile] = useState(false)
@@ -270,13 +271,19 @@ export default function ChatRoom({
     setEditingMessage(null)
   }, [safeMessages.length, contact?.id, isTyping, isSearchOpen])
 
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    }
+  }, [])
+
   if (!contact) return null
 
   const triggerToast = (msg = '🚀 Feature coming soon!') => {
     setToastMessage(msg)
     setShowToast(true)
-    clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = setTimeout(() => setShowToast(false), 2400)
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setShowToast(false), 3000)
   }
 
   const handleToggleVanish = () => {
@@ -324,7 +331,7 @@ export default function ChatRoom({
         initial={isMobile ? 'hidden' : false}
         animate={isMobile ? 'visible' : false}
         exit={isMobile ? 'exit' : undefined}
-        className={`relative flex flex-col h-full transition-all duration-700 overflow-hidden ${
+        className={`relative flex flex-col h-full w-full min-w-0 transition-all duration-700 overflow-hidden ${
           isVanishMode ? 'bg-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/20 via-zinc-950 to-zinc-950' : 'bg-zinc-900'
         }`}
       >

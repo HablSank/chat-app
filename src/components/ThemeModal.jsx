@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Palette, Image as ImageIcon, Sparkles, Check, RotateCcw, Loader2 } from 'lucide-react'
+import { X, Palette, Image as ImageIcon, Sparkles, Check, RotateCcw, Loader2, Upload, Trash2, Crop } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
+import ImageCropperModal from './ImageCropperModal'
 
 export const PRESET_THEMES = [
   {
     id: 'default',
-    name: 'Default Ping!',
+    name: 'Default',
     bubbleColor: '#6366f1',
     wallpaperUrl: '',
     gradient: 'from-indigo-600 to-violet-600',
@@ -15,7 +16,7 @@ export const PRESET_THEMES = [
   },
   {
     id: 'rose',
-    name: 'Romantic Rose',
+    name: 'Rose',
     bubbleColor: '#f43f5e',
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(244,63,94,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(159,18,57,0.15), transparent 60%)',
     gradient: 'from-rose-500 to-pink-600',
@@ -23,23 +24,23 @@ export const PRESET_THEMES = [
   },
   {
     id: 'emerald',
-    name: 'Emerald Forest',
+    name: 'Emerald',
     bubbleColor: '#10b981',
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(4,120,87,0.15), transparent 60%)',
     gradient: 'from-emerald-500 to-teal-600',
     description: 'Sentuhan segar & menenangkan hijau zamrud',
   },
   {
-    id: 'cyberpunk',
-    name: 'Cyberpunk Neon',
+    id: 'neon',
+    name: 'Neon',
     bubbleColor: '#d946ef',
     wallpaperUrl: 'radial-gradient(circle at 20% 20%, rgba(217,70,239,0.2), transparent 45%), radial-gradient(circle at 80% 80%, rgba(6,182,212,0.2), transparent 45%)',
     gradient: 'from-fuchsia-500 via-purple-600 to-cyan-500',
     description: 'Estetika futuristik neon pink & cyan',
   },
   {
-    id: 'midnight',
-    name: 'Midnight Sapphire',
+    id: 'sapphire',
+    name: 'Sapphire',
     bubbleColor: '#2563eb',
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(37,99,235,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(30,58,138,0.22), transparent 60%)',
     gradient: 'from-blue-600 to-indigo-900',
@@ -47,7 +48,7 @@ export const PRESET_THEMES = [
   },
   {
     id: 'sunset',
-    name: 'Warm Sunset',
+    name: 'Sunset',
     bubbleColor: '#ea580c',
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(234,88,12,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(194,65,12,0.16), transparent 60%)',
     gradient: 'from-orange-500 to-amber-600',
@@ -56,7 +57,7 @@ export const PRESET_THEMES = [
 ]
 
 export const BUILTIN_WALLPAPERS = [
-  { id: 'none', name: 'Tanpa Wallpaper (Polos)', value: '' },
+  { id: 'none', name: 'Tanpa Wallpaper', value: '' },
   {
     id: 'dots',
     name: 'Minimalist Dots',
@@ -108,9 +109,13 @@ export default function ThemeModal({
   const [selectedPreset, setSelectedPreset] = useState(currentTheme?.presetTheme || 'default')
   const [bubbleColor, setBubbleColor]       = useState(currentTheme?.bubbleColor || '#6366f1')
   const [wallpaperUrl, setWallpaperUrl]     = useState(currentTheme?.wallpaperUrl || '')
-  const [isCustomUrl, setIsCustomUrl]       = useState(false)
-  const [customUrlInput, setCustomUrlInput] = useState('')
   const [isSaving, setIsSaving]             = useState(false)
+  const [isUploadingWallpaper, setIsUploadingWallpaper] = useState(false)
+
+  // Cropper states
+  const [cropperRawSrc, setCropperRawSrc]   = useState(null)
+  const [isCropperOpen, setIsCropperOpen]   = useState(false)
+  const fileInputRef                        = useRef(null)
 
   // Sync state when modal opens
   useEffect(() => {
@@ -121,15 +126,6 @@ export default function ThemeModal({
       setSelectedPreset(preset)
       setBubbleColor(color)
       setWallpaperUrl(wp)
-
-      const isPresetWp = BUILTIN_WALLPAPERS.some(w => w.value === wp) || PRESET_THEMES.some(p => p.wallpaperUrl === wp)
-      if (wp && !isPresetWp && (wp.startsWith('http://') || wp.startsWith('https://') || wp.startsWith('data:'))) {
-        setIsCustomUrl(true)
-        setCustomUrlInput(wp)
-      } else {
-        setIsCustomUrl(false)
-        setCustomUrlInput('')
-      }
     }
   }, [isOpen, currentTheme])
 
@@ -137,14 +133,50 @@ export default function ThemeModal({
     setSelectedPreset(preset.id)
     setBubbleColor(preset.bubbleColor)
     setWallpaperUrl(preset.wallpaperUrl)
-    setIsCustomUrl(false)
   }
 
   const handleSelectBuiltinWallpaper = (wp) => {
     setWallpaperUrl(wp.value)
-    setIsCustomUrl(false)
     if (selectedPreset !== 'custom') {
       setSelectedPreset('custom')
+    }
+  }
+
+  // Handle custom wallpaper file select
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const url = URL.createObjectURL(file)
+      setCropperRawSrc(url)
+      setIsCropperOpen(true)
+    }
+    e.target.value = ''
+  }
+
+  // Handle cropped image finish
+  const handleCropFinished = async (croppedBlob) => {
+    if (!croppedBlob || !conversationId) return
+    setIsUploadingWallpaper(true)
+    try {
+      const formData = new FormData()
+      formData.append('wallpaper', croppedBlob, 'wallpaper.jpg')
+
+      const res = await fetch(getApiUrl(`/api/conversations/${conversationId}/wallpaper`), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+      const data = await res.json()
+      if (res.ok && data.wallpaperUrl) {
+        setWallpaperUrl(data.wallpaperUrl)
+        setSelectedPreset('custom')
+      }
+    } catch (err) {
+      console.error('Failed to upload custom wallpaper:', err)
+    } finally {
+      setIsUploadingWallpaper(false)
     }
   }
 
@@ -152,12 +184,10 @@ export default function ThemeModal({
     if (!conversationId) return
     setIsSaving(true)
 
-    const finalWallpaper = isCustomUrl && customUrlInput.trim() ? customUrlInput.trim() : wallpaperUrl
-
     const payload = {
       presetTheme: selectedPreset,
       bubbleColor,
-      wallpaperUrl: finalWallpaper,
+      wallpaperUrl,
     }
 
     try {
@@ -185,278 +215,324 @@ export default function ThemeModal({
     setSelectedPreset('default')
     setBubbleColor('#6366f1')
     setWallpaperUrl('')
-    setIsCustomUrl(false)
-    setCustomUrlInput('')
   }
 
   if (!isOpen) return null
 
   // Compute live wallpaper preview style
-  const activeWp = isCustomUrl && customUrlInput.trim() ? customUrlInput.trim() : wallpaperUrl
-  const previewBgStyle = activeWp
-    ? activeWp.startsWith('http://') || activeWp.startsWith('https://') || activeWp.startsWith('data:')
-      ? { backgroundImage: `url(${activeWp})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-      : { backgroundImage: activeWp, backgroundSize: BUILTIN_WALLPAPERS.find(w => w.value === activeWp)?.bgSize || 'auto' }
+  const isCustomImageWp = wallpaperUrl && (wallpaperUrl.startsWith('http://') || wallpaperUrl.startsWith('https://') || wallpaperUrl.startsWith('data:'))
+  const previewBgStyle = wallpaperUrl
+    ? isCustomImageWp
+      ? { backgroundImage: `url(${wallpaperUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+      : { backgroundImage: wallpaperUrl, backgroundSize: BUILTIN_WALLPAPERS.find(w => w.value === wallpaperUrl)?.bgSize || 'auto' }
     : {}
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm cursor-pointer"
-        />
+    <>
+      <AnimatePresence>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm cursor-pointer"
+          />
 
-        {/* Modal Window */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 32 }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-lg max-h-[90vh] bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 relative"
-        >
-          {/* Header */}
-          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-shrink-0 bg-zinc-900/60 backdrop-blur-md">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                <Palette size={18} />
+          {/* Modal Window */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg max-h-[90vh] bg-zinc-900 border border-zinc-700/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col z-10 relative"
+          >
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between flex-shrink-0 bg-zinc-900/60 backdrop-blur-md">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Palette size={18} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-zinc-100">Tema & Wallpaper Chat</h2>
+                  <p className="text-xs text-zinc-400">Kustomisasi tampilan ruang chat ini secara real-time</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-zinc-100">Tema & Wallpaper Chat</h2>
-                <p className="text-xs text-zinc-400">Kustomisasi tampilan ruang chat ini secara real-time</p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-            {/* 1. Live Interactive Preview */}
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 flex items-center gap-1.5">
-                <Sparkles size={13} className="text-indigo-400" />
-                <span>Pratinjau Langsung</span>
-              </label>
-              <div
-                className="w-full h-36 rounded-2xl border border-zinc-700/60 p-3.5 flex flex-col justify-between overflow-hidden relative shadow-inner bg-zinc-950/80 transition-all duration-300"
-                style={previewBgStyle}
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
               >
-                {/* Incoming bubble */}
-                <div className="flex items-start gap-2 max-w-[80%]">
-                  <div className="w-6 h-6 rounded-full bg-zinc-700 text-[10px] flex items-center justify-center font-bold text-zinc-300 flex-shrink-0 shadow">
-                    AI
-                  </div>
-                  <div className="bg-zinc-800/90 text-zinc-100 text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm border border-zinc-700/40 shadow-sm backdrop-blur-xs">
-                    Halo! Wallpaper & tema chat terlihat estetik ✨
-                  </div>
-                </div>
-
-                {/* Outgoing bubble with selected color */}
-                <div className="flex items-end justify-end gap-2 max-w-[80%] self-end">
-                  <div
-                    className="text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm shadow-md font-medium transition-colors duration-200 backdrop-blur-xs"
-                    style={{ backgroundColor: bubbleColor }}
-                  >
-                    Keren banget, warna balon & temanya pas! 🔥
-                  </div>
-                </div>
-              </div>
+                <X size={16} />
+              </button>
             </div>
 
-            {/* 2. Preset Themes */}
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2.5 block">
-                Tema Preset
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                {PRESET_THEMES.map((preset) => {
-                  const isSelected = selectedPreset === preset.id
-                  return (
-                    <motion.button
-                      key={preset.id}
-                      type="button"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleSelectPreset(preset)}
-                      className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-indigo-500 bg-zinc-800/90 ring-2 ring-indigo-500/20'
-                          : 'border-zinc-800 bg-zinc-850/60 hover:bg-zinc-800/60'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div
-                          className={`w-6 h-6 rounded-full bg-gradient-to-tr ${preset.gradient} shadow-md flex items-center justify-center`}
-                        >
-                          {isSelected && <Check size={12} className="text-white drop-shadow" />}
-                        </div>
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-white/20"
-                          style={{ backgroundColor: preset.bubbleColor }}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-zinc-200 truncate">{preset.name}</p>
-                        <p className="text-[10px] text-zinc-400 line-clamp-1">{preset.description}</p>
-                      </div>
-                    </motion.button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* 3. Custom Bubble Color Palette */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  Warna Balon Pesan (Sent Bubble)
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+              {/* 1. Live Interactive Preview */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-indigo-400" />
+                  <span>Pratinjau Langsung</span>
                 </label>
-                <span className="text-[11px] font-mono text-zinc-400 font-semibold uppercase">
-                  {bubbleColor}
-                </span>
+                <div
+                  className="w-full h-36 rounded-2xl border border-zinc-700/60 p-3.5 flex flex-col justify-between overflow-hidden relative shadow-inner bg-zinc-950/80 transition-all duration-300"
+                  style={previewBgStyle}
+                >
+                  {/* Incoming bubble */}
+                  <div className="flex items-start gap-2 max-w-[80%]">
+                    <div className="w-6 h-6 rounded-full bg-zinc-700 text-[10px] flex items-center justify-center font-bold text-zinc-300 flex-shrink-0 shadow">
+                      AI
+                    </div>
+                    <div className="bg-zinc-800/90 text-zinc-100 text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm border border-zinc-700/40 shadow-sm backdrop-blur-xs">
+                      Halo! Wallpaper & tema chat terlihat estetik ✨
+                    </div>
+                  </div>
+
+                  {/* Outgoing bubble with selected color */}
+                  <div className="flex items-end justify-end gap-2 max-w-[80%] self-end">
+                    <div
+                      className="text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm shadow-md font-medium transition-colors duration-200 backdrop-blur-xs"
+                      style={{ backgroundColor: bubbleColor }}
+                    >
+                      Keren banget, warna balon & temanya pas! 🔥
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 p-2.5 bg-zinc-850/60 border border-zinc-800 rounded-2xl">
-                {COLOR_SWATCHES.map((color) => {
-                  const isSelected = bubbleColor.toLowerCase() === color.toLowerCase()
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => {
-                        setBubbleColor(color)
+
+              {/* 2. Preset Themes */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2.5 block">
+                  Tema Preset
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {PRESET_THEMES.map((preset) => {
+                    const isSelected = selectedPreset === preset.id
+                    return (
+                      <motion.button
+                        key={preset.id}
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleSelectPreset(preset)}
+                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between ${
+                          isSelected
+                            ? 'border-indigo-500 bg-zinc-800/90 ring-2 ring-indigo-500/20'
+                            : 'border-zinc-800 bg-zinc-850/60 hover:bg-zinc-800/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div
+                            className={`w-6 h-6 rounded-full bg-gradient-to-tr ${preset.gradient} shadow-md flex items-center justify-center`}
+                          >
+                            {isSelected && <Check size={12} className="text-white drop-shadow" />}
+                          </div>
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-white/20"
+                            style={{ backgroundColor: preset.bubbleColor }}
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-zinc-200 truncate">{preset.name}</p>
+                          <p className="text-[10px] text-zinc-400 line-clamp-1">{preset.description}</p>
+                        </div>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Custom Bubble Color Palette */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Warna Balon Pesan (Sent Bubble)
+                  </label>
+                  <span className="text-[11px] font-mono text-zinc-400 font-semibold uppercase">
+                    {bubbleColor}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 p-2.5 bg-zinc-850/60 border border-zinc-800 rounded-2xl">
+                  {COLOR_SWATCHES.map((color) => {
+                    const isSelected = bubbleColor.toLowerCase() === color.toLowerCase()
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => {
+                          setBubbleColor(color)
+                          setSelectedPreset('custom')
+                        }}
+                        className={`w-7 h-7 rounded-full transition-transform cursor-pointer relative flex items-center justify-center shadow-md ${
+                          isSelected ? 'scale-115 ring-2 ring-white ring-offset-2 ring-offset-zinc-900' : 'hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      >
+                        {isSelected && <Check size={12} className="text-white drop-shadow" />}
+                      </button>
+                    )
+                  })}
+
+                  {/* Native Color Picker input */}
+                  <div className="relative w-7 h-7 rounded-full overflow-hidden border border-zinc-600 cursor-pointer shadow-md hover:scale-105 transition-transform flex items-center justify-center bg-zinc-800">
+                    <input
+                      type="color"
+                      value={bubbleColor}
+                      onChange={(e) => {
+                        setBubbleColor(e.target.value)
                         setSelectedPreset('custom')
                       }}
-                      className={`w-7 h-7 rounded-full transition-transform cursor-pointer relative flex items-center justify-center shadow-md ${
-                        isSelected ? 'scale-115 ring-2 ring-white ring-offset-2 ring-offset-zinc-900' : 'hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: color }}
-                    >
-                      {isSelected && <Check size={12} className="text-white drop-shadow" />}
-                    </button>
-                  )
-                })}
-
-                {/* Native Color Picker input */}
-                <div className="relative w-7 h-7 rounded-full overflow-hidden border border-zinc-600 cursor-pointer shadow-md hover:scale-105 transition-transform flex items-center justify-center bg-zinc-800">
-                  <input
-                    type="color"
-                    value={bubbleColor}
-                    onChange={(e) => {
-                      setBubbleColor(e.target.value)
-                      setSelectedPreset('custom')
-                    }}
-                    className="absolute -inset-2 w-12 h-12 opacity-0 cursor-pointer"
-                    title="Pilih warna custom"
-                  />
-                  <Palette size={12} className="text-zinc-300 pointer-events-none" />
+                      className="absolute -inset-2 w-12 h-12 opacity-0 cursor-pointer"
+                      title="Pilih warna custom"
+                    />
+                    <Palette size={12} className="text-zinc-300 pointer-events-none" />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* 4. Built-in Background Patterns & Wallpapers */}
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">
-                Pola Wallpaper Bawaan
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {BUILTIN_WALLPAPERS.map((wp) => {
-                  const isSelected = !isCustomUrl && wallpaperUrl === wp.value
-                  return (
-                    <button
-                      key={wp.id}
-                      type="button"
-                      onClick={() => handleSelectBuiltinWallpaper(wp)}
-                      className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-colors cursor-pointer flex items-center justify-between ${
-                        isSelected
-                          ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
-                          : 'border-zinc-800 bg-zinc-850/50 text-zinc-300 hover:bg-zinc-800/60'
-                      }`}
-                    >
-                      <span className="truncate">{wp.name}</span>
-                      {isSelected && <Check size={12} className="text-indigo-400 flex-shrink-0 ml-1" />}
-                    </button>
-                  )
-                })}
+              {/* 4. Built-in Background Patterns & Wallpapers */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 block">
+                  Pola Wallpaper Bawaan
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {BUILTIN_WALLPAPERS.map((wp) => {
+                    const isSelected = wallpaperUrl === wp.value
+                    return (
+                      <button
+                        key={wp.id}
+                        type="button"
+                        onClick={() => handleSelectBuiltinWallpaper(wp)}
+                        className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-colors cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
+                            : 'border-zinc-800 bg-zinc-850/50 text-zinc-300 hover:bg-zinc-800/60'
+                        }`}
+                      >
+                        <span className="truncate">{wp.name}</span>
+                        {isSelected && <Check size={12} className="text-indigo-400 flex-shrink-0 ml-1" />}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
 
-            {/* 5. Custom Wallpaper URL */}
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 flex items-center gap-1.5">
-                <ImageIcon size={13} className="text-indigo-400" />
-                <span>Custom Image Wallpaper URL</span>
-              </label>
-              <div className="flex items-center gap-2">
+              {/* 5. Custom Wallpaper File Upload with Cropper */}
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 flex items-center gap-1.5">
+                  <ImageIcon size={13} className="text-indigo-400" />
+                  <span>Upload Custom Wallpaper (dengan Crop)</span>
+                </label>
+
                 <input
-                  type="url"
-                  value={customUrlInput}
-                  onChange={(e) => {
-                    setCustomUrlInput(e.target.value)
-                    setIsCustomUrl(true)
-                    setSelectedPreset('custom')
-                  }}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="flex-1 bg-zinc-800/80 border border-zinc-700/60 rounded-xl px-3.5 py-2 text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-indigo-500 transition-colors"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
-                {customUrlInput && (
+
+                {isCustomImageWp ? (
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-zinc-850 border border-zinc-700/60">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700 flex-shrink-0">
+                        <img src={wallpaperUrl} alt="Wallpaper" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-zinc-200 truncate">Wallpaper Foto Kustom</p>
+                        <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+                          <Check size={10} />
+                          <span>Siap diterapkan</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Ganti
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWallpaperUrl('')}
+                        className="p-2 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
+                        title="Hapus wallpaper kustom"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setCustomUrlInput('')
-                      setIsCustomUrl(false)
-                    }}
-                    className="p-2 rounded-xl bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
-                    title="Hapus URL"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingWallpaper}
+                    className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl border border-dashed border-zinc-700 hover:border-indigo-500/80 bg-zinc-850/40 hover:bg-zinc-800/60 text-zinc-300 hover:text-indigo-300 transition-all cursor-pointer disabled:opacity-50"
                   >
-                    <X size={14} />
+                    {isUploadingWallpaper ? (
+                      <Loader2 size={16} className="animate-spin text-indigo-400" />
+                    ) : (
+                      <Upload size={16} className="text-indigo-400" />
+                    )}
+                    <span className="text-xs font-semibold">
+                      {isUploadingWallpaper ? 'Mengupload wallpaper...' : 'Pilih Foto dari Galeri / File'}
+                    </span>
                   </button>
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Footer Actions */}
-          <div className="p-4 border-t border-zinc-800 bg-zinc-900/80 flex items-center justify-between flex-shrink-0">
-            <button
-              type="button"
-              onClick={handleResetToDefault}
-              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer font-medium"
-            >
-              <RotateCcw size={13} />
-              <span>Reset Default</span>
-            </button>
-
-            <div className="flex items-center gap-2">
+            {/* Footer Actions */}
+            <div className="p-4 border-t border-zinc-800 bg-zinc-900/80 flex items-center justify-between flex-shrink-0">
               <button
                 type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-zinc-300 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
+                onClick={handleResetToDefault}
+                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer font-medium"
               >
-                Batal
+                <RotateCcw size={13} />
+                <span>Reset Default</span>
               </button>
-              <button
-                type="button"
-                onClick={handleSaveTheme}
-                disabled={isSaving}
-                className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                <span>Simpan Tema</span>
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-semibold text-zinc-300 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveTheme}
+                  disabled={isSaving || isUploadingWallpaper}
+                  className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  <span>Simpan Tema</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+          </motion.div>
+        </div>
+      </AnimatePresence>
+
+      {/* Image Cropper for Wallpaper */}
+      <ImageCropperModal
+        isOpen={isCropperOpen}
+        imageSrc={cropperRawSrc}
+        cropShape="rect"
+        aspect={9 / 16}
+        title="Sesuaikan & Potong Wallpaper"
+        onClose={() => {
+          setIsCropperOpen(false)
+          setCropperRawSrc(null)
+        }}
+        onCropFinished={handleCropFinished}
+      />
+    </>
   )
 }
