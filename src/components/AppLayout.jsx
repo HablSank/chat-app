@@ -501,9 +501,46 @@ export default function AppLayout() {
     }
 
     // Encrypt text before sending over network / storing in DB
-    const encryptedText = text.trim()
-      ? await encryptMessage(text.trim(), selectedContact.conversationId || 'default_room')
+    const plainText = text.trim()
+    const convId = selectedContact.conversationId || 'default_room'
+    const encryptedText = plainText
+      ? await encryptMessage(plainText, convId)
       : ''
+
+    // Optimistically render sent message immediately with plainText (0ms lag, no cipher flash)
+    if (selectedContact.conversationId) {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+      const optimisticMsg = {
+        _id: tempId,
+        conversationId: convId,
+        sender: {
+          _id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          avatar: user.avatar,
+        },
+        text: encryptedText,
+        plainText: plainText,
+        imageUrls,
+        imageUrl: imageUrls[0] || null,
+        audioUrl,
+        audioDuration,
+        replyTo: replyTo ? { _id: replyTo } : null,
+        reactions: [],
+        status: 'sending',
+        isOwn: true,
+        createdAt: new Date().toISOString(),
+        isEphemeral: payload.isEphemeral,
+      }
+
+      setChatMessages((prev) => {
+        const thread = prev[convId] ?? []
+        return {
+          ...prev,
+          [convId]: [...thread, optimisticMsg],
+        }
+      })
+    }
 
     sendMessage({
       from:          user.id,

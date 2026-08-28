@@ -45,6 +45,18 @@ export default function ChatInput({
     }
   }, [])
 
+  const adjustHeight = () => {
+    const el = messageInputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`
+  }
+
+  // Adjust height whenever value changes
+  useEffect(() => {
+    adjustHeight()
+  }, [value])
+
   // Auto-focus input box when a message is selected for reply
   useEffect(() => {
     if (replyingTo && messageInputRef.current) {
@@ -65,6 +77,7 @@ export default function ChatInput({
   const handleChange = (e) => {
     const newVal = e.target.value
     setValue(newVal)
+    adjustHeight()
     if (newVal.trim()) {
       onTypingStart?.()
       clearTimeout(typingTimerRef.current)
@@ -285,10 +298,23 @@ export default function ChatInput({
     onCancelReply?.()
   }
 
+  const handleFocus = (e) => {
+    setTimeout(() => {
+      e.target?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
+    }, 120)
+  }
+
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
+    if (e.key === 'Enter') {
+      const isMobileScreen = typeof window !== 'undefined' && (window.innerWidth < 768 || 'ontouchstart' in window || navigator.maxTouchPoints > 0)
+      if (isMobileScreen) {
+        // On mobile: Enter inserts newline, do NOT submit
+        return
+      }
+      if (!e.shiftKey) {
+        e.preventDefault()
+        handleSubmit(e)
+      }
     }
   }
 
@@ -502,14 +528,15 @@ export default function ChatInput({
             </motion.button>
           )}
 
-          {/* Text input */}
-          <input
+          {/* Auto-expanding Textarea */}
+          <textarea
             ref={messageInputRef}
             id="chat-message-input"
-            type="text"
+            rows={1}
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
             autoComplete="off"
             autoCorrect="off"
             spellCheck="false"
@@ -523,7 +550,7 @@ export default function ChatInput({
                 : (isVanishMode ? 'Pesan sementara (24 jam)...' : 'Type a message…')
             }
             className={`
-              flex-1 text-sm placeholder-zinc-500 rounded-2xl px-4 py-2.5 outline-none transition-all
+              flex-1 text-sm placeholder-zinc-500 rounded-2xl px-4 py-2.5 outline-none resize-none max-h-32 min-h-[42px] leading-relaxed transition-all overflow-y-auto
               ${editingMessage
                 ? 'bg-amber-950/20 text-amber-100 border border-amber-500/40 focus:border-amber-400'
                 : isVanishMode

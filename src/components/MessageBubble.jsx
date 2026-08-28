@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, Lock, X } from 'lucide-react'
 import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
-import { decryptMessage } from '../utils/crypto'
+import { decryptMessage, getCachedDecryptedMessage } from '../utils/crypto'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
 
@@ -724,8 +724,17 @@ export default function MessageBubble({
   const [showPicker, setShowPicker]             = useState(false)
   const [showMessageInfo, setShowMessageInfo]   = useState(false)
   const [lightboxSrc, setLightboxSrc]           = useState(null)
-  const [decryptedText, setDecryptedText]       = useState(text || '')
-  const [decryptedReplyText, setDecryptedReplyText] = useState(replyTo?.text || '')
+  const [decryptedText, setDecryptedText]       = useState(() => {
+    if (message.plainText) return message.plainText
+    if (isSystem) return systemText || text || ''
+    const cached = getCachedDecryptedMessage(text, conversationId)
+    return cached !== null ? cached : (text?.startsWith('enc:v1:') ? '' : text || '')
+  })
+  const [decryptedReplyText, setDecryptedReplyText] = useState(() => {
+    if (replyTo?.plainText) return replyTo.plainText
+    const cached = getCachedDecryptedMessage(replyTo?.text, conversationId)
+    return cached !== null ? cached : (replyTo?.text?.startsWith('enc:v1:') ? '' : replyTo?.text || '')
+  })
   const [isFlashing, setIsFlashing]             = useState(false)
   const [dragX, setDragX]                       = useState(0)
 
@@ -766,19 +775,27 @@ export default function MessageBubble({
   // Decrypt ciphertext on load or update
   useEffect(() => {
     let isMounted = true
+    if (message.plainText) {
+      setDecryptedText(message.plainText)
+      return
+    }
     if (text && !isSystem) {
       decryptMessage(text, conversationId).then((res) => {
         if (isMounted) setDecryptedText(res)
       })
     } else {
-      setDecryptedText('')
+      setDecryptedText(isSystem ? (systemText || text || '') : '')
     }
     return () => { isMounted = false }
-  }, [text, conversationId, isSystem])
+  }, [text, message.plainText, conversationId, isSystem, systemText])
 
   // Decrypt replyTo text if present
   useEffect(() => {
     let isMounted = true
+    if (replyTo?.plainText) {
+      setDecryptedReplyText(replyTo.plainText)
+      return
+    }
     if (replyTo?.text) {
       decryptMessage(replyTo.text, conversationId).then((res) => {
         if (isMounted) setDecryptedReplyText(res)
@@ -787,7 +804,7 @@ export default function MessageBubble({
       setDecryptedReplyText('')
     }
     return () => { isMounted = false }
-  }, [replyTo?.text, conversationId])
+  }, [replyTo?.text, replyTo?.plainText, conversationId])
 
   // Clean up timer on unmount
   useEffect(() => {

@@ -259,17 +259,34 @@ export default function ChatRoom({
     }
   }, [currentMatchIdx, matchedMessageIds, isSearchOpen])
 
-  // Auto-scroll on new messages, contact switch, or when typing indicator appears
+  const prevContactIdRef = useRef(contact?.id)
+
+  // Guarded auto-scroll: Scroll on contact switch, or on new message ONLY if near bottom (<= 150px)
   useEffect(() => {
-    if (!isSearchOpen && scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
+    if (isSearchOpen || !scrollRef.current) return
+
+    const container = scrollRef.current
+    const isContactSwitched = prevContactIdRef.current !== contact?.id
+    prevContactIdRef.current = contact?.id
+
+    if (isContactSwitched) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: 'auto',
+      })
+      setReplyingTo(null)
+      setEditingMessage(null)
+      return
+    }
+
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight <= 150
+    if (isNearBottom) {
+      container.scrollTo({
+        top: container.scrollHeight,
         behavior: 'smooth',
       })
     }
-    setReplyingTo(null)
-    setEditingMessage(null)
-  }, [safeMessages.length, contact?.id, isTyping, isSearchOpen])
+  }, [safeMessages.length, contact?.id, isSearchOpen])
 
   useEffect(() => {
     return () => {
@@ -481,6 +498,7 @@ export default function ChatRoom({
               const displayMsg = {
                 _id:       msg._id,
                 text:      msg.text,
+                plainText: msg.plainText || null,
                 messageType: msg.messageType || 'text',
                 inviteData: msg.inviteData || null,
                 imageUrl:  msg.imageUrl,

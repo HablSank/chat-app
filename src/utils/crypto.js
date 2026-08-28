@@ -1,6 +1,34 @@
 // ── Client-Side Encryption Utility (Web Crypto API - AES-GCM) ─────────────────
 const APP_SALT = 'ping_e2ee_secret_salt_v1'
 
+// In-memory cache of decrypted messages to eliminate any UI flashing
+const decryptionCache = new Map()
+
+/**
+ * Returns cached decrypted plaintext if available synchronously
+ * @param {string} text
+ * @param {string} conversationId
+ * @returns {string|null}
+ */
+export function getCachedDecryptedMessage(text, conversationId) {
+  if (!text || typeof text !== 'string') return text
+  if (!text.startsWith('enc:v1:')) return text
+  const key = `${conversationId || 'default_room'}:${text}`
+  return decryptionCache.get(key) || null
+}
+
+/**
+ * Manually populates decryption cache (used for optimistic plaintext updates)
+ * @param {string} encryptedText
+ * @param {string} plainText
+ * @param {string} conversationId
+ */
+export function cacheDecryptedMessage(encryptedText, plainText, conversationId) {
+  if (!encryptedText || !plainText) return
+  const key = `${conversationId || 'default_room'}:${encryptedText}`
+  decryptionCache.set(key, plainText)
+}
+
 /**
  * Derives a 256-bit CryptoKey from conversationId and APP_SALT
  * @param {string} conversationId
@@ -72,8 +100,13 @@ export async function encryptMessage(plaintext, conversationId) {
     
     const ivBase64 = bufferToBase64(iv)
     const cipherBase64 = bufferToBase64(ciphertextBuffer)
+    const encrypted = `enc:v1:${ivBase64}:${cipherBase64}`
+
+    // Synchronously populate cache so any instant lookup returns plaintext immediately
+    const cacheKey = `${conversationId || 'default_room'}:${encrypted}`
+    decryptionCache.set(cacheKey, plaintext)
     
-    return `enc:v1:${ivBase64}:${cipherBase64}`
+    return encrypted
   } catch (err) {
     console.error('Encryption failed, falling back to plaintext:', err)
     return plaintext
@@ -91,6 +124,12 @@ export async function decryptMessage(text, conversationId) {
   if (!text || typeof text !== 'string') return text
   if (!text.startsWith('enc:v1:')) return text // Backward compatibility for plaintext
 
+  const primaryKeyId = conversationId || 'default_room'
+  const cacheKey = `${primaryKeyId}:${text}`
+  if (decryptionCache.has(cacheKey)) {
+    return decryptionCache.get(cacheKey)
+  }
+
   try {
     const parts = text.split(':')
     if (parts.length !== 4) return text
@@ -102,7 +141,6 @@ export async function decryptMessage(text, conversationId) {
     const ciphertextBuffer = base64ToBuffer(cipherBase64)
     
     // Try with primary conversation key
-    const primaryKeyId = conversationId || 'default_room'
     const key = await deriveKey(primaryKeyId)
     
     let decryptedBuffer
@@ -127,7 +165,9 @@ export async function decryptMessage(text, conversationId) {
     }
     
     const decoder = new TextDecoder()
-    return decoder.decode(decryptedBuffer)
+    const decrypted = decoder.decode(decryptedBuffer)
+    decryptionCache.set(cacheKey, decrypted)
+    return decrypted
   } catch (err) {
     console.warn('Decryption failed, displaying raw text:', err)
     return text
