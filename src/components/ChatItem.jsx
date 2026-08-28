@@ -108,17 +108,17 @@ export default function ChatItem({
           ${isSelectedForBatch ? 'bg-indigo-950/40 border border-indigo-500/30' : isSelected ? 'bg-zinc-800' : 'bg-transparent'}
         `}
       >
-        {/* Circular Checkbox indicator in WhatsApp-style Multi-Select Mode */}
+        {/* Checkbox indicator in Multi-Select Mode */}
         {isSelectMode && (
           <div className="flex-shrink-0 mr-0.5">
             <div
-              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
                 isSelectedForBatch
                   ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm shadow-indigo-600/40'
-                  : 'border-zinc-500 bg-zinc-800/80 text-transparent'
+                  : 'border-zinc-600 bg-zinc-800/80 text-transparent'
               }`}
             >
-              <Check size={11} strokeWidth={3.5} />
+              <Check size={12} strokeWidth={3} />
             </div>
           </div>
         )}

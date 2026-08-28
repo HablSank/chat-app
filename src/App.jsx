@@ -3,7 +3,6 @@ import { AnimatePresence } from 'framer-motion'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
 import { ThemeProvider } from './context/ThemeContext'
-import ErrorBoundary from './components/ErrorBoundary'
 import AppLayout from './components/AppLayout'
 import Login from './components/Login'
 import Register from './components/Register'
@@ -37,15 +36,13 @@ function AuthRouter() {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <ThemeProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            <AuthRouter />
-          </AuthProvider>
-        </LanguageProvider>
-      </ThemeProvider>
-    </ErrorBoundary>
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AuthRouter />
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
   )
 }
 
