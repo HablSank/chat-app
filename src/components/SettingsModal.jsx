@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Palette,
   Sparkles,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
@@ -37,6 +39,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const [notificationsAllowed, setNotificationsAllowed] = useState(false)
   const [isPushLoading, setIsPushLoading]     = useState(false)
   const [showPwaGuide, setShowPwaGuide]       = useState(false)
+  const [appTheme, setAppTheme]               = useState(() => localStorage.getItem('ping_app_theme') || 'dark')
 
   // System update state
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
@@ -438,16 +441,16 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     >
                       {t('testSound')}
                     </button>
-                    {/* Fixed toggle switch: h-6 w-11 p-1 with translate-x-5 */}
+                    {/* Standardized pixel-perfect toggle switch: h-6 w-11 p-0.5 with translate-x-5 */}
                     <button
                       type="button"
                       onClick={handleToggleSound}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full p-1 transition-colors cursor-pointer ${
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition-colors cursor-pointer ${
                         !soundMuted ? 'bg-indigo-600' : 'bg-zinc-700'
                       }`}
                     >
                       <span
-                        className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                        className={`block h-5 w-5 rounded-full bg-white transition-transform ${
                           !soundMuted ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -489,7 +492,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-3.5"
+                className="space-y-4"
               >
                 {/* Online Presence Toggle */}
                 <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800 flex items-center justify-between gap-4">
@@ -503,20 +506,69 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     </div>
                   </div>
 
-                  {/* Fixed toggle switch: h-6 w-11 p-1 with translate-x-5 */}
+                  {/* Standardized pixel-perfect toggle switch: h-6 w-11 p-0.5 with translate-x-5 */}
                   <button
                     type="button"
                     onClick={handleToggleOnlinePresence}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full p-1 transition-colors cursor-pointer ${
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full p-0.5 transition-colors cursor-pointer ${
                       isOnlineVisible ? 'bg-emerald-600' : 'bg-zinc-700'
                     }`}
                   >
                     <span
-                      className={`block h-4 w-4 rounded-full bg-white transition-transform ${
+                      className={`block h-5 w-5 rounded-full bg-white transition-transform ${
                         isOnlineVisible ? 'translate-x-5' : 'translate-x-0'
                       }`}
                     />
                   </button>
+                </div>
+
+                {/* App Theme Selector */}
+                <div>
+                  <label className="block text-xs font-bold text-zinc-300 mb-2 flex items-center gap-1.5">
+                    <Sun size={14} className="text-amber-400" />
+                    <span>{t('appTheme')}</span>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppTheme('dark')
+                        localStorage.setItem('ping_app_theme', 'dark')
+                        document.documentElement.classList.remove('light-theme')
+                      }}
+                      className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
+                        appTheme === 'dark'
+                          ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
+                          : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                      }`}
+                    >
+                      <Moon size={18} className="text-indigo-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-xs font-bold text-zinc-100 truncate">{t('darkTheme')}</p>
+                        <p className="text-[10px] text-zinc-500 truncate">Dark Charcoal</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppTheme('light')
+                        localStorage.setItem('ping_app_theme', 'light')
+                        document.documentElement.classList.add('light-theme')
+                      }}
+                      className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
+                        appTheme === 'light'
+                          ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
+                          : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+                      }`}
+                    >
+                      <Sun size={18} className="text-amber-400 flex-shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-xs font-bold text-zinc-100 truncate">{t('lightTheme')}</p>
+                        <p className="text-[10px] text-zinc-500 truncate">Clean Slate</p>
+                      </div>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Chat Theme & Wallpaper Selector */}
@@ -538,11 +590,17 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                         onClose()
                         onOpenThemeModal()
                       }}
-                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
                     >
                       {t('customizeTheme')}
                     </button>
                   )}
+                </div>
+
+                {/* Theme Notice Information Banner */}
+                <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs leading-relaxed flex items-start gap-2.5">
+                  <span className="text-sm flex-shrink-0">💡</span>
+                  <span>{t('themeNotice')}</span>
                 </div>
               </motion.div>
             )}

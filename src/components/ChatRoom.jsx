@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Phone, Video, Clock, Pin, PinOff, Image as ImageIcon, Users, Search, ChevronUp, ChevronDown, X } from 'lucide-react'
 import MessageBubble from './MessageBubble'
@@ -265,7 +265,7 @@ export default function ChatRoom({
   const prevMsgLengthRef = useRef(safeMessages.length)
 
   // 1. Instant scrollToBottom('auto') when opening or switching a chat room
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!activeRoomId) return
     const isSwitched = prevRoomIdRef.current !== activeRoomId
     if (isSwitched) {
@@ -303,6 +303,25 @@ export default function ChatRoom({
     }
     prevMsgLengthRef.current = safeMessages.length
   }, [safeMessages.length, isSearchOpen, activeRoomId])
+
+  // 3. Keep message list scrolled to latest when mobile virtual keyboard opens/resizes viewport
+  useEffect(() => {
+    const handleViewportResize = () => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
+    }
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize)
+      window.visualViewport.addEventListener('scroll', handleViewportResize)
+    }
+    return () => {
+      if (typeof window !== 'undefined' && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportResize)
+        window.visualViewport.removeEventListener('scroll', handleViewportResize)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     return () => {

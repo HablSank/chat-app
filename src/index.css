@@ -44,4 +44,8 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  html.light-theme body {
+    filter: brightness(1.05) contrast(0.98);
+  }
 }

@@ -58,12 +58,16 @@ const translations = {
     testSound: 'Tes Suara',
 
     // Privacy & Appearance Tab
-    privacySettings: 'Pengaturan Privasi',
+    privacySettings: 'Pengaturan Privasi & Tampilan',
     showOnlineStatus: 'Tampilkan Status Online',
     showOnlineStatusDesc: 'Izinkan kontak melihat kapan Anda aktif di Ping!.',
     chatAppearance: 'Tampilan & Tema Chat',
     appearanceDesc: 'Sesuaikan wallpaper dan warna bubble percakapan.',
     customizeTheme: 'Atur Tema Percakapan',
+    themeNotice: '💡 Catatan: Tema dan Wallpaper Chat diatur langsung di dalam masing-masing Room Chat melalui Menu Header Chat.',
+    appTheme: 'Tema Aplikasi',
+    darkTheme: 'Mode Gelap (Bawaan)',
+    lightTheme: 'Mode Terang',
 
     // Security Tab
     securitySettings: 'Keamanan Akun',
@@ -166,12 +170,16 @@ const translations = {
     testSound: 'Test Sound',
 
     // Privacy & Appearance Tab
-    privacySettings: 'Privacy Settings',
+    privacySettings: 'Privacy & Appearance Settings',
     showOnlineStatus: 'Show Online Presence',
     showOnlineStatusDesc: 'Allow contacts to see when you are active on Ping!.',
     chatAppearance: 'Chat Wallpaper & Appearance',
     appearanceDesc: 'Customize bubble colors and room wallpapers.',
     customizeTheme: 'Customize Chat Theme',
+    themeNotice: '💡 Note: Chat Themes and Wallpapers are configured directly per room via the Top Menu (⋮) inside each Chat Room.',
+    appTheme: 'App Theme',
+    darkTheme: 'Dark Mode (Default)',
+    lightTheme: 'Light Mode',
 
     // Security Tab
     securitySettings: 'Account Security',

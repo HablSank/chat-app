@@ -426,19 +426,21 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
         {/* ── User Header ─────────────────────────────── */}
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 flex-shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
+          <div
+            onClick={() => setIsProfileOpen?.(true)}
+            className="flex items-center gap-3 min-w-0 cursor-pointer group"
+          >
             <div className="relative flex-shrink-0">
               <img
                 src={user?.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=user'}
                 alt={user?.displayName || user?.username}
-                className="w-10 h-10 rounded-full bg-zinc-700 object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => setIsSettingsOpen(true)}
+                className="w-10 h-10 rounded-full bg-zinc-700 object-cover group-hover:opacity-80 transition-opacity"
               />
               <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-900 bg-emerald-400" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-zinc-100 truncate">
+                <span className="font-bold text-sm text-zinc-100 truncate group-hover:text-indigo-300 transition-colors">
                   {user?.displayName || user?.username}
                 </span>
                 {user?.statusEmoji && <span className="flex-shrink-0">{user.statusEmoji}</span>}

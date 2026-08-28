@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
@@ -34,6 +34,15 @@ function AuthRouter() {
 }
 
 function App() {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('ping_app_theme')
+    if (savedTheme === 'light') {
+      document.documentElement.classList.add('light-theme')
+    } else {
+      document.documentElement.classList.remove('light-theme')
+    }
+  }, [])
+
   return (
     <LanguageProvider>
       <AuthProvider>

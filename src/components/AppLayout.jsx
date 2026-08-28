@@ -5,7 +5,7 @@ import ChatRoom from './ChatRoom'
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
-import { encryptMessage } from '../utils/crypto'
+import { encryptMessage, decryptMessage } from '../utils/crypto'
 import { playSendSound, playReceiveSound } from '../utils/sound'
 import { getApiUrl } from '../config/api'
 
@@ -71,7 +71,7 @@ export default function AppLayout() {
   }, [selectedContact])
 
   // ── Socket event handlers ────────────────────────────────────────────────────
-  const handleIncomingMessage = useCallback((payload) => {
+  const handleIncomingMessage = useCallback(async (payload) => {
     const isFromOther = (payload.sender?._id || payload.sender) !== user?.id
     if (isFromOther) {
       playReceiveSound()
@@ -79,9 +79,21 @@ export default function AppLayout() {
       // If this message is NOT from the active open chat room, trigger notifications
       if (selectedContactRef.current?.conversationId !== payload.conversationId) {
         const senderName = payload.sender?.displayName || payload.sender?.username || 'Pesan Baru'
-        const preview = payload.messageType === 'group_invite'
-          ? 'Mengundang Anda ke grup'
-          : (payload.audioUrl ? '🎵 Pesan Suara' : (payload.imageUrls?.length ? '📷 Foto' : (payload.text || 'Pesan Baru')))
+        
+        let preview = 'Pesan Baru'
+        if (payload.messageType === 'group_invite') {
+          preview = 'Mengundang Anda ke grup'
+        } else if (payload.audioUrl) {
+          preview = '🎵 Pesan Suara'
+        } else if (payload.imageUrls?.length) {
+          preview = '📷 Foto'
+        } else if (payload.text) {
+          try {
+            preview = await decryptMessage(payload.text, payload.conversationId)
+          } catch {
+            preview = payload.text
+          }
+        }
 
         // 1. Desktop Notification (if permitted and window is unfocused)
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
@@ -128,13 +140,16 @@ export default function AppLayout() {
       const thread = prev[payload.conversationId] ?? []
       if (thread.some((m) => m._id === payload._id)) return prev
 
-      // If message is from self, replace any temporary uploading message in the thread
+      // If message is from self, replace any temporary/optimistic message matching temp- or sending state
       const isFromSelf = (payload.sender?._id || payload.sender) === user?.id
       if (isFromSelf) {
-        const uploadIdx = thread.findIndex((m) => m.isUploading)
-        if (uploadIdx !== -1) {
+        const tempIdx = thread.findIndex((m) => m._id?.startsWith?.('temp-') || m.isUploading || m.status === 'sending')
+        if (tempIdx !== -1) {
           const nextThread = [...thread]
-          nextThread[uploadIdx] = payload
+          nextThread[tempIdx] = {
+            ...payload,
+            plainText: payload.plainText || thread[tempIdx].plainText, // preserve plaintext
+          }
           return {
             ...prev,
             [payload.conversationId]: nextThread,

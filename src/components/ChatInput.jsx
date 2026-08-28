@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Paperclip, Send, X, Loader2, ImageIcon, Mic, Trash2, CornerUpLeft, Volume2, Pencil, Check } from 'lucide-react'
+import { Paperclip, Send, X, Loader2, ImageIcon, Mic, Trash2, CornerUpLeft, Pencil, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
@@ -23,7 +23,6 @@ export default function ChatInput({
   const [value, setValue]             = useState('')
   const [imageFiles, setImageFiles]   = useState([]) // up to 4
   const [previews, setPreviews]       = useState([])
-  const [isUploading, setIsUploading] = useState(false)
   const [isGiphyOpen, setIsGiphyOpen] = useState(false)
 
   // Voice recording state
@@ -307,9 +306,10 @@ export default function ChatInput({
   }
 
   const handleFocus = (e) => {
+    onTypingStart?.()
     setTimeout(() => {
       e.target?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
-    }, 120)
+    }, 150)
   }
 
   const handleKeyDown = (e) => {
