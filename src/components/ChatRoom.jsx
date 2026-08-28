@@ -171,6 +171,8 @@ export default function ChatRoom({
   const [localTheme, setLocalTheme]         = useState(contact?.customTheme || null)
   const [isVanishMode, setIsVanishMode]     = useState(false)
   const [isMediaSidebarOpen, setIsMediaSidebarOpen] = useState(false)
+  const [replyingTo, setReplyingTo]         = useState(null)
+  const [editingMessage, setEditingMessage] = useState(null)
   const [isSearchOpen, setIsSearchOpen]     = useState(false)
   const [searchQuery, setSearchQuery]       = useState('')
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)

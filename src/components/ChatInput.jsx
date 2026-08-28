@@ -379,10 +379,10 @@ export default function ChatInput({
               <CornerUpLeft size={14} className="text-indigo-400 flex-shrink-0" />
               <div className="truncate">
                 <p className="font-semibold text-indigo-300">
-                  Replying to {replyingTo.sender?.username || 'User'}
+                  Replying to {replyingTo?.sender?.displayName || replyingTo?.sender?.username || 'User'}
                 </p>
                 <p className="text-zinc-400 truncate text-[11px]">
-                  {replyingTo.audioUrl ? '🎵 Voice Note' : replyingTo.imageUrls?.length || replyingTo.imageUrl ? '📷 Photo' : replyingTo.text || 'Message'}
+                  {replyingTo?.audioUrl ? '🎵 Voice Note' : replyingTo?.imageUrls?.length || replyingTo?.imageUrl ? '📷 Photo' : replyingTo?.text || 'Message'}
                 </p>
               </div>
             </div>
