@@ -78,16 +78,12 @@ export function useSocket({
   useEffect(() => {
     if (!user) return
 
-    // Phase 15.40: Warm up backend immediately to handle Render free-tier cold starts
-    fetch(getApiUrl('/api/health')).catch(() => {})
-
     const socket = io(SOCKET_URL, {
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 4000,
-      timeout: 10000,
+      reconnectionDelayMax: 5000,
     })
     socketRef.current = socket
 

@@ -60,11 +60,6 @@ mongoose
   .then(() => console.log('✅ MongoDB Connected'))
   .catch((err) => console.error('❌ MongoDB Connection Error:', err))
 
-// ── Health Check Endpoint for Render Keep-Alive / Cold-Start ─────────────────
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
-})
-
 // ── REST API: Authentication ─────────────────────────────────────────────────
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -1539,10 +1534,7 @@ app.get('/api/messages/:conversationId', protect, async (req, res) => {
     if (!conversation) return res.status(404).json({ message: 'Conversation not found' })
 
     const now = new Date()
-    const query = {
-      conversationId: req.params.conversationId,
-      deletedFor: { $ne: req.user._id },
-    }
+    const query = { conversationId: req.params.conversationId }
 
     // If it's a group, only show messages sent after the user joined the group!
     if (conversation.isGroup) {
@@ -1688,84 +1680,6 @@ app.delete('/api/messages/:id', protect, async (req, res) => {
     res.json({ success: true, messageId: message._id })
   } catch (error) {
     console.error('Delete Message Error:', error)
-    res.status(500).json({ message: 'Server error' })
-  }
-})
-
-// ── REST API: Delete Message for Me ─────────────────────────────────────────
-app.post('/api/messages/:id/delete-for-me', protect, async (req, res) => {
-  try {
-    const message = await Message.findById(req.params.id)
-    if (!message) return res.status(404).json({ message: 'Message not found' })
-
-    if (!message.deletedFor) message.deletedFor = []
-    const userIdStr = req.user._id.toString()
-    if (!message.deletedFor.some(u => (u?._id?.toString() || u?.toString()) === userIdStr)) {
-      message.deletedFor.push(req.user._id)
-      await message.save()
-    }
-
-    res.json({ success: true, messageId: message._id })
-  } catch (error) {
-    console.error('Delete Message for Me Error:', error)
-    res.status(500).json({ message: 'Server error' })
-  }
-})
-
-// ── REST API: Batch Archive Conversations ───────────────────────────────────
-app.post('/api/conversations/batch-archive', protect, async (req, res) => {
-  try {
-    const { conversationIds, archive } = req.body
-    if (!Array.isArray(conversationIds) || conversationIds.length === 0) {
-      return res.status(400).json({ message: 'conversationIds must be a non-empty array' })
-    }
-    const userId = req.user._id
-    if (archive !== false) {
-      await Conversation.updateMany(
-        { _id: { $in: conversationIds }, participants: userId },
-        { $addToSet: { archivedBy: userId }, $pull: { pinnedBy: userId } }
-      )
-    } else {
-      await Conversation.updateMany(
-        { _id: { $in: conversationIds }, participants: userId },
-        { $pull: { archivedBy: userId } }
-      )
-    }
-    res.json({ success: true, message: 'Conversations archive status updated' })
-  } catch (error) {
-    console.error('Batch archive error:', error)
-    res.status(500).json({ message: 'Server error' })
-  }
-})
-
-// ── REST API: Batch Delete Conversations ─────────────────────────────────────
-app.post('/api/conversations/batch-delete', protect, async (req, res) => {
-  try {
-    const { conversationIds } = req.body
-    if (!Array.isArray(conversationIds) || conversationIds.length === 0) {
-      return res.status(400).json({ message: 'conversationIds must be a non-empty array' })
-    }
-    const userId = req.user._id
-    for (const id of conversationIds) {
-      const conv = await Conversation.findOne({ _id: id, participants: userId })
-      if (conv) {
-        if (!conv.isGroup) {
-          await Message.deleteMany({ conversationId: conv._id })
-          await Conversation.findByIdAndDelete(conv._id)
-        } else {
-          conv.participants = conv.participants.filter(p => p.toString() !== userId.toString())
-          if (conv.participants.length === 0) {
-            await Message.deleteMany({ conversationId: conv._id })
-            await Conversation.findByIdAndDelete(conv._id)
-          } else {
-            await conv.save()
-          }
-        }
-      }
-    }
-    res.json({ success: true, message: 'Conversations deleted' })
-  } catch (error) {
-    console.error('Batch delete error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })

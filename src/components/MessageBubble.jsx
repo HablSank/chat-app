@@ -5,7 +5,6 @@ import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage, getCachedDecryptedMessage } from '../utils/crypto'
 import { useAuth } from '../context/AuthContext'
-import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
 
 const bubbleVariants = {
@@ -512,8 +511,8 @@ function ActionPicker({
         </motion.button>
       )}
 
-      {/* Delete button (opens choice modal for Delete for Me / Delete for Everyone) */}
-      {!isDeleted && (
+      {/* Delete for everyone button (for sender only) */}
+      {isOwn && !isDeleted && (
         <motion.button
           type="button"
           onClick={(e) => {
@@ -523,79 +522,12 @@ function ActionPicker({
           whileHover={{ scale: 1.15 }}
           whileTap={{ scale: 0.9 }}
           className="text-zinc-400 hover:text-red-400 p-1.5 rounded-full hover:bg-red-500/10 transition-colors cursor-pointer"
-          title="Delete message"
+          title="Delete for everyone"
         >
           <Trash2 size={14} />
         </motion.button>
       )}
     </motion.div>
-  )
-}
-
-// ── Delete Choice Modal (Delete for Me vs Delete for Everyone) ─────────────────
-function DeleteChoiceModal({ isOpen, onClose, isOwn, onDeleteForMe, onDeleteForEveryone }) {
-  const { t } = useLanguage()
-  if (!isOpen) return null
-
-  return (
-    <AnimatePresence>
-      <div
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
-        onClick={(e) => {
-          e.stopPropagation()
-          onClose()
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 10 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-xs bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-2xl space-y-4 text-center z-[101]"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-red-500/15 text-red-400 flex items-center justify-center mx-auto">
-            <Trash2 size={20} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-zinc-100">{t('deletePrompt')}</h3>
-            <p className="text-xs text-zinc-400 mt-1">{t('deletePromptDesc')}</p>
-          </div>
-
-          <div className="space-y-2 pt-1">
-            {isOwn && (
-              <button
-                type="button"
-                onClick={() => {
-                  onDeleteForEveryone()
-                  onClose()
-                }}
-                className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold shadow-md transition-all cursor-pointer"
-              >
-                {t('deleteForEveryone')}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                onDeleteForMe()
-                onClose()
-              }}
-              className="w-full py-2.5 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-            >
-              {t('deleteForMe')}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full py-2 px-4 text-zinc-400 hover:text-zinc-200 rounded-xl text-xs font-medium transition-colors cursor-pointer"
-            >
-              {t('cancel')}
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
   )
 }
 
@@ -871,7 +803,6 @@ export default function MessageBubble({
   const [showPicker, setShowPicker]             = useState(false)
   const [showMessageInfo, setShowMessageInfo]   = useState(false)
   const [lightboxSrc, setLightboxSrc]           = useState(null)
-  const [showDeleteModal, setShowDeleteModal]   = useState(false)
   const [decryptedText, setDecryptedText]       = useState(() => {
     if (message.plainText) return message.plainText
     if (isSystem) return systemText || text || ''
@@ -1011,7 +942,7 @@ export default function MessageBubble({
 
   const handleContextMenu = (e) => {
     e.preventDefault()
-    setShowPicker((prev) => !prev)
+    setShowPicker(prev => !prev)
   }
 
   const canEdit = !isDeleted && !!decryptedText && !audioUrl && allImages.length === 0
@@ -1043,13 +974,6 @@ export default function MessageBubble({
         onClose={() => setShowMessageInfo(false)}
         message={message}
         conversationId={conversationId}
-      />
-      <DeleteChoiceModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        isOwn={isOwn}
-        onDeleteForMe={() => onDelete?.(_id, false)}
-        onDeleteForEveryone={() => onDelete?.(_id, true)}
       />
 
       <motion.div
@@ -1150,7 +1074,7 @@ export default function MessageBubble({
                   setShowPicker(false)
                 }}
                 onDelete={() => {
-                  setShowDeleteModal(true)
+                  onDelete?.(_id)
                   setShowPicker(false)
                 }}
                 onPin={() => {

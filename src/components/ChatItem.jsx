@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, Pin, PinOff, Archive, ArchiveRestore, MoreVertical, Check } from 'lucide-react'
+import { Users, Pin, PinOff, Archive, ArchiveRestore, MoreVertical } from 'lucide-react'
 
 export default function ChatItem({
   contact,
@@ -11,9 +11,6 @@ export default function ChatItem({
   isArchived = false,
   onTogglePin,
   onToggleArchive,
-  isSelectMode = false,
-  isSelectedForBatch = false,
-  onToggleSelect,
 }) {
   const { name, avatar, lastMessage, timestamp, unreadCount, presence, isOnline, statusEmoji, isGroup, participantsCount, status, isPendingInvite } = contact
 
@@ -87,42 +84,20 @@ export default function ChatItem({
   return (
     <div className="relative group select-none">
       <motion.button
-        onClick={(e) => {
-          if (isSelectMode) {
-            e.stopPropagation()
-            onToggleSelect?.(contact.conversationId || contact.id)
-          } else {
-            onClick?.()
-          }
-        }}
-        onContextMenu={!isSelectMode ? handleContextMenu : undefined}
-        onTouchStart={!isSelectMode ? handleTouchStart : undefined}
-        onTouchEnd={!isSelectMode ? handleTouchEnd : undefined}
-        onTouchMove={!isSelectMode ? handleTouchEnd : undefined}
+        onClick={onClick}
+        onContextMenu={handleContextMenu}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchEnd}
         id={`chat-item-${contact.id}`}
         whileHover={{ backgroundColor: 'rgba(39,39,42,0.6)' }} // zinc-800/60
         transition={{ duration: 0.15 }}
         className={`
           w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl
           transition-colors cursor-pointer relative
-          ${isSelectedForBatch ? 'bg-indigo-950/40 border border-indigo-500/30' : isSelected ? 'bg-zinc-800' : 'bg-transparent'}
+          ${isSelected ? 'bg-zinc-800' : 'bg-transparent'}
         `}
       >
-        {/* Checkbox indicator in Multi-Select Mode */}
-        {isSelectMode && (
-          <div className="flex-shrink-0 mr-0.5">
-            <div
-              className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${
-                isSelectedForBatch
-                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm shadow-indigo-600/40'
-                  : 'border-zinc-600 bg-zinc-800/80 text-transparent'
-              }`}
-            >
-              <Check size={12} strokeWidth={3} />
-            </div>
-          </div>
-        )}
-
         {/* Avatar with online dot or group badge */}
         <div className="relative flex-shrink-0">
           <img

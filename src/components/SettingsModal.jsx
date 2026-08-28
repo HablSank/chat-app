@@ -442,7 +442,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     <button
                       type="button"
                       onClick={handleTestSound}
-                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
                     >
                       <Volume2 size={13} />
                       <span>{t('testSound')}</span>
@@ -483,7 +483,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50 ${
                       notificationsAllowed
                         ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
-                        : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 shadow-sm active:scale-95'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-95'
                     }`}
                   >
                     {isPushLoading && <Loader2 size={13} className="animate-spin" />}
