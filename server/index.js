@@ -967,6 +967,33 @@ app.post('/api/conversations/:id/leave', protect, async (req, res) => {
     // Rule 1: If creator/owner leaves and NO OTHER members have joined (e.g. only pending invites or creator alone),
     // the group is dissolved / hangus!
     if (isOwner && otherParticipants.length === 0) {
+      // 1. Invalidate all group invite messages that were sent in DMs referencing this group
+      const inviteMessages = await Message.find({
+        messageType: 'group_invite',
+        'inviteData.groupId': conversation._id,
+      })
+
+      if (inviteMessages.length > 0) {
+        await Message.updateMany(
+          {
+            messageType: 'group_invite',
+            'inviteData.groupId': conversation._id,
+          },
+          {
+            $set: { 'inviteData.inviteStatus': 'invalid' },
+          }
+        )
+
+        // Broadcast invite status invalidation to each DM room where invite was sent
+        for (const invMsg of inviteMessages) {
+          io.to(invMsg.conversationId.toString()).emit('chat:invite_status_updated', {
+            messageId: invMsg._id.toString(),
+            conversationId: invMsg.conversationId.toString(),
+            inviteStatus: 'invalid',
+          })
+        }
+      }
+
       await Conversation.findByIdAndDelete(conversation._id)
       await Message.deleteMany({ conversationId: conversation._id })
 
@@ -1757,7 +1784,7 @@ app.delete('/api/messages/:id', protect, async (req, res) => {
 app.patch('/api/messages/:id/invite-status', protect, async (req, res) => {
   try {
     const { inviteStatus } = req.body
-    if (!['accepted', 'declined', 'pending'].includes(inviteStatus)) {
+    if (!['accepted', 'declined', 'pending', 'invalid'].includes(inviteStatus)) {
       return res.status(400).json({ message: 'Invalid inviteStatus' })
     }
 

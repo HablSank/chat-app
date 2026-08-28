@@ -628,14 +628,20 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
   const groupName = inviteData?.groupName || 'Group'
   const groupAvatar = inviteData?.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupName)}`
 
+  // Format description dynamically based on current language setting
+  const displayDescription = text && !text.includes('Saya mengundang Anda untuk bergabung ke grup:') && !text.includes('I am inviting you to join the group:')
+    ? text
+    : t('groupInviteText', { groupName })
+
   // Phase 15.21: Lock [Gabung Grup] button for recipient when 1-on-1 conversation is pending message request
   const isLocked = !isOwn && !!isPendingConversation
   const isDeclined = inviteStatus === 'declined'
+  const isInvalid = inviteStatus === 'invalid'
   const hasJoined = inviteStatus === 'accepted'
 
   const handleJoin = async (e) => {
     e.stopPropagation()
-    if (isLocked || isDeclined) return
+    if (isLocked || isDeclined || isInvalid) return
     if (!groupId) return
     setIsJoining(true)
     try {
@@ -662,6 +668,19 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
           }).catch((err) => console.error('Failed to persist accepted invite status:', err))
         }
       } else {
+        if (res.status === 404) {
+          setInviteStatus('invalid')
+          if (messageId) {
+            fetch(getApiUrl(`/api/messages/${messageId}/invite-status`), {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ inviteStatus: 'invalid' }),
+            }).catch(() => {})
+          }
+        }
         console.error('Failed to join group:', data.message)
       }
     } catch (err) {
@@ -673,7 +692,7 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
 
   const handleDecline = async (e) => {
     e.stopPropagation()
-    if (isLocked) return
+    if (isLocked || isInvalid) return
     setInviteStatus('declined')
 
     // Persist declined status to message in DB
@@ -695,11 +714,11 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
 
   return (
     <div
-      onClick={!isDeclined && !isLocked ? handleJoin : undefined}
+      onClick={!isDeclined && !isLocked && !isInvalid ? handleJoin : undefined}
       className={`group-invite-card p-3.5 rounded-2xl border transition-all select-none ${
         isLocked
           ? 'cursor-not-allowed opacity-90'
-          : isDeclined
+          : isDeclined || isInvalid
           ? 'cursor-default opacity-85'
           : 'cursor-pointer'
       } ${
@@ -713,7 +732,9 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
           <img
             src={groupAvatar}
             alt={groupName}
-            className="w-12 h-12 rounded-2xl bg-zinc-800 object-cover ring-2 ring-indigo-500/40 shadow-md"
+            className={`w-12 h-12 rounded-2xl bg-zinc-800 object-cover ring-2 ring-indigo-500/40 shadow-md ${
+              isInvalid ? 'grayscale opacity-60' : ''
+            }`}
           />
           <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-indigo-600 border-2 border-zinc-900 flex items-center justify-center text-white text-[10px]">
             <Users size={10} />
@@ -725,16 +746,20 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
               {t('groupInviteBadge')}
             </span>
           </div>
-          <h4 className="text-sm font-bold text-zinc-100 truncate">{groupName}</h4>
+          <h4 className={`text-sm font-bold text-zinc-100 truncate ${isInvalid ? 'line-through text-zinc-400' : ''}`}>
+            {groupName}
+          </h4>
           <p className="text-[11px] text-zinc-400 truncate">
-            {text || t('groupInviteDefaultDesc')}
+            {displayDescription}
           </p>
         </div>
       </div>
 
       <div className="pt-2.5 border-t border-zinc-800/80 flex items-center justify-between gap-2">
         <div className="text-[11px] font-medium min-w-0 truncate">
-          {isOwn ? (
+          {isInvalid ? (
+            <span className="text-zinc-500">{t('groupInviteInvalid')}</span>
+          ) : isOwn ? (
             <span className="text-zinc-400">{t('groupInviteSent')}</span>
           ) : isDeclined ? (
             <span className="text-rose-400">{t('groupInviteDeclined')}</span>
@@ -748,7 +773,11 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {isOwn ? (
+          {isInvalid ? (
+            <span className="px-2.5 py-1 text-[11px] font-semibold text-zinc-400 bg-zinc-800 border border-zinc-700/60 rounded-lg">
+              {t('groupInviteInvalidTag')}
+            </span>
+          ) : isOwn ? (
             <motion.button
               type="button"
               onClick={handleJoin}
@@ -760,7 +789,7 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
               {isJoining ? (
                 <>
                   <Loader2 size={13} className="animate-spin" />
-                  <span>Memuat...</span>
+                  <span>{t('checkingUpdates')}</span>
                 </>
               ) : (
                 <>
@@ -819,17 +848,17 @@ function GroupInviteCard({ messageId, inviteData, text, isOwn, onJoinGroup, isPe
                 {isJoining ? (
                   <>
                     <Loader2 size={13} className="animate-spin" />
-                    <span>Bergabung...</span>
+                    <span>{t('checkingUpdates')}</span>
                   </>
                 ) : isLocked ? (
                   <>
                     <Lock size={12} className="opacity-70" />
-                    <span>Gabung Grup</span>
+                    <span>{t('groupInviteJoin')}</span>
                   </>
                 ) : (
                   <>
                     <Users size={13} />
-                    <span>Gabung Grup</span>
+                    <span>{t('groupInviteJoin')}</span>
                   </>
                 )}
               </motion.button>

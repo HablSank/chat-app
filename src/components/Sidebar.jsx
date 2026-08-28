@@ -497,7 +497,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             status: conv.status,
             initiator: conv.initiator,
             lastMessage: conv.lastMessage?.messageType === 'group_invite'
-              ? `👥 Undangan Grup: ${conv.lastMessage.inviteData?.groupName || 'Grup'}`
+              ? `👥 ${t('groupInviteBadge')}: ${conv.lastMessage.inviteData?.groupName || 'Group'}`
               : conv.lastMessage?.audioUrl
               ? '🎵 Voice note'
               : conv.lastMessage?.imageUrls?.length > 0 || conv.lastMessage?.imageUrl

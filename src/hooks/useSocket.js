@@ -39,6 +39,7 @@ export function useSocket({
   onGroupUpdated,
   onConversationUpdated,
   onGroupDissolved,
+  onInviteStatusUpdated,
 }) {
   const { user } = useAuth()
   const socketRef          = useRef(null)
@@ -58,6 +59,7 @@ export function useSocket({
   const onGroupUpdatedRef   = useRef(onGroupUpdated)
   const onConversationUpdatedRef = useRef(onConversationUpdated)
   const onGroupDissolvedRef = useRef(onGroupDissolved)
+  const onInviteStatusUpdatedRef = useRef(onInviteStatusUpdated)
 
   // Sync refs each render
   useEffect(() => { onMessageRef.current      = onMessage        }, [onMessage])
@@ -76,6 +78,7 @@ export function useSocket({
   useEffect(() => { onGroupUpdatedRef.current   = onGroupUpdated   }, [onGroupUpdated])
   useEffect(() => { onConversationUpdatedRef.current = onConversationUpdated }, [onConversationUpdated])
   useEffect(() => { onGroupDissolvedRef.current = onGroupDissolved }, [onGroupDissolved])
+  useEffect(() => { onInviteStatusUpdatedRef.current = onInviteStatusUpdated }, [onInviteStatusUpdated])
 
   // Create the socket once on mount, tear down on unmount
   useEffect(() => {
@@ -167,6 +170,7 @@ export function useSocket({
     })
     socket.on('group:updated',        (data)    => onGroupUpdatedRef.current?.(data))
     socket.on('group:dissolved',      (data)    => onGroupDissolvedRef.current?.(data))
+    socket.on('chat:invite_status_updated', (data) => onInviteStatusUpdatedRef.current?.(data))
     socket.on('conversation:updated', (data)    => onConversationUpdatedRef.current?.(data))
 
     return () => {

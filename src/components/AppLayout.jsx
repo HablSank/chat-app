@@ -49,6 +49,7 @@ function NoChatSelected() {
 // ─── AppLayout ────────────────────────────────────────────────────────────────
 export default function AppLayout() {
   const { user, token } = useAuth()
+  const { t } = useLanguage()
   const [selectedContact, setSelectedContact] = useState(null)
   const [isMobile, setIsMobile]               = useState(false)
   
@@ -82,7 +83,7 @@ export default function AppLayout() {
         
         let preview = 'Pesan Baru'
         if (payload.messageType === 'group_invite') {
-          preview = 'Mengundang Anda ke grup'
+          preview = t('groupInviteNotification')
         } else if (payload.audioUrl) {
           preview = '🎵 Pesan Suara'
         } else if (payload.imageUrls?.length) {
@@ -393,10 +394,45 @@ export default function AppLayout() {
       return prev
     })
     setChatMessages(prev => {
-      if (!prev[conversationId]) return prev
       const updated = { ...prev }
       delete updated[conversationId]
+      // Also update any group_invite message in any DM that pointed to this dissolved group
+      for (const [cId, msgs] of Object.entries(updated)) {
+        updated[cId] = msgs.map(m => {
+          if (m.messageType === 'group_invite' && (m.inviteData?.groupId?.toString() === conversationId || m.inviteData?.groupId?._id?.toString() === conversationId)) {
+            return {
+              ...m,
+              inviteData: {
+                ...m.inviteData,
+                inviteStatus: 'invalid',
+              },
+            }
+          }
+          return m
+        })
+      }
       return updated
+    })
+  }, [])
+
+  const handleInviteStatusUpdated = useCallback(({ messageId, conversationId, inviteStatus }) => {
+    setChatMessages(prev => {
+      if (!prev[conversationId]) return prev
+      return {
+        ...prev,
+        [conversationId]: prev[conversationId].map(m => {
+          if (m._id === messageId) {
+            return {
+              ...m,
+              inviteData: {
+                ...m.inviteData,
+                inviteStatus,
+              },
+            }
+          }
+          return m
+        }),
+      }
     })
   }, [])
 
@@ -418,6 +454,7 @@ export default function AppLayout() {
     onGroupUpdated:    handleGroupUpdated,
     onConversationUpdated: handleConversationUpdated,
     onGroupDissolved:  handleGroupDissolved,
+    onInviteStatusUpdated: handleInviteStatusUpdated,
   })
 
   const sendMarkReadRef = useRef(sendMarkRead)
