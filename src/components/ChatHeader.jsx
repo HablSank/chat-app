@@ -14,6 +14,7 @@ import {
   Shield,
   Info,
   Lock,
+  Palette,
 } from 'lucide-react'
 
 export default function ChatHeader({
@@ -22,6 +23,7 @@ export default function ChatHeader({
   onBack,
   onOpenProfile,
   onOpenGroupInfo,
+  onOpenTheme,
   groupMemberNames,
   formatLastSeen,
   isSearchOpen,
@@ -242,7 +244,7 @@ export default function ChatHeader({
               {/* 3. Vanish Mode */}
               <button
                 type="button"
-                onClick={() => handleMenuItemClick(onToggleVanish)}
+                onClick={() => handleMenuItemClick(onToggleVanishMode)}
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <Clock size={16} className="text-amber-400 flex-shrink-0" />
@@ -258,7 +260,18 @@ export default function ChatHeader({
                 </span>
               </button>
 
-              {/* 4. Voice Call */}
+              {/* 4. Custom Theme & Wallpaper */}
+              <button
+                type="button"
+                id="chatheader-theme-btn"
+                onClick={() => handleMenuItemClick(onOpenTheme)}
+                className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
+              >
+                <Palette size={16} className="text-pink-400 flex-shrink-0" />
+                <span className="flex-1 font-medium">Tema & Wallpaper Chat</span>
+              </button>
+
+              {/* 5. Voice Call */}
               <button
                 type="button"
                 onClick={() => handleMenuItemClick(onVoiceCall)}
@@ -268,7 +281,7 @@ export default function ChatHeader({
                 <span className="flex-1 font-medium">Panggilan Suara</span>
               </button>
 
-              {/* 5. Video Call */}
+              {/* 6. Video Call */}
               <button
                 type="button"
                 onClick={() => handleMenuItemClick(onVideoCall)}
@@ -278,7 +291,7 @@ export default function ChatHeader({
                 <span className="flex-1 font-medium">Panggilan Video</span>
               </button>
 
-              {/* 6. Info / Profile Details */}
+              {/* 7. Info / Profile Details */}
               <button
                 type="button"
                 onClick={() => {

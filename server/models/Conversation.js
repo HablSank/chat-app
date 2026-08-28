@@ -76,6 +76,20 @@ const conversationSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    customTheme: {
+      bubbleColor: {
+        type: String,
+        default: '',
+      },
+      wallpaperUrl: {
+        type: String,
+        default: '',
+      },
+      presetTheme: {
+        type: String,
+        default: 'default',
+      },
+    },
     lastMessage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Message',

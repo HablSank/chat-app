@@ -8,6 +8,7 @@ import FriendProfile from './FriendProfile'
 import MediaSidebar from './MediaSidebar'
 import GroupInfoModal from './GroupInfoModal'
 import ChatHeader from './ChatHeader'
+import ThemeModal, { BUILTIN_WALLPAPERS } from './ThemeModal'
 import { decryptMessage } from '../utils/crypto'
 
 const slideInVariants = {
@@ -160,6 +161,8 @@ export default function ChatRoom({
   const [showToast, setShowToast]           = useState(false)
   const [showFriendProfile, setShowFriendProfile] = useState(false)
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false)
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false)
+  const [localTheme, setLocalTheme]         = useState(contact?.customTheme || null)
   const [isVanishMode, setIsVanishMode]     = useState(false)
   const [isMediaSidebarOpen, setIsMediaSidebarOpen] = useState(false)
   const [replyingTo, setReplyingTo]         = useState(null)
@@ -168,6 +171,30 @@ export default function ChatRoom({
   const [searchQuery, setSearchQuery]       = useState('')
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
   const [decryptedMap, setDecryptedMap]     = useState({})
+
+  // Keep localTheme in sync with contact customTheme
+  useEffect(() => {
+    setLocalTheme(contact?.customTheme || null)
+  }, [contact?.customTheme, contact?.conversationId])
+
+  // Compute room-specific wallpaper background style
+  const activeWallpaper = localTheme?.wallpaperUrl || ''
+  const wallpaperStyle = useMemo(() => {
+    if (!activeWallpaper) return {}
+    if (activeWallpaper.startsWith('http://') || activeWallpaper.startsWith('https://') || activeWallpaper.startsWith('data:')) {
+      return {
+        backgroundImage: `url(${activeWallpaper})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }
+    }
+    const builtin = BUILTIN_WALLPAPERS.find(w => w.value === activeWallpaper)
+    return {
+      backgroundImage: activeWallpaper,
+      backgroundSize: builtin?.bgSize || 'auto',
+    }
+  }, [activeWallpaper])
 
   const safeMessages = Array.isArray(messages) ? messages : []
   const safeParticipants = Array.isArray(contact?.participants) ? contact.participants : []
@@ -276,6 +303,7 @@ export default function ChatRoom({
           isOpen={showFriendProfile}
           onClose={() => setShowFriendProfile(false)}
           userId={contact.id}
+          onOpenTheme={() => setIsThemeModalOpen(true)}
         />
       )}
 
@@ -286,6 +314,7 @@ export default function ChatRoom({
           contact={contact}
           onGroupUpdated={onGroupUpdated}
           onGroupLeft={onGroupLeft}
+          onOpenTheme={() => setIsThemeModalOpen(true)}
         />
       )}
 
@@ -316,6 +345,7 @@ export default function ChatRoom({
           onBack={onBack}
           onOpenProfile={() => setShowFriendProfile(true)}
           onOpenGroupInfo={() => setIsGroupInfoOpen(true)}
+          onOpenTheme={() => setIsThemeModalOpen(true)}
           groupMemberNames={groupMemberNames}
           formatLastSeen={formatLastSeen}
           isSearchOpen={isSearchOpen}
@@ -323,7 +353,7 @@ export default function ChatRoom({
           isMediaSidebarOpen={isMediaSidebarOpen}
           onToggleMediaSidebar={() => setIsMediaSidebarOpen((prev) => !prev)}
           isVanishMode={isVanishMode}
-          onToggleVanish={handleToggleVanish}
+          onToggleVanishMode={handleToggleVanish}
           onVoiceCall={() => triggerToast('🚀 Panggilan Suara segera hadir!')}
           onVideoCall={() => triggerToast('🚀 Panggilan Video segera hadir!')}
           onClearChat={() => triggerToast('🧹 Fitur Bersihkan Chat segera hadir!')}
@@ -429,7 +459,8 @@ export default function ChatRoom({
         {/* ── Scrollable Message Thread ────────────────── */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
+          style={wallpaperStyle}
+          className="flex-1 overflow-y-auto px-4 py-4 space-y-2 transition-all duration-300"
         >
           {safeMessages.length > 0 ? (
             safeMessages.map((msg, index) => {
@@ -492,6 +523,7 @@ export default function ChatRoom({
                     totalParticipants={safeParticipants.length || 2}
                     isSearchResult={isSearchResult}
                     isCurrentMatch={isCurrentMatch}
+                    customTheme={localTheme}
                   />
                 </div>
               )
@@ -622,6 +654,18 @@ export default function ChatRoom({
           />
         )}
       </motion.div>
+
+      {/* ── Theme & Wallpaper Customization Modal ─────────────────── */}
+      <ThemeModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        conversationId={contact?.conversationId}
+        currentTheme={localTheme}
+        onThemeUpdated={(newTheme) => {
+          setLocalTheme(newTheme)
+          triggerToast('✨ Tema & wallpaper chat diperbarui!')
+        }}
+      />
     </>
   )
 }

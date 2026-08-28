@@ -303,8 +303,27 @@ export default function AppLayout() {
     })
   }, [])
 
-  const handleConversationUpdated = useCallback(() => {
+  const handleConversationUpdated = useCallback((updatedConv) => {
     setRefreshSidebar(prev => prev + 1)
+    if (updatedConv?._id) {
+      setSelectedContact(prev => {
+        if (prev && (prev.conversationId === updatedConv._id || prev.id === updatedConv._id)) {
+          return {
+            ...prev,
+            customTheme: updatedConv.customTheme,
+            ...(updatedConv.isGroup ? {
+              name: updatedConv.groupName || prev.name,
+              avatar: updatedConv.groupAvatar || prev.avatar,
+              groupName: updatedConv.groupName,
+              groupAvatar: updatedConv.groupAvatar,
+              participants: updatedConv.participants,
+              members: updatedConv.members,
+            } : {})
+          }
+        }
+        return prev
+      })
+    }
   }, [])
 
   // ── Connect to Socket.IO ──────────────────────────────────────────────────────

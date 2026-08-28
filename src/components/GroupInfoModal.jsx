@@ -15,6 +15,7 @@ import {
   Search,
   AlertTriangle,
   Clock,
+  Palette,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
@@ -26,6 +27,7 @@ export default function GroupInfoModal({
   contact,
   onGroupUpdated,
   onGroupLeft,
+  onOpenTheme,
 }) {
   const { user: currentUser, token } = useAuth()
   const [groupName, setGroupName] = useState(contact?.groupName || contact?.name || '')
@@ -406,6 +408,28 @@ export default function GroupInfoModal({
                 <p className="text-xs text-zinc-400 mt-1 font-medium">
                   Group • {participants.length} {participants.length === 1 ? 'member' : 'members'}
                 </p>
+
+                {onOpenTheme && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose()
+                      onOpenTheme()
+                    }}
+                    className="mt-3 flex items-center justify-between w-full max-w-sm px-3.5 py-2.5 rounded-2xl bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 text-zinc-200 transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Palette size={16} className="text-pink-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-100">Tema & Wallpaper Grup</p>
+                        <p className="text-[10px] text-zinc-400">Ubah warna balon dan background chat</p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/20">
+                      Ubah
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Members Section */}

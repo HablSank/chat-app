@@ -223,6 +223,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         status: isPending ? 'pending' : 'accepted',
         isPendingInvite: isPending,
         conversationId: conv._id,
+        customTheme: conv.customTheme,
       })
       setQuery('')
       return
@@ -242,7 +243,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       isGroup: false,
       conversationId: conv._id,
       status: conv.status,
-      initiator: conv.initiator
+      initiator: conv.initiator,
+      customTheme: conv.customTheme,
     })
     setQuery('')
   }

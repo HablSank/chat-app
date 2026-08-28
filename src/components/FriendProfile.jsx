@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Lock } from 'lucide-react'
+import { X, Lock, Palette } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
 import Lightbox from './Lightbox'
@@ -21,7 +21,7 @@ const panelVariants = {
   exit: { opacity: 0, scale: 0.95, y: 20, transition: { duration: 0.18 } },
 }
 
-export default function FriendProfile({ isOpen, onClose, userId }) {
+export default function FriendProfile({ isOpen, onClose, userId, onOpenTheme }) {
   const { token } = useAuth()
   const [profile, setProfile] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -169,6 +169,23 @@ export default function FriendProfile({ isOpen, onClose, userId }) {
                           {profile?.bio || (isLocked ? 'Profil dan bio disembunyikan sampai permintaan pesan diterima.' : 'Hey there! I am using Chat App.')}
                         </p>
                       </div>
+
+                      {onOpenTheme && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose()
+                            onOpenTheme()
+                          }}
+                          className="w-full flex items-center justify-between p-3 rounded-2xl bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 text-zinc-200 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Palette size={16} className="text-pink-400" />
+                            <span className="text-xs font-semibold">Tema & Wallpaper Chat</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-indigo-400">Atur Tema</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

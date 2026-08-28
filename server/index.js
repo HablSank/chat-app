@@ -1071,6 +1071,62 @@ app.patch('/api/conversations/:id/archive', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Update Custom Conversation Theme ────────────────────────────────
+app.patch('/api/conversations/:id/theme', protect, async (req, res) => {
+  try {
+    const { bubbleColor, wallpaperUrl, presetTheme } = req.body
+    const conversation = await Conversation.findById(req.params.id)
+    if (!conversation) return res.status(404).json({ message: 'Conversation not found' })
+
+    const userIdStr = req.user._id.toString()
+    const isParticipant = (conversation.participants || []).some(p => (p._id?.toString() || p.toString()) === userIdStr) ||
+                          (conversation.members || []).some(m => (m._id?.toString() || m.toString()) === userIdStr)
+    if (!isParticipant) return res.status(403).json({ message: 'Not a member of this conversation' })
+
+    if (!conversation.customTheme) {
+      conversation.customTheme = {}
+    }
+    if (bubbleColor !== undefined) conversation.customTheme.bubbleColor = bubbleColor
+    if (wallpaperUrl !== undefined) conversation.customTheme.wallpaperUrl = wallpaperUrl
+    if (presetTheme !== undefined) conversation.customTheme.presetTheme = presetTheme
+
+    await conversation.save()
+
+    const populatedConv = await Conversation.findById(conversation._id)
+      .populate('participants', '-password')
+      .populate('members', '-password')
+      .populate('initiator', '-password')
+      .populate('groupAdmin', '-password')
+      .populate('groupAdmins', '-password')
+      .populate('lastMessage')
+
+    const convObj = populatedConv.toObject()
+
+    // Broadcast to conversation room
+    io.to(conversation._id.toString()).emit('conversation:updated', convObj)
+
+    // Also broadcast to all connected participant sockets
+    const allMembers = [
+      ...(conversation.participants || []),
+      ...(conversation.members || []),
+    ].map(u => (u._id?.toString() || u.toString()))
+    const uniqueMembers = Array.from(new Set(allMembers))
+    uniqueMembers.forEach(memId => {
+      const userSockets = connectedUsers.get(memId)
+      if (userSockets) {
+        userSockets.forEach(sockId => {
+          io.to(sockId).emit('conversation:updated', convObj)
+        })
+      }
+    })
+
+    res.json(populatedConv)
+  } catch (error) {
+    console.error('Update Theme Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Add Members to Group via Direct Message Invites ────────────────
 app.post('/api/conversations/:id/add-members', protect, async (req, res) => {
   try {
