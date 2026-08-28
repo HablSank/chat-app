@@ -2,7 +2,22 @@ import { motion } from 'framer-motion'
 import { Users } from 'lucide-react'
 
 export default function ChatItem({ contact, isSelected, onClick, isNew }) {
-  const { name, avatar, lastMessage, timestamp, unreadCount, presence, isOnline, statusEmoji, isGroup, participantsCount, status } = contact
+  if (!contact) return null
+
+  const {
+    id = '',
+    name = 'Chat',
+    avatar = 'https://api.dicebear.com/7.x/shapes/svg?seed=user',
+    lastMessage = '',
+    timestamp = '',
+    unreadCount = 0,
+    presence = 'offline',
+    isOnline = false,
+    statusEmoji = '',
+    isGroup = false,
+    participantsCount = 0,
+    status = 'accepted',
+  } = contact || {}
 
   const isAccepted = isGroup || status === 'accepted'
   const effectivePresence = presence || (isOnline ? 'online' : 'offline')

@@ -122,6 +122,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   }, [query, token])
 
   const handleSelectConversation = (conv) => {
+    if (!conv) return
+
     if (conv.isGroup) {
       const isPending = conv.status === 'pending' || !!conv.isPendingInvite
       onSelect({
@@ -135,6 +137,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         groupAdmin: conv.groupAdmin,
         groupAdmins: conv.groupAdmins || (conv.groupAdmin ? [conv.groupAdmin] : []),
         participants: conv.participants || [],
+        pendingMembers: conv.pendingMembers || [],
+        members: conv.participants || [],
         conversationId: conv._id,
         status: isPending ? 'pending' : 'accepted',
         isPendingInvite: conv.isPendingInvite,
@@ -145,31 +149,58 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     }
 
     const currentUserId = (user?.id || user?._id || '').toString()
-    const otherParticipant = conv.participants.find(p => (p._id?.toString() || p.toString()) !== currentUserId)
-    if (!otherParticipant) return
+    const participantsList = Array.isArray(conv.participants) ? conv.participants : []
+    const otherParticipant = participantsList.find(p => (p?._id?.toString() || p?.toString()) !== currentUserId)
+
+    if (!otherParticipant) {
+      onSelect({
+        id: conv._id,
+        name: 'Chat',
+        username: 'Chat',
+        avatar: `https://api.dicebear.com/7.x/shapes/svg?seed=${conv._id}`,
+        presence: 'offline',
+        isOnline: false,
+        lastSeen: null,
+        statusEmoji: '',
+        isGroup: false,
+        participants: participantsList,
+        pendingMembers: conv.pendingMembers || [],
+        members: participantsList,
+        conversationId: conv._id,
+        status: conv.status || 'accepted',
+        initiator: conv.initiator,
+      })
+      setQuery('')
+      return
+    }
+
     onSelect({
-      id: otherParticipant._id,
-      name: otherParticipant.displayName || otherParticipant.username,
-      username: otherParticipant.username,
-      avatar: otherParticipant.avatar,
-      presence: otherParticipant.presence,
-      isOnline: otherParticipant.isOnline,
-      lastSeen: otherParticipant.lastSeen,
-      statusEmoji: otherParticipant.statusEmoji,
+      id: otherParticipant._id || otherParticipant,
+      name: otherParticipant.displayName || otherParticipant.username || 'User',
+      username: otherParticipant.username || 'User',
+      avatar: otherParticipant.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${otherParticipant.username || 'user'}`,
+      presence: otherParticipant.presence || 'offline',
+      isOnline: !!otherParticipant.isOnline,
+      lastSeen: otherParticipant.lastSeen || null,
+      statusEmoji: otherParticipant.statusEmoji || '',
       isGroup: false,
+      participants: participantsList,
+      pendingMembers: conv.pendingMembers || [],
+      members: participantsList,
       conversationId: conv._id,
-      status: conv.status,
+      status: conv.status || 'accepted',
       initiator: conv.initiator
     })
     setQuery('')
   }
 
   const handleSelectUser = async (searchUser) => {
-    const targetUserId = (searchUser?._id || searchUser?.id || '').toString()
+    if (!searchUser) return
+    const targetUserId = (searchUser._id || searchUser.id || '').toString()
 
     // 1. Check if conversation already exists in loaded sidebar conversations
-    const existingConv = conversations.find(c =>
-      !c.isGroup && c.participants?.some(p => (p._id?.toString() || p.toString()) === targetUserId)
+    const existingConv = (conversations || []).find(c =>
+      !c?.isGroup && (c?.participants || []).some(p => (p?._id?.toString() || p?.toString()) === targetUserId)
     )
 
     if (existingConv) {
@@ -195,15 +226,18 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
     // 3. Fallback: completely new chat
     onSelect({
-      id: searchUser._id,
-      name: searchUser.displayName || searchUser.username,
-      username: searchUser.username,
-      avatar: searchUser.avatar,
-      presence: searchUser.presence,
-      isOnline: searchUser.isOnline,
-      lastSeen: searchUser.lastSeen,
-      statusEmoji: searchUser.statusEmoji,
+      id: searchUser._id || searchUser.id,
+      name: searchUser.displayName || searchUser.username || 'User',
+      username: searchUser.username || 'User',
+      avatar: searchUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${searchUser.username || 'user'}`,
+      presence: searchUser.presence || 'offline',
+      isOnline: !!searchUser.isOnline,
+      lastSeen: searchUser.lastSeen || null,
+      statusEmoji: searchUser.statusEmoji || '',
       isGroup: false,
+      participants: [],
+      pendingMembers: [],
+      members: [],
       conversationId: null,
       status: 'new'
     })
