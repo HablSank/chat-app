@@ -64,7 +64,7 @@ const translations = {
     chatAppearance: 'Tampilan & Tema Chat',
     appearanceDesc: 'Sesuaikan wallpaper dan warna bubble percakapan.',
     customizeTheme: 'Atur Tema Percakapan',
-    themeNotice: '💡 Catatan: Tema dan Wallpaper Chat diatur langsung di dalam masing-masing Room Chat melalui Menu Header Chat.',
+    themeNotice: 'Catatan: Tema dan Wallpaper Chat diatur langsung di dalam masing-masing Room Chat melalui Menu Header Chat.',
     appTheme: 'Tema Aplikasi',
     darkTheme: 'Mode Gelap (Bawaan)',
     lightTheme: 'Mode Terang',
@@ -126,6 +126,17 @@ const translations = {
     reject: 'Tolak',
     messageRequestSent: 'Permintaan Pesan Terkirim',
     awaitingApproval: 'Menunggu persetujuan. Foto profil dan info lengkap akan terbuka setelah permintaan disetujui.',
+
+    // Image Cropper Modal
+    cropImageTitle: 'Sesuaikan Gambar',
+    rotate90: 'Putar 90°',
+    zoomLabel: 'Perbesar',
+    applyCrop: 'Terapkan',
+
+    // Global Search & New Chat
+    searchChatsOrFriends: 'Cari chat atau teman...',
+    globalUserSearch: 'Cari Pengguna Global',
+    startChat: 'Mulai Chat',
   },
   en: {
     // App & Nav
@@ -252,6 +263,17 @@ const translations = {
     reject: 'Reject',
     messageRequestSent: 'Message Request Sent',
     awaitingApproval: 'Awaiting approval. Full profile and info will unlock once accepted.',
+
+    // Image Cropper Modal
+    cropImageTitle: 'Adjust Image',
+    rotate90: 'Rotate 90°',
+    zoomLabel: 'Zoom',
+    applyCrop: 'Apply',
+
+    // Global Search & New Chat
+    searchChatsOrFriends: 'Search chats or contacts...',
+    globalUserSearch: 'Global User Search',
+    startChat: 'Start Chat',
   }
 }
 

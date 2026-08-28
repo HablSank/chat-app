@@ -586,7 +586,7 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConver
   return (
     <div
       onClick={!isDeclined && !isLocked ? handleJoin : undefined}
-      className={`p-3.5 rounded-2xl border transition-all select-none ${
+      className={`group-invite-card p-3.5 rounded-2xl border transition-all select-none ${
         isLocked
           ? 'cursor-not-allowed opacity-90'
           : isDeclined

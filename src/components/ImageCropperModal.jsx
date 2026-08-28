@@ -3,21 +3,25 @@ import Cropper from 'react-easy-crop'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Check, ZoomIn, ZoomOut, RotateCw, Loader2, Crop } from 'lucide-react'
 import { getCroppedImg } from '../utils/cropImage'
+import { useLanguage } from '../context/LanguageContext'
 
 export default function ImageCropperModal({
   isOpen,
   imageSrc,
   cropShape = 'round', // 'round' or 'rect'
   aspect = 1,          // 1 for 1:1, 9/16 for mobile wallpaper, etc.
-  title = 'Sesuaikan Gambar',
+  title,
   onClose,
   onCropFinished,
 }) {
+  const { t } = useLanguage()
   const [crop, setCrop]                 = useState({ x: 0, y: 0 })
   const [zoom, setZoom]                 = useState(1)
   const [rotation, setRotation]         = useState(0)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
+
+  const modalTitle = title || t('cropImageTitle')
 
   const onCropChange = (newCrop) => {
     setCrop(newCrop)
@@ -74,7 +78,7 @@ export default function ImageCropperModal({
               <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
                 <Crop size={17} />
               </div>
-              <h2 className="text-sm sm:text-base font-bold text-zinc-100">{title}</h2>
+              <h2 className="text-sm sm:text-base font-bold text-zinc-100">{modalTitle}</h2>
             </div>
             <button
               onClick={onClose}
@@ -132,10 +136,10 @@ export default function ImageCropperModal({
                 className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 py-1 px-2 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
               >
                 <RotateCw size={13} />
-                <span>Putar 90°</span>
+                <span>{t('rotate90')}</span>
               </button>
               <span className="text-[11px] font-mono text-zinc-500">
-                Zoom: {zoom.toFixed(1)}x
+                {t('zoomLabel')}: {zoom.toFixed(1)}x
               </span>
             </div>
           </div>
@@ -147,7 +151,7 @@ export default function ImageCropperModal({
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-zinc-300 hover:text-white rounded-xl hover:bg-zinc-800 transition-colors cursor-pointer"
             >
-              Batal
+              {t('cancel')}
             </button>
             <button
               type="button"
@@ -156,7 +160,7 @@ export default function ImageCropperModal({
               className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
             >
               {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              <span>Terapkan</span>
+              <span>{t('applyCrop')}</span>
             </button>
           </div>
         </motion.div>

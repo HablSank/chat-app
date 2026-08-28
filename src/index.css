@@ -233,4 +233,43 @@
     border-color: #cbd5e1 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
   }
+
+  /* Create Group & New Chat Modals Light Mode */
+  html.light #create-group-modal,
+  html.light-theme #create-group-modal,
+  html.light #new-chat-modal,
+  html.light-theme #new-chat-modal {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light #create-group-header,
+  html.light-theme #create-group-header,
+  html.light #create-group-footer,
+  html.light-theme #create-group-footer {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  /* Group Badge in Header */
+  html.light .chat-group-badge,
+  html.light-theme .chat-group-badge {
+    background-color: #e0e7ff !important;
+    color: #4338ca !important;
+    border: 1px solid #c7d2fe !important;
+  }
+
+  /* WhatsApp-style Group Invite Card */
+  html.light .group-invite-card:not(.bg-indigo-950\/60),
+  html.light-theme .group-invite-card:not(.bg-indigo-950\/60) {
+    background-color: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  html.light .group-invite-card h4,
+  html.light-theme .group-invite-card h4 {
+    color: #0f172a !important;
+  }
 }

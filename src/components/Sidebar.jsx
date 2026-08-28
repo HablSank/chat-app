@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, LogOut, Settings, Users, User, Download, Archive, ArrowLeft } from 'lucide-react'
+import { Search, LogOut, Settings, Users, User, Download, Archive, ArrowLeft, MessageSquarePlus } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
@@ -11,6 +11,7 @@ import ChatItem from './ChatItem'
 import ProfileSettings from './ProfileSettings'
 import SettingsModal from './SettingsModal'
 import CreateGroupModal from './CreateGroupModal'
+import NewChatModal from './NewChatModal'
 import PWAInstallBanner from './PWAInstallBanner'
 import PWAInstallGuideModal from './PWAInstallGuideModal'
 import AppUpdateBanner from './AppUpdateBanner'
@@ -22,10 +23,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const { updateAvailable, reloadApp, setUpdateAvailable } = useAutoUpdate()
   const [query, setQuery] = useState('')
   const [conversations, setConversations] = useState([])
-  const [searchResults, setSearchResults] = useState([])
-  const [isSearching, setIsSearching] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false)
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
 
   // Phase 15.22-FIX: Pin and Archive states from MongoDB with real-time sync
@@ -170,38 +170,6 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
       fetchConversations()
     }
   }, [token, refreshTrigger])
-
-  // Search users
-  useEffect(() => {
-    const searchUsers = async () => {
-      const raw = query.trim().replace(/^@/, '')
-      if (!raw) {
-        setSearchResults([])
-        setIsSearching(false)
-        return
-      }
-      setIsSearching(true)
-      try {
-        const res = await fetch(getApiUrl(`/api/users/search?q=${encodeURIComponent(raw)}`), {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        const data = await res.json()
-        if (res.ok) {
-          setSearchResults(data)
-        }
-      } catch (err) {
-        console.error('Search failed', err)
-      } finally {
-        setIsSearching(false)
-      }
-    }
-
-    const timer = setTimeout(() => {
-      searchUsers()
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [query, token])
 
   const handleSelectConversation = (conv) => {
     if (conv.isGroup) {
@@ -414,7 +382,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   return (
     <>
-      <div id="sidebar-container" className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-zinc-900 border-r border-zinc-800 relative select-none">
+      <div id="sidebar-container" className="w-full sm:w-80 md:w-96 flex flex-col h-full bg-zinc-900 border-r border-zinc-800 flex-shrink-0 relative select-none">
         {/* Floating Feedback Toast */}
         <AnimatePresence>
           {showToast && (
@@ -431,22 +399,32 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         </AnimatePresence>
 
         {/* ── User Header ─────────────────────────────── */}
-        <div id="sidebar-user-header" className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 flex-shrink-0">
+        <div id="sidebar-user-header" className="p-3.5 border-b border-zinc-800 flex items-center justify-between flex-shrink-0 bg-zinc-900">
           <div
-            onClick={() => setIsProfileOpen?.(true)}
             className="flex items-center gap-3 min-w-0 cursor-pointer group"
+            onClick={() => setIsProfileOpen?.(true)}
           >
             <div className="relative flex-shrink-0">
               <img
-                src={user?.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=user'}
+                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
                 alt={user?.displayName || user?.username}
-                className="w-10 h-10 rounded-full bg-zinc-700 object-cover group-hover:opacity-80 transition-opacity"
+                className="w-10 h-10 rounded-full bg-zinc-800 object-cover ring-2 ring-indigo-500/30 group-hover:ring-indigo-500 transition-all"
               />
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-900 bg-emerald-400" />
+              <span
+                className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-zinc-900 ${
+                  user?.presence === 'idle' || user?.presence === 'away'
+                    ? 'bg-amber-400'
+                    : user?.presence === 'dnd' || user?.presence === 'busy'
+                    ? 'bg-red-400'
+                    : user?.presence === 'offline'
+                    ? 'bg-zinc-500'
+                    : 'bg-emerald-400'
+                }`}
+              />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-zinc-100 truncate group-hover:text-indigo-300 transition-colors">
+                <span className="text-sm font-semibold text-zinc-100 truncate group-hover:text-indigo-300 transition-colors">
                   {user?.displayName || user?.username}
                 </span>
                 {user?.statusEmoji && <span className="flex-shrink-0">{user.statusEmoji}</span>}
@@ -467,6 +445,15 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 <Download size={18} />
               </button>
             )}
+            <button
+              type="button"
+              id="sidebar-new-chat-btn"
+              onClick={() => setIsNewChatOpen(true)}
+              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title={t('createNewChat')}
+            >
+              <MessageSquarePlus size={18} />
+            </button>
             <button
               type="button"
               id="sidebar-create-group-btn"
@@ -523,9 +510,18 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('searchUsers')}
+              placeholder={t('searchChatsOrFriends')}
               className="bg-transparent text-sm text-zinc-100 placeholder-zinc-500 outline-none flex-1"
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                className="text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -550,28 +546,21 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         {/* ── Scrollable List ─────────────────────── */}
         <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
           {query ? (
-            /* Search Results */
-            isSearching ? (
-              <p className="text-sm text-zinc-500 text-center mt-4">{t('checkingUpdates')}</p>
-            ) : searchResults.length > 0 ? (
-              searchResults.map((u) => (
-                <ChatItem
-                  key={u._id}
-                  contact={{
-                    id: u._id,
-                    name: u.displayName || u.username,
-                    avatar: u.avatar,
-                    presence: u.presence,
-                    statusEmoji: u.statusEmoji,
-                    isGroup: false,
-                    status: u.isLocked ? 'new' : 'accepted',
-                  }}
-                  isSelected={u._id === selectedId}
-                  onClick={() => handleSelectUser(u)}
-                />
-              ))
+            /* Search Results (Filtered from Active/Archived Conversations) */
+            searchFilteredConversations.length > 0 ? (
+              searchFilteredConversations.map((conv) => renderConversationItem(conv))
             ) : (
-              <p className="text-sm text-zinc-500 text-center mt-8">{t('noUsersFoundPrompt')}</p>
+              <div className="text-center py-10 px-4">
+                <p className="text-sm text-zinc-400 font-medium">{t('noChats')}</p>
+                <button
+                  type="button"
+                  onClick={() => setIsNewChatOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-md cursor-pointer transition-all"
+                >
+                  <MessageSquarePlus size={14} />
+                  <span>{t('globalUserSearch')}</span>
+                </button>
+              </div>
             )
           ) : isViewingArchive ? (
             /* Archived Conversations View */
@@ -618,6 +607,20 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             </>
           )}
         </div>
+
+        {/* ── Mobile Floating Action Button (FAB) for New Chat ── */}
+        <motion.button
+          type="button"
+          id="mobile-new-chat-fab"
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setIsNewChatOpen(true)}
+          className="fixed bottom-6 right-6 z-40 sm:hidden bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-2xl flex items-center justify-center cursor-pointer shadow-indigo-600/40"
+          title={t('createNewChat')}
+          aria-label="New Chat"
+        >
+          <MessageSquarePlus size={22} />
+        </motion.button>
       </div>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
@@ -626,6 +629,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}
         onGroupCreated={handleGroupCreated}
+      />
+      <NewChatModal
+        isOpen={isNewChatOpen}
+        onClose={() => setIsNewChatOpen(false)}
+        onSelectUser={handleSelectUser}
       />
       <PWAInstallGuideModal isOpen={showInstallGuide} onClose={() => setShowInstallGuide(false)} isIOS={isIOS} />
     </>

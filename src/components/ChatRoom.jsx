@@ -281,8 +281,9 @@ export default function ChatRoom({
   const prevRoomIdRef = useRef(null)
   const initialScrollDoneRef = useRef(false)
   const prevMsgLengthRef = useRef(safeMessages.length)
+  const messagesEndRef = useRef(null)
 
-  // 1. Instant scrollToBottom('auto') when opening or switching a chat room
+  // 1. Instant scrollToBottom when opening or switching a chat room
   useLayoutEffect(() => {
     if (!activeRoomId) return
     const isSwitched = prevRoomIdRef.current !== activeRoomId
@@ -293,14 +294,18 @@ export default function ChatRoom({
       setEditingMessage(null)
     }
 
-    if (scrollRef.current && (!initialScrollDoneRef.current || isSwitched)) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (!initialScrollDoneRef.current || isSwitched) {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' })
       initialScrollDoneRef.current = true
 
       requestAnimationFrame(() => {
         if (scrollRef.current) {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' })
       })
     }
   }, [activeRoomId, safeMessages.length])
@@ -634,6 +639,9 @@ export default function ChatRoom({
               />
             )}
           </AnimatePresence>
+
+          {/* Bottom Anchor for Instant Scroll */}
+          <div ref={messagesEndRef} className="h-px w-full" />
         </div>
 
         {/* ── Fixed Bottom Input or Banner ───────────────────────── */}

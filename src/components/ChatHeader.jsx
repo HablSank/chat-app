@@ -126,7 +126,7 @@ export default function ChatHeader({
                 {contact.name}
               </p>
               {contact.isGroup && (
-                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
+                <span className="chat-group-badge text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-md font-medium flex-shrink-0">
                   Group
                 </span>
               )}

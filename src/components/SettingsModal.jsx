@@ -7,6 +7,7 @@ import {
   Volume2,
   VolumeX,
   Eye,
+  EyeOff,
   Lock,
   Download,
   RotateCw,
@@ -50,6 +51,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword]         = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword]         = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordMsg, setPasswordMsg]         = useState({ type: '', text: '' })
 
@@ -438,9 +442,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     <button
                       type="button"
                       onClick={handleTestSound}
-                      className="px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800/80 rounded-lg cursor-pointer transition-colors"
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
                     >
-                      {t('testSound')}
+                      <Volume2 size={13} />
+                      <span>{t('testSound')}</span>
                     </button>
                     {/* Standardized pixel-perfect toggle switch: h-6 w-11 p-0.5 with translate-x-5 */}
                     <button
@@ -475,10 +480,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     type="button"
                     onClick={handleToggleNotifications}
                     disabled={isPushLoading}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50 ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50 ${
                       notificationsAllowed
                         ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
-                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-95'
                     }`}
                   >
                     {isPushLoading && <Loader2 size={13} className="animate-spin" />}
@@ -523,26 +528,32 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                   </button>
                 </div>
 
-                {/* App Theme Selector */}
-                <div>
-                  <label className="block text-xs font-bold text-zinc-300 mb-2 flex items-center gap-1.5">
-                    <Sun size={14} className="text-amber-400" />
-                    <span>{t('appTheme')}</span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2.5">
+                {/* App Theme (Light / Dark) */}
+                <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
+                      {theme === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-zinc-100">{t('appTheme')}</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Pilih tampilan terang atau gelap untuk aplikasi Ping!.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
                     <button
                       type="button"
                       onClick={() => setTheme('dark')}
                       className={`p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
-                        theme === 'dark'
+                        theme !== 'light'
                           ? 'bg-indigo-600/15 border-indigo-500 text-indigo-200 shadow-sm'
                           : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
                     >
-                      <Moon size={18} className="text-indigo-400 flex-shrink-0" />
-                      <div className="text-left min-w-0">
-                        <p className="text-xs font-bold text-zinc-100 truncate">{t('darkTheme')}</p>
-                        <p className="text-[10px] text-zinc-500 truncate">Dark Charcoal</p>
+                      <Moon size={16} className={theme !== 'light' ? 'text-indigo-400' : 'text-zinc-500'} />
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-zinc-100">{t('darkTheme')}</p>
+                        <p className="text-[10px] text-zinc-500">Gelap & Elegan</p>
                       </div>
                     </button>
 
@@ -555,16 +566,16 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                           : 'bg-zinc-950/40 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                       }`}
                     >
-                      <Sun size={18} className="text-amber-400 flex-shrink-0" />
-                      <div className="text-left min-w-0">
-                        <p className="text-xs font-bold text-zinc-100 truncate">{t('lightTheme')}</p>
-                        <p className="text-[10px] text-zinc-500 truncate">Clean Slate</p>
+                      <Sun size={16} className={theme === 'light' ? 'text-amber-400' : 'text-zinc-500'} />
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-zinc-100">{t('lightTheme')}</p>
+                        <p className="text-[10px] text-zinc-500">Cerah & Bersih</p>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                {/* Chat Theme & Wallpaper Selector */}
+                {/* Chat Custom Wallpaper Trigger */}
                 <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 flex-shrink-0">
@@ -583,9 +594,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                         onClose()
                         onOpenThemeModal()
                       }}
-                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
                     >
-                      {t('customizeTheme')}
+                      <Palette size={13} className="text-pink-400" />
+                      <span>{t('customizeTheme')}</span>
                     </button>
                   )}
                 </div>
@@ -615,39 +627,69 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     <label className="block text-xs font-medium text-zinc-400 mb-1 ml-1">
                       {t('currentPassword')}
                     </label>
-                    <input
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 text-xs focus:outline-none focus:border-indigo-500 transition-all"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full pl-3.5 pr-10 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 text-xs focus:outline-none focus:border-indigo-500 transition-all"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                        title={showCurrentPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-zinc-400 mb-1 ml-1">
                       {t('newPassword')}
                     </label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 text-xs focus:outline-none focus:border-indigo-500 transition-all"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full pl-3.5 pr-10 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 text-xs focus:outline-none focus:border-indigo-500 transition-all"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                        title={showNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-zinc-400 mb-1 ml-1">
                       {t('confirmPassword')}
                     </label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 text-xs focus:outline-none focus:border-indigo-500 transition-all"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full pl-3.5 pr-10 py-2 bg-zinc-950/60 border border-zinc-800 rounded-xl text-zinc-100 text-xs focus:outline-none focus:border-indigo-500 transition-all"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((prev) => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                        title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
                   </div>
 
                   {passwordMsg.text && (

@@ -201,10 +201,11 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+              id="create-group-modal"
               className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-10"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/90">
+              <div id="create-group-header" className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/90">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
                     <Users size={18} />
@@ -382,7 +383,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-900/90 flex-shrink-0">
+                <div id="create-group-footer" className="flex items-center justify-between px-6 py-4 border-t border-zinc-800 bg-zinc-900/90 flex-shrink-0">
                   <span className="text-xs text-zinc-400">
                     {selectedMembers.length} {t('membersSelectedSuffix')}
                   </span>
