@@ -182,6 +182,47 @@ const translations = {
     themeCardDesc: 'Pilih tema terang atau gelap sesuai kenyamanan mata Anda.',
     themeDarkOption: 'Gelap & Elegan',
     themeLightOption: 'Terang & Bersih',
+
+    // Phase 15.45: Chat Item & Room Menu i18n
+    pinChat: 'Sematkan Chat',
+    unpinChat: 'Lepas Sematan',
+    archiveChat: 'Arsipkan Chat',
+    unarchiveChat: 'Buka Arsip',
+    chatOptions: 'Opsi Chat',
+    searchInChat: 'Cari pesan dalam chat...',
+    searchMessagesMenu: 'Cari Pesan',
+    mediaFilesMenu: 'Berkas Media',
+    disappearingMessagesMenu: 'Pesan Sementara',
+    themeWallpaperMenu: 'Tema & Wallpaper Chat',
+    voiceCallMenu: 'Panggilan Suara',
+    videoCallMenu: 'Panggilan Video',
+    contactInfoMenu: 'Info Kontak',
+    groupInfoMenu: 'Info Grup',
+    clearChatMenu: 'Bersihkan Chat',
+
+    // Toast Notifications i18n
+    vanishModeEnabledToast: 'Pesan Sementara Aktif (24 Jam)',
+    vanishModeDisabledToast: 'Pesan Sementara Dinonaktifkan',
+    voiceCallComingSoonToast: '🚀 Panggilan Suara segera hadir!',
+    videoCallComingSoonToast: '🚀 Panggilan Video segera hadir!',
+    clearChatComingSoonToast: '🧹 Fitur Bersihkan Chat segera hadir!',
+    chatPinnedToast: '📌 Chat disematkan ke atas',
+    chatUnpinnedToast: '📌 Sematan chat dilepas',
+    chatArchivedToast: '📦 Chat berhasil diarsipkan',
+    chatUnarchivedToast: '📦 Chat dipindahkan dari arsip',
+    archivedPinBlockedToast: '⚠️ Chat yang diarsipkan tidak dapat disematkan',
+
+    // Theme Modal i18n
+    themeModalTitle: 'Tema & Wallpaper Chat',
+    themeModalSubtitle: 'Sesuaikan warna balon chat dan gambar latar khusus room ini.',
+    presetThemesSection: 'Pilihan Tema Preset',
+    customColorSection: 'Warna Balon Chat Kustom',
+    wallpaperSection: 'Wallpaper Latar Chat',
+    uploadCustomWallpaper: 'Unggah Gambar Kustom',
+    uploadingWallpaper: 'Mengunggah wallpaper...',
+    resetDefaultTheme: 'Reset Default',
+    saveThemeChanges: 'Simpan Tema',
+    noWallpaper: 'Tanpa Wallpaper',
   },
   en: {
     // App & Nav
@@ -365,6 +406,47 @@ const translations = {
     themeCardDesc: 'Choose light or dark theme for optimal viewing comfort.',
     themeDarkOption: 'Dark & Elegant',
     themeLightOption: 'Light & Clean',
+
+    // Phase 15.45: Chat Item & Room Menu i18n
+    pinChat: 'Pin Chat',
+    unpinChat: 'Unpin Chat',
+    archiveChat: 'Archive Chat',
+    unarchiveChat: 'Unarchive Chat',
+    chatOptions: 'Chat Options',
+    searchInChat: 'Search messages in chat...',
+    searchMessagesMenu: 'Search Messages',
+    mediaFilesMenu: 'Media & Files',
+    disappearingMessagesMenu: 'Disappearing Messages',
+    themeWallpaperMenu: 'Chat Theme & Wallpaper',
+    voiceCallMenu: 'Voice Call',
+    videoCallMenu: 'Video Call',
+    contactInfoMenu: 'Contact Info',
+    groupInfoMenu: 'Group Info',
+    clearChatMenu: 'Clear Chat',
+
+    // Toast Notifications i18n
+    vanishModeEnabledToast: 'Disappearing Messages Enabled (24 Hours)',
+    vanishModeDisabledToast: 'Disappearing Messages Disabled',
+    voiceCallComingSoonToast: '🚀 Voice Call feature coming soon!',
+    videoCallComingSoonToast: '🚀 Video Call feature coming soon!',
+    clearChatComingSoonToast: '🧹 Clear Chat feature coming soon!',
+    chatPinnedToast: '📌 Chat pinned to top',
+    chatUnpinnedToast: '📌 Chat unpinned',
+    chatArchivedToast: '📦 Chat archived successfully',
+    chatUnarchivedToast: '📦 Chat unarchived',
+    archivedPinBlockedToast: '⚠️ Archived chats cannot be pinned',
+
+    // Theme Modal i18n
+    themeModalTitle: 'Chat Theme & Wallpaper',
+    themeModalSubtitle: 'Customize bubble colors and background wallpaper specifically for this chat room.',
+    presetThemesSection: 'Preset Theme Options',
+    customColorSection: 'Custom Bubble Color',
+    wallpaperSection: 'Chat Wallpaper',
+    uploadCustomWallpaper: 'Upload Custom Image',
+    uploadingWallpaper: 'Uploading wallpaper...',
+    resetDefaultTheme: 'Reset Default',
+    saveThemeChanges: 'Save Theme',
+    noWallpaper: 'No Wallpaper',
   }
 }
 

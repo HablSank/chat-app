@@ -606,15 +606,6 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             )}
             <button
               type="button"
-              id="sidebar-new-chat-btn"
-              onClick={handleOpenNewChat}
-              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
-              title={t('createNewChat')}
-            >
-              <MessageSquarePlus size={18} />
-            </button>
-            <button
-              type="button"
               id="sidebar-create-group-btn"
               onClick={handleOpenCreateGroup}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
@@ -624,21 +615,21 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             </button>
             <button
               type="button"
-              id="sidebar-settings-btn"
-              onClick={handleOpenSettings}
-              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
-              title={t('settings')}
-            >
-              <Settings size={18} />
-            </button>
-            <button
-              type="button"
               id="sidebar-profile-btn"
               onClick={handleOpenProfile}
               className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
               title={t('profile')}
             >
               <User size={18} />
+            </button>
+            <button
+              type="button"
+              id="sidebar-settings-btn"
+              onClick={handleOpenSettings}
+              className="p-2 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"
+              title={t('settings')}
+            >
+              <Settings size={18} />
             </button>
             <button
               type="button"

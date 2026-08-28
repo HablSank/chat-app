@@ -1093,7 +1093,7 @@ export default function MessageBubble({
         initial="hidden"
         animate="visible"
         onClick={handleContainerClick}
-        className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-0.5 transition-colors duration-200 ${
+        className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-0.5 transition-colors duration-200 select-none touch-callout-none ${
           isSelected ? 'bg-indigo-600/15 rounded-xl' : isFlashing ? 'bg-indigo-500/20 rounded-xl' : 'bg-transparent'
         }`}
       >
@@ -1131,7 +1131,7 @@ export default function MessageBubble({
               }
             }
           }}
-          className={`relative flex flex-col max-w-[75%] sm:max-w-[70%] gap-1 select-none touch-manipulation z-10 ${
+          className={`relative flex flex-col max-w-[75%] sm:max-w-[70%] gap-1 select-none touch-callout-none touch-manipulation z-10 ${
             isOwn ? 'items-end' : 'items-start'
           }`}
           onTouchStart={handleTouchStart}

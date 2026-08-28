@@ -343,7 +343,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <Search size={16} className="text-indigo-400 flex-shrink-0" />
-                <span className="flex-1 font-medium">Cari Pesan</span>
+                <span className="flex-1 font-medium">{t('searchMessagesMenu')}</span>
               </button>
 
               {/* 2. Media Files */}
@@ -353,7 +353,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <ImageIcon size={16} className="text-emerald-400 flex-shrink-0" />
-                <span className="flex-1 font-medium">Berkas Media</span>
+                <span className="flex-1 font-medium">{t('mediaFilesMenu')}</span>
               </button>
 
               {/* 3. Vanish Mode */}
@@ -363,7 +363,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <Clock size={16} className="text-amber-400 flex-shrink-0" />
-                <span className="flex-1 font-medium">Pesan Sementara</span>
+                <span className="flex-1 font-medium">{t('disappearingMessagesMenu')}</span>
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                     isVanishMode
@@ -383,7 +383,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <Palette size={16} className="text-pink-400 flex-shrink-0" />
-                <span className="flex-1 font-medium">Tema & Wallpaper Chat</span>
+                <span className="flex-1 font-medium">{t('themeWallpaperMenu')}</span>
               </button>
 
               {/* 5. Voice Call */}
@@ -393,7 +393,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <Phone size={16} className="text-sky-400 flex-shrink-0" />
-                <span className="flex-1 font-medium">Panggilan Suara</span>
+                <span className="flex-1 font-medium">{t('voiceCallMenu')}</span>
               </button>
 
               {/* 6. Video Call */}
@@ -403,7 +403,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800/80 transition-colors cursor-pointer text-left"
               >
                 <Video size={16} className="text-violet-400 flex-shrink-0" />
-                <span className="flex-1 font-medium">Panggilan Video</span>
+                <span className="flex-1 font-medium">{t('videoCallMenu')}</span>
               </button>
 
               {/* 7. Info / Profile Details */}
@@ -421,7 +421,7 @@ export default function ChatHeader({
               >
                 <Info size={16} className="text-zinc-400 flex-shrink-0" />
                 <span className="flex-1 font-medium">
-                  {contact.isGroup ? 'Info Grup' : 'Info Kontak'}
+                  {contact.isGroup ? t('groupInfoMenu') : t('contactInfoMenu')}
                 </span>
               </button>
 
@@ -434,7 +434,7 @@ export default function ChatHeader({
                 className="w-full px-3.5 py-2.5 flex items-center gap-3 text-xs sm:text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
               >
                 <Trash2 size={16} className="flex-shrink-0" />
-                <span className="flex-1 font-medium">Bersihkan Chat</span>
+                <span className="flex-1 font-medium">{t('clearChatMenu')}</span>
               </button>
             </motion.div>
           )}

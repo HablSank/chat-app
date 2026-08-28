@@ -399,8 +399,8 @@ export default function ChatRoom({
     setIsVanishMode(nextMode)
     triggerToast(
       nextMode
-        ? 'Pesan Sementara Aktif (24 Jam)'
-        : 'Pesan Sementara Dinonaktifkan'
+        ? t('vanishModeEnabledToast')
+        : t('vanishModeDisabledToast')
     )
   }
 
@@ -607,9 +607,9 @@ export default function ChatRoom({
           onToggleMediaSidebar={() => setIsMediaSidebarOpen((prev) => !prev)}
           isVanishMode={isVanishMode}
           onToggleVanishMode={handleToggleVanish}
-          onVoiceCall={() => triggerToast('🚀 Panggilan Suara segera hadir!')}
-          onVideoCall={() => triggerToast('🚀 Panggilan Video segera hadir!')}
-          onClearChat={() => triggerToast('🧹 Fitur Bersihkan Chat segera hadir!')}
+          onVoiceCall={() => triggerToast(t('voiceCallComingSoonToast'))}
+          onVideoCall={() => triggerToast(t('videoCallComingSoonToast'))}
+          onClearChat={() => triggerToast(t('clearChatComingSoonToast'))}
           selectedMessages={selectedMessages}
           onClearSelection={() => setSelectedMessages([])}
           onReplySelected={handleReplySelected}
@@ -640,7 +640,7 @@ export default function ChatRoom({
                   setSearchQuery(e.target.value)
                   setCurrentMatchIdx(0)
                 }}
-                placeholder="Search decrypted messages in chat..."
+                placeholder={t('searchInChat')}
                 className="flex-1 bg-transparent text-xs text-zinc-100 placeholder-zinc-500 outline-none"
                 autoFocus
               />

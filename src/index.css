@@ -45,6 +45,12 @@
     scrollbar-width: none;
   }
 
+  .touch-callout-none {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+
   /* ── LIGHT MODE STYLING ── */
   html.light,
   html.light-theme {

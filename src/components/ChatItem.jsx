@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Users, Pin, PinOff, Archive, ArchiveRestore, MoreVertical, Check } from 'lucide-react'
+import { useLanguage } from '../context/LanguageContext'
 
 export default function ChatItem({
   contact,
@@ -16,6 +17,7 @@ export default function ChatItem({
   isChecked = false,
   onToggleCheck,
 }) {
+  const { t } = useLanguage()
   const { name, avatar, lastMessage, timestamp, unreadCount, presence, isOnline, statusEmoji, isGroup, participantsCount, status, isPendingInvite } = contact
 
   const isPendingGroup = isGroup && (status === 'pending' || !!isPendingInvite || isNew)
@@ -209,7 +211,7 @@ export default function ChatItem({
                   handleContextMenu(e)
                 }}
                 className="opacity-0 group-hover:opacity-100 p-0.5 rounded-full hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 transition-opacity cursor-pointer hidden sm:block"
-                title="Opsi Chat"
+                title={t('chatOptions')}
               >
                 <MoreVertical size={13} />
               </button>
@@ -244,12 +246,12 @@ export default function ChatItem({
                   {isPinned ? (
                     <>
                       <PinOff size={14} className="text-zinc-400" />
-                      <span>Lepas Sematan</span>
+                      <span>{t('unpinChat')}</span>
                     </>
                   ) : (
                     <>
                       <Pin size={14} className="text-indigo-400" />
-                      <span>Sematkan Chat</span>
+                      <span>{t('pinChat')}</span>
                     </>
                   )}
                 </button>
@@ -262,12 +264,12 @@ export default function ChatItem({
                 {isArchived ? (
                   <>
                     <ArchiveRestore size={14} className="text-emerald-400" />
-                    <span>Buka Arsip</span>
+                    <span>{t('unarchiveChat')}</span>
                   </>
                 ) : (
                   <>
-                    <Archive size={14} className="text-amber-400" />
-                    <span>Arsipkan Chat</span>
+                    <Archive size={14} className="text-zinc-400" />
+                    <span>{t('archiveChat')}</span>
                   </>
                 )}
               </button>
