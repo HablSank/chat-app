@@ -518,9 +518,15 @@ export function LanguageProvider({ children }) {
     localStorage.setItem('ping_language', lang)
   }, [])
 
-  const t = useCallback((key) => {
+  const t = useCallback((key, params) => {
     const langDict = translations[language] || translations.id
-    return langDict[key] || translations.id[key] || key
+    let str = langDict[key] || translations.id[key] || key
+    if (params && typeof params === 'object') {
+      Object.entries(params).forEach(([k, v]) => {
+        str = str.replaceAll(`{${k}}`, v ?? '')
+      })
+    }
+    return str
   }, [language])
 
   return (
