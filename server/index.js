@@ -820,7 +820,18 @@ app.put('/api/conversations/:id/admin', protect, async (req, res) => {
     let systemText = ''
     const targetIdStr = targetUserId.toString()
 
-    if (action === 'revoke') {
+    if (action === 'transfer_owner') {
+      const isCurrentOwner = conversation.initiator?.toString() === req.user._id.toString()
+      if (!isCurrentOwner) {
+        return res.status(403).json({ message: 'Only the current group owner can transfer group ownership' })
+      }
+      conversation.initiator = targetUserId
+      if (!currentAdmins.includes(targetIdStr)) {
+        conversation.groupAdmins = [...currentAdmins, targetUserId]
+      }
+      conversation.groupAdmin = targetUserId
+      systemText = `${actorName} transferred group ownership to ${targetName}`
+    } else if (action === 'revoke') {
       const initiatorId = conversation.initiator?.toString()
       if (targetIdStr === initiatorId) {
         return res.status(403).json({ message: 'The group owner/creator cannot be dismissed as admin' })
@@ -945,7 +956,42 @@ app.post('/api/conversations/:id/leave', protect, async (req, res) => {
     if (!conversation.isGroup) return res.status(400).json({ message: 'Not a group conversation' })
 
     const userIdStr = req.user._id.toString()
-    conversation.participants = conversation.participants.filter(p => p.toString() !== userIdStr)
+    const initiatorId = conversation.initiator?.toString()
+    const isOwner = initiatorId === userIdStr
+
+    // Filter current active participants (excluding self)
+    const otherParticipants = (conversation.participants || []).filter(
+      p => (p._id?.toString() || p.toString()) !== userIdStr
+    )
+
+    // Rule 1: If creator/owner leaves and NO OTHER members have joined (e.g. only pending invites or creator alone),
+    // the group is dissolved / hangus!
+    if (isOwner && otherParticipants.length === 0) {
+      await Conversation.findByIdAndDelete(conversation._id)
+      await Message.deleteMany({ conversationId: conversation._id })
+
+      io.to(conversation._id.toString()).emit('group:dissolved', {
+        conversationId: conversation._id.toString(),
+        message: 'Group dissolved because creator left before other members joined',
+      })
+      io.emit('group:dissolved', {
+        conversationId: conversation._id.toString(),
+        message: 'Group dissolved because creator left before other members joined',
+      })
+
+      return res.json({ message: 'Group dissolved since creator left before any member joined', dissolved: true })
+    }
+
+    // Rule 2: If the user is the owner/creator and other joined members exist,
+    // they CANNOT leave directly; they must transfer owner role first!
+    if (isOwner && otherParticipants.length > 0) {
+      return res.status(400).json({
+        message: 'Sebagai pemilik grup, Anda harus memindahkan jabatan pemilik (owner) ke anggota lain terlebih dahulu sebelum keluar.',
+        code: 'OWNER_TRANSFER_REQUIRED',
+      })
+    }
+
+    conversation.participants = otherParticipants
     conversation.groupAdmins = (conversation.groupAdmins || []).filter(a => a.toString() !== userIdStr)
     conversation.memberDetails = (conversation.memberDetails || []).filter(m => m.user?.toString() !== userIdStr)
 
@@ -953,7 +999,7 @@ app.post('/api/conversations/:id/leave', protect, async (req, res) => {
 
     if (conversation.participants.length === 0) {
       await Conversation.findByIdAndDelete(conversation._id)
-      return res.json({ message: 'Group deleted since all members left' })
+      return res.json({ message: 'Group deleted since all members left', dissolved: true })
     }
 
     // If no admin left, promote the first remaining member

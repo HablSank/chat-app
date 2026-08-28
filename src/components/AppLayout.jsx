@@ -384,6 +384,22 @@ export default function AppLayout() {
     }
   }, [])
 
+  const handleGroupDissolved = useCallback(({ conversationId }) => {
+    setRefreshSidebar(prev => prev + 1)
+    setSelectedContact(prev => {
+      if (prev && (prev.conversationId === conversationId || prev.id === conversationId)) {
+        return null
+      }
+      return prev
+    })
+    setChatMessages(prev => {
+      if (!prev[conversationId]) return prev
+      const updated = { ...prev }
+      delete updated[conversationId]
+      return updated
+    })
+  }, [])
+
   // ── Connect to Socket.IO ──────────────────────────────────────────────────────
   const { sendMessage, sendTyping, sendStopTyping, joinPrivateRoom, sendReaction, sendMarkRead } = useSocket({
     onMessage:         handleIncomingMessage,
@@ -401,6 +417,7 @@ export default function AppLayout() {
     onGroupCreated:    handleGroupCreated,
     onGroupUpdated:    handleGroupUpdated,
     onConversationUpdated: handleConversationUpdated,
+    onGroupDissolved:  handleGroupDissolved,
   })
 
   const sendMarkReadRef = useRef(sendMarkRead)

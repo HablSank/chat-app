@@ -430,16 +430,73 @@ export default function ChatRoom({
     setSelectedMessages([])
   }
 
-  const handleCopySelected = async (msg) => {
-    if (!msg) return
-    const plain = decryptedMap[msg._id] || msg.plainText || msg.text || ''
-    if (!plain) return
+  // Helper: Format message timestamp into WhatsApp copy standard [HH:mm, DD/MM/YYYY]
+  const formatMessageTimestamp = (createdAt) => {
+    const d = createdAt ? new Date(createdAt) : new Date()
+    if (isNaN(d.getTime())) return ''
+    const hh = d.getHours().toString().padStart(2, '0')
+    const mm = d.getMinutes().toString().padStart(2, '0')
+    const day = d.getDate().toString().padStart(2, '0')
+    const month = (d.getMonth() + 1).toString().padStart(2, '0')
+    const year = d.getFullYear()
+    return `${hh}:${mm}, ${day}/${month}/${year}`
+  }
+
+  const handleCopySelected = async (target) => {
+    const msgs = Array.isArray(target) ? target : [target].filter(Boolean)
+    if (msgs.length === 0) return
+
+    // Sort chronologically
+    const sorted = [...msgs].sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.timestamp || 0).getTime()
+      const timeB = new Date(b.createdAt || b.timestamp || 0).getTime()
+      return timeA - timeB
+    })
+
+    let copyText = ''
+
+    if (sorted.length === 1) {
+      // Single message: simple plain text or caption
+      const m = sorted[0]
+      const plain = decryptedMap[m._id] || m.plainText || m.text || ''
+      if (plain) {
+        copyText = plain
+      } else if (m.imageUrl || m.imageUrls?.length) {
+        copyText = `[Foto] ${m.caption || ''}`.trim()
+      } else if (m.audioUrl) {
+        copyText = `[Pesan Suara]`.trim()
+      }
+    } else {
+      // Multi-selection: WhatsApp standard formatting [HH:mm, DD/MM/YYYY] Sender: Message
+      const formattedLines = sorted.map((m) => {
+        const timeStr = formatMessageTimestamp(m.createdAt)
+        const senderName = m.isOwn
+          ? (currentUser?.displayName || currentUser?.username || 'You')
+          : (m.sender?.displayName || m.sender?.username || 'Member')
+        
+        let content = decryptedMap[m._id] || m.plainText || m.text || ''
+        if (!content) {
+          if (m.imageUrl || m.imageUrls?.length) {
+            content = `[Foto] ${m.caption || ''}`.trim()
+          } else if (m.audioUrl) {
+            content = `[Pesan Suara]`
+          } else {
+            content = m.systemText || ''
+          }
+        }
+        return `[${timeStr}] ${senderName}: ${content}`
+      })
+      copyText = formattedLines.join('\n\n')
+    }
+
+    if (!copyText.trim()) return
+
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(plain)
+        await navigator.clipboard.writeText(copyText)
       } else {
         const textarea = document.createElement('textarea')
-        textarea.value = plain
+        textarea.value = copyText
         document.body.appendChild(textarea)
         textarea.select()
         document.execCommand('copy')
@@ -452,18 +509,26 @@ export default function ChatRoom({
     setSelectedMessages([])
   }
 
-  const handleDownloadSelected = (msg) => {
-    if (!msg) return
-    const url = msg.imageUrls?.[0] || msg.imageUrl || msg.audioUrl
-    if (!url) return
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `media_${msg._id || Date.now()}`
-    a.target = '_blank'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    triggerToast(t('download'))
+  const handleDownloadSelected = (target) => {
+    const msgs = Array.isArray(target) ? target : [target].filter(Boolean)
+    if (msgs.length === 0) return
+
+    msgs.forEach((msg, idx) => {
+      const urls = msg.imageUrls?.length ? msg.imageUrls : [msg.imageUrl || msg.audioUrl].filter(Boolean)
+      urls.forEach((url, subIdx) => {
+        setTimeout(() => {
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `media_${msg._id || Date.now()}_${subIdx + 1}`
+          a.target = '_blank'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+        }, (idx + subIdx) * 200)
+      })
+    })
+
+    triggerToast(t('directDownload'))
     setSelectedMessages([])
   }
 

@@ -10,6 +10,7 @@ import {
   ShieldOff,
   UserMinus,
   UserPlus,
+  UserCheck,
   LogOut,
   Loader2,
   Search,
@@ -266,8 +267,52 @@ export default function GroupInfoModal({
     }
   }
 
+  // ── Transfer Group Ownership ──
+  const handleTransferOwner = (member) => {
+    const memberName = member.displayName || member.username
+    setConfirmModal({
+      title: t('transferOwnerConfirmTitle'),
+      message: `${t('transferOwnerConfirmMsg')} (${memberName})?`,
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          const res = await fetch(getApiUrl(`/api/conversations/${contact.conversationId}/admin`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ targetUserId: member._id, action: 'transfer_owner' }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.message || 'Failed to transfer ownership')
+          onGroupUpdated?.(data)
+        } catch (err) {
+          console.error(err)
+          setError(err.message)
+        } finally {
+          setConfirmModal(null)
+        }
+      },
+    })
+  }
+
   // ── Leave Group ──
   const handleLeaveGroup = () => {
+    const initiatorId = contact?.initiator?._id?.toString() || contact?.initiator?.toString()
+    const currentUserId = currentUser?.id?.toString()
+    const isOwner = initiatorId === currentUserId
+
+    const otherParticipants = (participants || []).filter(
+      p => (p._id?.toString() || p.toString()) !== currentUserId
+    )
+
+    // If owner tries to leave while other participants exist, block and warn to transfer ownership first
+    if (isOwner && otherParticipants.length > 0) {
+      setError(t('ownerCannotLeaveMsg'))
+      return
+    }
+
     setConfirmModal({
       title: t('leaveGroupConfirmTitle'),
       message: t('leaveGroupConfirmMsg'),
@@ -278,8 +323,8 @@ export default function GroupInfoModal({
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
           })
+          const data = await res.json()
           if (!res.ok) {
-            const data = await res.json()
             throw new Error(data.message || 'Failed to leave group')
           }
           onGroupLeft?.(contact.conversationId)
@@ -595,36 +640,53 @@ export default function GroupInfoModal({
                           </div>
                         </div>
 
-                        {/* Admin Action Menu for other members (cannot kick or unadmin group owner) */}
-                        {isAdmin && !isSelf && !isOwner && (
+                        {/* Admin / Owner Action Menu for other members */}
+                        {!isSelf && (
                           <div className="flex items-center gap-1">
-                            {!isMemberAdmin ? (
+                            {/* If current logged-in user is Owner, provide Transfer Ownership action */}
+                            {currentUser?.id?.toString() === ownerId && (
                               <button
                                 type="button"
-                                onClick={() => handleToggleAdminRole(member, false)}
-                                className="p-1.5 text-zinc-400 hover:text-amber-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                                title={t('makeAdminConfirmTitle')}
+                                onClick={() => handleTransferOwner(member)}
+                                className="p-1.5 text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                                title={t('transferOwner')}
                               >
-                                <Crown size={15} />
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleToggleAdminRole(member, true)}
-                                className="p-1.5 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                                title={t('dismissAdminConfirmTitle')}
-                              >
-                                <ShieldOff size={15} />
+                                <UserCheck size={15} />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(member)}
-                              className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                              title={t('removeMemberConfirmTitle')}
-                            >
-                              <UserMinus size={15} />
-                            </button>
+
+                            {/* Admin actions (make/dismiss admin, kick) */}
+                            {isAdmin && !isOwner && (
+                              <>
+                                {!isMemberAdmin ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleAdminRole(member, false)}
+                                    className="p-1.5 text-zinc-400 hover:text-amber-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                                    title={t('makeAdminConfirmTitle')}
+                                  >
+                                    <Crown size={15} />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleAdminRole(member, true)}
+                                    className="p-1.5 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                                    title={t('dismissAdminConfirmTitle')}
+                                  >
+                                    <ShieldOff size={15} />
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveMember(member)}
+                                  className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                                  title={t('removeMemberConfirmTitle')}
+                                >
+                                  <UserMinus size={15} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>

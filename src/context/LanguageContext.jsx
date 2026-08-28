@@ -239,6 +239,14 @@ const translations = {
     installPingApp: 'Install Aplikasi Ping!',
     pwaBannerSubtitle: 'Akses cepat layar penuh',
     laterBtn: 'Nanti',
+
+    // Group Ownership & Leaving Logic
+    ownerCannotLeaveMsg: 'Sebagai pemilik grup, Anda harus memindahkan kepemilikan grup ke anggota lain terlebih dahulu sebelum keluar.',
+    transferOwner: 'Pindahkan Kepemilikan',
+    transferOwnerConfirmTitle: 'Pindahkan Pemilik Grup?',
+    transferOwnerConfirmMsg: 'Jadikan anggota ini sebagai Pemilik utama grup ini?',
+    ownerTransferredSuccess: 'Kepemilikan grup berhasil dipindahkan',
+    groupDissolvedNotice: 'Grup dibubarkan karena pembuat grup keluar sebelum anggota lain bergabung.',
   },
   en: {
     // App & Nav
@@ -479,6 +487,14 @@ const translations = {
     installPingApp: 'Install Ping! App',
     pwaBannerSubtitle: 'Full screen quick access',
     laterBtn: 'Later',
+
+    // Group Ownership & Leaving Logic
+    ownerCannotLeaveMsg: 'As the group owner, you must transfer ownership to another member before leaving the group.',
+    transferOwner: 'Transfer Ownership',
+    transferOwnerConfirmTitle: 'Transfer Group Ownership?',
+    transferOwnerConfirmMsg: 'Make this member the primary Owner of this group?',
+    ownerTransferredSuccess: 'Group ownership transferred successfully',
+    groupDissolvedNotice: 'The group was dissolved because the creator left before other members joined.',
   }
 }
 

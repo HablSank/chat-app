@@ -65,8 +65,15 @@ export default function ChatHeader({
       ? (contact?.participants || contact?.members || []).map((m) => m?.displayName || m?.username || m?.name || 'Member').join(', ') || 'Group'
       : ''
   )
-  const hasMedia = !!(selectedMsg?.imageUrl || selectedMsg?.imageUrls?.length || selectedMsg?.audioUrl)
-  const hasText = !!(selectedMsg?.text || selectedMsg?.plainText)
+  // Filter: Download icon ONLY visible when ALL selected messages contain media (no plain text only)
+  const isOnlyMediaSelected = isSelectionMode && selectedMessages.every(
+    (m) => !!(m?.imageUrl || m?.imageUrls?.length || m?.audioUrl)
+  )
+
+  // Copy icon visible if ANY selected message contains text or caption
+  const hasCopyableContent = isSelectionMode && selectedMessages.some(
+    (m) => !!(m?.text || m?.plainText || m?.systemText || m?.imageUrl || m?.imageUrls?.length)
+  )
 
   // Close dropdown menu when clicking outside
   useEffect(() => {
@@ -124,12 +131,12 @@ export default function ChatHeader({
             </button>
           )}
 
-          {/* Copy (if has text) */}
-          {hasText && (
+          {/* Copy (if has content) */}
+          {hasCopyableContent && (
             <button
               type="button"
               id="header-copy-btn"
-              onClick={() => onCopySelected?.(selectedMsg)}
+              onClick={() => onCopySelected?.(selectedMessages)}
               className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
               title={t('copy')}
             >
@@ -137,12 +144,12 @@ export default function ChatHeader({
             </button>
           )}
 
-          {/* Direct Download Icon (if media) */}
-          {hasMedia && (
+          {/* Direct Download Icon (ONLY if ALL selected messages are media) */}
+          {isOnlyMediaSelected && (
             <button
               type="button"
               id="header-download-btn"
-              onClick={() => onDownloadSelected?.(selectedMsg)}
+              onClick={() => onDownloadSelected?.(selectedMessages)}
               className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
               title={t('directDownload')}
             >

@@ -38,6 +38,7 @@ export function useSocket({
   onGroupCreated,
   onGroupUpdated,
   onConversationUpdated,
+  onGroupDissolved,
 }) {
   const { user } = useAuth()
   const socketRef          = useRef(null)
@@ -56,6 +57,7 @@ export function useSocket({
   const onGroupCreatedRef   = useRef(onGroupCreated)
   const onGroupUpdatedRef   = useRef(onGroupUpdated)
   const onConversationUpdatedRef = useRef(onConversationUpdated)
+  const onGroupDissolvedRef = useRef(onGroupDissolved)
 
   // Sync refs each render
   useEffect(() => { onMessageRef.current      = onMessage        }, [onMessage])
@@ -73,6 +75,7 @@ export function useSocket({
   useEffect(() => { onGroupCreatedRef.current   = onGroupCreated   }, [onGroupCreated])
   useEffect(() => { onGroupUpdatedRef.current   = onGroupUpdated   }, [onGroupUpdated])
   useEffect(() => { onConversationUpdatedRef.current = onConversationUpdated }, [onConversationUpdated])
+  useEffect(() => { onGroupDissolvedRef.current = onGroupDissolved }, [onGroupDissolved])
 
   // Create the socket once on mount, tear down on unmount
   useEffect(() => {
@@ -163,6 +166,7 @@ export function useSocket({
       onGroupCreatedRef.current?.(data)
     })
     socket.on('group:updated',        (data)    => onGroupUpdatedRef.current?.(data))
+    socket.on('group:dissolved',      (data)    => onGroupDissolvedRef.current?.(data))
     socket.on('conversation:updated', (data)    => onConversationUpdatedRef.current?.(data))
 
     return () => {
