@@ -4,7 +4,6 @@ import { Paperclip, Send, X, Loader2, ImageIcon, Mic, Trash2, CornerUpLeft, Volu
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
-import { validateFile, stripExifFromImage } from '../utils/imageUtils'
 import GiphyPicker from './GiphyPicker'
 
 export default function ChatInput({
@@ -76,30 +75,11 @@ export default function ChatInput({
     }
   }
 
-  const handleImageSelect = async (e) => {
-    const rawFiles = Array.from(e.target.files).slice(0, 4 - imageFiles.length)
-    if (rawFiles.length === 0) return
-
-    const validFiles = []
-    for (const f of rawFiles) {
-      const check = validateFile(f, false)
-      if (!check.valid) {
-        alert(check.error)
-      } else {
-        validFiles.push(f)
-      }
-    }
-
-    if (validFiles.length === 0) {
-      e.target.value = ''
-      return
-    }
-
-    // Strip EXIF metadata before generating previews or queueing upload
-    const cleanFiles = await Promise.all(validFiles.map(f => stripExifFromImage(f)))
-
-    setImageFiles(prev => [...prev, ...cleanFiles].slice(0, 4))
-    const newPreviews = cleanFiles.map(f => URL.createObjectURL(f))
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files).slice(0, 4 - imageFiles.length)
+    if (files.length === 0) return
+    setImageFiles(prev => [...prev, ...files].slice(0, 4))
+    const newPreviews = files.map(f => URL.createObjectURL(f))
     setPreviews(prev => [...prev, ...newPreviews].slice(0, 4))
     e.target.value = ''
   }
@@ -181,12 +161,6 @@ export default function ChatInput({
       audioChunksRef.current = []
       setIsRecording(false)
       setRecordSeconds(0)
-
-      const audioCheck = validateFile(audioBlob, true)
-      if (!audioCheck.valid) {
-        alert(audioCheck.error)
-        return
-      }
 
       setIsUploadingAudio(true)
       try {

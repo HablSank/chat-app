@@ -47,12 +47,6 @@ const conversationSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    pendingMembers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-      },
-    ],
     status: {
       type: String,
       enum: ['pending', 'accepted', 'rejected'],

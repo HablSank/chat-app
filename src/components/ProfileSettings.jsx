@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
-import { validateFile, stripExifFromImage } from '../utils/imageUtils'
 import PWAInstallGuideModal from './PWAInstallGuideModal'
 
 const STATUS_OPTIONS = [
@@ -94,21 +93,12 @@ export default function ProfileSettings({ isOpen, onClose }) {
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0]
     if (file) {
-      const validation = validateFile(file, false)
-      if (!validation.valid) {
-        setError(validation.error)
-        e.target.value = ''
-        return
-      }
-      setError('')
-
       try {
-        const cleanFile = await stripExifFromImage(file)
-        const compressed = await compressImage(cleanFile, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
+        const compressed = await compressImage(file, { maxWidth: 500, maxHeight: 500, quality: 0.7 })
         setAvatarFile(compressed)
         setAvatarPreview(URL.createObjectURL(compressed))
       } catch (err) {
-        console.warn('Image processing fallback:', err)
+        console.warn('Image compression fallback:', err)
         setAvatarFile(file)
         setAvatarPreview(URL.createObjectURL(file))
       }

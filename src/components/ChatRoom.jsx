@@ -48,34 +48,6 @@ function formatLastSeen(lastSeenDate) {
   }
 }
 
-function getDateSeparatorLabel(dateStr) {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  if (isNaN(date.getTime())) return ''
-
-  const today = new Date()
-  const yesterday = new Date()
-  yesterday.setDate(today.getDate() - 1)
-
-  const isSameDay = (d1, d2) =>
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate()
-
-  if (isSameDay(date, today)) {
-    return 'Hari ini'
-  }
-  if (isSameDay(date, yesterday)) {
-    return 'Kemarin'
-  }
-
-  return date.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-}
-
 // ── Notification Toast ────────────────────────────────────────────────────────
 function Toast({ message, visible }) {
   return (
@@ -307,76 +279,92 @@ export default function ChatRoom({
           onBack={onBack}
           onOpenProfile={() => setShowFriendProfile(true)}
           onOpenGroupInfo={() => setIsGroupInfoOpen(true)}
-          onToggleSearch={() => {
-            setIsSearchOpen(prev => !prev)
-            setSearchQuery('')
-            setCurrentMatchIdx(0)
-          }}
-          onToggleMediaSidebar={() => setIsMediaSidebarOpen(prev => !prev)}
+          groupMemberNames={groupMemberNames}
+          formatLastSeen={formatLastSeen}
+          isSearchOpen={isSearchOpen}
+          onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
+          isMediaSidebarOpen={isMediaSidebarOpen}
+          onToggleMediaSidebar={() => setIsMediaSidebarOpen((prev) => !prev)}
           isVanishMode={isVanishMode}
-          onToggleVanishMode={() => setIsVanishMode(prev => !prev)}
-          onVoiceCall={() => onVoiceCall?.(contact)}
-          onVideoCall={() => onVideoCall?.(contact)}
-          onClearChat={onClearChat}
-          onDeleteChat={onDeleteChat}
+          onToggleVanish={handleToggleVanish}
+          onVoiceCall={() => triggerToast('🚀 Panggilan Suara segera hadir!')}
+          onVideoCall={() => triggerToast('🚀 Panggilan Video segera hadir!')}
+          onClearChat={() => triggerToast('🧹 Fitur Bersihkan Chat segera hadir!')}
         />
 
-        {/* ── In-Chat Search Bar Overlay ─────────────────── */}
+        {/* ── Client-Side E2EE Message Search Bar ──────────────────────── */}
         <AnimatePresence>
           {isSearchOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-zinc-900/95 border-b border-zinc-800 px-4 py-2.5 flex items-center gap-2 z-20 backdrop-blur-md overflow-hidden"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-b border-zinc-800/80 bg-zinc-950/90 px-4 py-2 flex items-center gap-2 text-xs shadow-inner"
             >
-              <Search size={16} className="text-zinc-400 flex-shrink-0" />
+              <Search size={14} className="text-zinc-500 flex-shrink-0" />
               <input
+                id="chat-search-input"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value)
                   setCurrentMatchIdx(0)
                 }}
-                placeholder="Search messages in this chat..."
+                placeholder="Search decrypted messages in chat..."
+                className="flex-1 bg-transparent text-xs text-zinc-100 placeholder-zinc-500 outline-none"
                 autoFocus
-                className="bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none flex-1 min-w-0"
               />
-              {searchQuery && (
-                <div className="flex items-center gap-1.5 flex-shrink-0 text-xs text-zinc-400">
-                  <span>
-                    {matchedMessageIds.length > 0 ? `${currentMatchIdx + 1} of ${matchedMessageIds.length}` : '0 results'}
+
+              {/* Match counter & Navigation */}
+              {searchQuery.trim() && (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    {matchedMessageIds.length > 0
+                      ? `${currentMatchIdx + 1} of ${matchedMessageIds.length}`
+                      : '0 matches'}
                   </span>
-                  <div className="flex items-center">
-                    <button
-                      onClick={handlePrevMatch}
-                      disabled={matchedMessageIds.length === 0}
-                      className="p-1 hover:bg-zinc-800 rounded text-zinc-300 disabled:opacity-30 cursor-pointer"
-                      title="Previous match"
-                    >
-                      <ChevronUp size={15} />
-                    </button>
-                    <button
-                      onClick={handleNextMatch}
-                      disabled={matchedMessageIds.length === 0}
-                      className="p-1 hover:bg-zinc-800 rounded text-zinc-300 disabled:opacity-30 cursor-pointer"
-                      title="Next match"
-                    >
-                      <ChevronDown size={15} />
-                    </button>
-                  </div>
+
+                  <button
+                    type="button"
+                    disabled={matchedMessageIds.length === 0}
+                    onClick={() =>
+                      setCurrentMatchIdx((prev) =>
+                        prev > 0 ? prev - 1 : matchedMessageIds.length - 1
+                      )
+                    }
+                    className="w-6 h-6 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    title="Previous match"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={matchedMessageIds.length === 0}
+                    onClick={() =>
+                      setCurrentMatchIdx((prev) =>
+                        prev < matchedMessageIds.length - 1 ? prev + 1 : 0
+                      )
+                    }
+                    className="w-6 h-6 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    title="Next match"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
                 </div>
               )}
+
               <button
+                type="button"
                 onClick={() => {
                   setIsSearchOpen(false)
                   setSearchQuery('')
                   setCurrentMatchIdx(0)
                 }}
-                className="p-1 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-full cursor-pointer ml-1"
+                className="w-6 h-6 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center cursor-pointer transition-colors"
+                title="Close search"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </motion.div>
           )}
@@ -385,8 +373,10 @@ export default function ChatRoom({
         {/* ── Pinned Message Banner ──────────────────────── */}
         <AnimatePresence>
           {pinnedMessages.length > 0 && (
-            <PinnedBanner
-              pinnedMessages={pinnedMessages}
+            <PinnedMessageBanner
+              key={pinnedMessages[pinnedMessages.length - 1]._id}
+              message={pinnedMessages[pinnedMessages.length - 1]}
+              decryptedText={decryptedMap[pinnedMessages[pinnedMessages.length - 1]._id]}
               onScrollTo={() => {
                 const latestPinned = pinnedMessages[pinnedMessages.length - 1]
                 if (latestPinned) {
@@ -405,12 +395,7 @@ export default function ChatRoom({
           className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
         >
           {messages.length > 0 ? (
-            messages.map((msg, index) => {
-              const msgDateStr = new Date(msg.createdAt).toDateString()
-              const prevDateStr = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null
-              const isNewDay = index === 0 || msgDateStr !== prevDateStr
-              const dateLabel = getDateSeparatorLabel(msg.createdAt)
-
+            messages.map((msg) => {
               const isOwn = (msg.sender?._id || msg.sender) === currentUser.id
               const displayMsg = {
                 _id:       msg._id,
@@ -440,28 +425,20 @@ export default function ChatRoom({
               const isCurrentMatch = isSearchResult && matchedMessageIds[currentMatchIdx] === msg._id
 
               return (
-                <div key={msg._id} className="space-y-2">
-                  {isNewDay && dateLabel && (
-                    <div className="flex justify-center my-3 select-none sticky top-2 z-10">
-                      <span className="bg-zinc-800/90 border border-zinc-700/60 backdrop-blur-md text-zinc-400 text-[11px] font-semibold px-3.5 py-1 rounded-full shadow-md">
-                        {dateLabel}
-                      </span>
-                    </div>
-                  )}
-                  <MessageBubble
-                    message={displayMsg}
-                    onReact={onReact}
-                    onReply={(targetMsg) => setReplyingTo(targetMsg)}
-                    onEdit={(targetMsg) => setEditingMessage(targetMsg)}
-                    onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
-                    onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
-                    conversationId={contact.conversationId}
-                    isGroup={contact.isGroup}
-                    totalParticipants={contact.participants?.length || 2}
-                    isSearchResult={isSearchResult}
-                    isCurrentMatch={isCurrentMatch}
-                  />
-                </div>
+                <MessageBubble
+                  key={msg._id}
+                  message={displayMsg}
+                  onReact={onReact}
+                  onReply={(targetMsg) => setReplyingTo(targetMsg)}
+                  onEdit={(targetMsg) => setEditingMessage(targetMsg)}
+                  onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
+                  onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
+                  conversationId={contact.conversationId}
+                  isGroup={contact.isGroup}
+                  totalParticipants={contact.participants?.length || 2}
+                  isSearchResult={isSearchResult}
+                  isCurrentMatch={isCurrentMatch}
+                />
               )
             })
           ) : (
@@ -495,39 +472,7 @@ export default function ChatRoom({
         </div>
 
         {/* ── Fixed Bottom Input or Banner ───────────────────────── */}
-        {isGroupInvite ? (
-          <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
-            <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center mx-auto mb-2.5 shadow-inner">
-                <Users size={20} />
-              </div>
-              <p className="text-sm text-zinc-100 font-semibold mb-1">
-                Undangan Bergabung ke Grup
-              </p>
-              <p className="text-xs text-zinc-400 mb-3.5">
-                Anda diundang untuk bergabung ke grup <strong>"{contact.name}"</strong>. Terima undangan untuk membaca pesan dan mulai mengobrol.
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <motion.button
-                  onClick={onReject}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-6 py-2 rounded-xl bg-zinc-700 hover:bg-rose-500/80 text-zinc-200 text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  Tolak
-                </motion.button>
-                <motion.button
-                  onClick={onAccept}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-6 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold transition-colors cursor-pointer shadow-lg shadow-indigo-500/30"
-                >
-                  Gabung Grup
-                </motion.button>
-              </div>
-            </div>
-          </div>
-        ) : isReceiver ? (
+        {isReceiver ? (
           <div className="flex-shrink-0 p-4 border-t border-zinc-800 bg-zinc-900">
             <div className="bg-zinc-800/90 rounded-2xl p-4 text-center border border-zinc-700/50 shadow-xl max-w-lg mx-auto">
               <p className="text-sm text-zinc-100 font-semibold mb-1">
