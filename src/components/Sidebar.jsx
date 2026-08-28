@@ -408,7 +408,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
   return (
     <>
-      <div className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-zinc-900 border-r border-zinc-800 relative select-none">
+      <div id="sidebar-container" className="w-full md:w-80 lg:w-96 h-full flex flex-col bg-zinc-900 border-r border-zinc-800 relative select-none">
         {/* Floating Feedback Toast */}
         <AnimatePresence>
           {showToast && (
@@ -425,7 +425,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         </AnimatePresence>
 
         {/* ── User Header ─────────────────────────────── */}
-        <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 flex-shrink-0">
+        <div id="sidebar-user-header" className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-900/50 flex-shrink-0">
           <div
             onClick={() => setIsProfileOpen?.(true)}
             className="flex items-center gap-3 min-w-0 cursor-pointer group"
@@ -509,7 +509,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
 
         {/* ── Search Bar ──────────────────────────────── */}
         <div className="p-3 flex-shrink-0">
-          <div className="flex items-center gap-2 bg-zinc-800/80 px-3.5 py-2.5 rounded-xl border border-zinc-700/50 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all">
+          <div id="sidebar-search-container" className="flex items-center gap-2 bg-zinc-800/80 px-3.5 py-2.5 rounded-xl border border-zinc-700/50 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all">
             <Search size={16} className="text-zinc-400 flex-shrink-0" />
             <input
               ref={searchInputRef}
@@ -585,7 +585,8 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               {/* Archive Folder Row if there are archived chats */}
               {archivedConversations.length > 0 && (
                 <motion.button
-                  whileHover={{ backgroundColor: 'rgba(39,39,42,0.6)' }}
+                  id="sidebar-archive-btn"
+                  whileHover={{ scale: 1.01 }}
                   onClick={() => setIsViewingArchive(true)}
                   className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-zinc-300 hover:text-white transition-colors cursor-pointer mb-2 bg-zinc-800/30 border border-zinc-800"
                 >

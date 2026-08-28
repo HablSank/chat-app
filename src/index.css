@@ -57,9 +57,45 @@
     color: #0f172a !important;
   }
 
+  html.light #sidebar-container,
+  html.light-theme #sidebar-container {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light #sidebar-user-header,
+  html.light-theme #sidebar-user-header {
+    background-color: #ffffff !important;
+    border-color: #f1f5f9 !important;
+  }
+
+  html.light #sidebar-search-container,
+  html.light-theme #sidebar-search-container {
+    background-color: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  html.light #sidebar-search,
+  html.light-theme #sidebar-search {
+    background-color: transparent !important;
+    color: #0f172a !important;
+  }
+
+  html.light #sidebar-search::placeholder,
+  html.light-theme #sidebar-search::placeholder {
+    color: #94a3b8 !important;
+  }
+
+  html.light #sidebar-archive-btn,
+  html.light-theme #sidebar-archive-btn {
+    background-color: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #0f172a !important;
+  }
+
   html.light .bg-zinc-950,
   html.light-theme .bg-zinc-950 {
-    background-color: #f1f5f9 !important;
+    background-color: #f8fafc !important;
   }
 
   html.light .bg-zinc-900,
@@ -73,7 +109,7 @@
   html.light-theme .bg-zinc-950\/50,
   html.light .bg-zinc-950\/60,
   html.light-theme .bg-zinc-950\/60 {
-    background-color: rgba(241, 245, 249, 0.8) !important;
+    background-color: rgba(248, 250, 252, 0.85) !important;
   }
 
   html.light .bg-zinc-850,
@@ -83,10 +119,21 @@
     background-color: #f1f5f9 !important;
   }
 
+  html.light .bg-zinc-800\/80,
+  html.light-theme .bg-zinc-800\/80,
+  html.light .bg-zinc-800\/60,
+  html.light-theme .bg-zinc-800\/60,
+  html.light .bg-zinc-800\/30,
+  html.light-theme .bg-zinc-800\/30 {
+    background-color: #f1f5f9 !important;
+  }
+
   html.light .border-zinc-800,
   html.light-theme .border-zinc-800,
   html.light .border-zinc-700,
   html.light-theme .border-zinc-700,
+  html.light .border-zinc-700\/50,
+  html.light-theme .border-zinc-700\/50,
   html.light .border-zinc-800\/80,
   html.light-theme .border-zinc-800\/80 {
     border-color: #e2e8f0 !important;
@@ -99,6 +146,11 @@
     color: #0f172a !important;
   }
 
+  html.light .text-zinc-300,
+  html.light-theme .text-zinc-300 {
+    color: #334155 !important;
+  }
+
   html.light .text-zinc-400,
   html.light-theme .text-zinc-400,
   html.light .text-zinc-500,
@@ -106,8 +158,8 @@
     color: #64748b !important;
   }
 
-  html.light input,
-  html.light-theme input,
+  html.light input:not(#sidebar-search),
+  html.light-theme input:not(#sidebar-search),
   html.light textarea,
   html.light-theme textarea {
     background-color: #ffffff !important;
