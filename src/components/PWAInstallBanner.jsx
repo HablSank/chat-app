@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Download, X, Sparkles } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
+import { useLanguage } from '../context/LanguageContext'
 import PWAInstallGuideModal from './PWAInstallGuideModal'
 
 export default function PWAInstallBanner() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+  const { t } = useLanguage()
   const [isDismissed, setIsDismissed] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
 
@@ -57,12 +59,12 @@ export default function PWAInstallBanner() {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-zinc-100 flex items-center gap-1">
-                  Install Ping! App
+                  {t('installPingApp')}
                   <Sparkles size={12} className="text-indigo-400" />
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400 leading-tight truncate mt-0.5">
-                Full-screen & tanpa URL bar browser
+                {t('pwaBannerSubtitle')}
               </p>
             </div>
           </div>
@@ -70,7 +72,7 @@ export default function PWAInstallBanner() {
           <button
             onClick={handleDismiss}
             className="text-zinc-500 hover:text-zinc-300 p-1 rounded-lg hover:bg-zinc-800/60 transition-colors cursor-pointer"
-            title="Tutup"
+            title={t('cancel')}
           >
             <X size={14} />
           </button>
@@ -89,7 +91,7 @@ export default function PWAInstallBanner() {
             onClick={handleDismiss}
             className="py-1.5 px-3 text-zinc-400 hover:text-zinc-200 text-xs font-medium rounded-xl hover:bg-zinc-800/80 transition-colors cursor-pointer"
           >
-            Nanti
+            {t('laterBtn')}
           </button>
         </div>
       </motion.div>

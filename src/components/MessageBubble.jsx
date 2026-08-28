@@ -1006,7 +1006,7 @@ export default function MessageBubble({
 
   const touchStartPosRef = useRef({ x: 0, y: 0 })
 
-  // ── Long-press / Selection for WhatsApp-Style Top Header Bar (~350ms with scroll cancel) ──
+  // ── Long-press / Selection for WhatsApp-Style Top Header Bar (~300ms with scroll cancel) ──
   const handleTouchStart = (e) => {
     isLongPressRef.current = false
     if (e.touches && e.touches[0]) {
@@ -1018,7 +1018,7 @@ export default function MessageBubble({
       if (navigator.vibrate) {
         try { navigator.vibrate(30) } catch {}
       }
-    }, 350)
+    }, 300)
   }
 
   const handleTouchEnd = () => {
@@ -1032,7 +1032,7 @@ export default function MessageBubble({
     if (timerRef.current && e.touches && e.touches[0]) {
       const diffX = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x)
       const diffY = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y)
-      if (diffX > 10 || diffY > 10) {
+      if (diffX > 8 || diffY > 8) {
         clearTimeout(timerRef.current)
         timerRef.current = null
       }
@@ -1295,7 +1295,7 @@ export default function MessageBubble({
                   <div
                     style={isOwn && customTheme?.bubbleColor ? { backgroundColor: customTheme.bubbleColor } : {}}
                     className={`
-                      px-3.5 py-2 text-sm leading-relaxed break-words select-text relative
+                      px-3.5 py-2 text-sm leading-relaxed break-words select-none touch-callout-none relative
                       ${isOwn
                         ? `${!customTheme?.bubbleColor ? 'bg-indigo-500/90' : ''} text-white rounded-2xl rounded-br-sm shadow-sm`
                         : 'bg-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm'}

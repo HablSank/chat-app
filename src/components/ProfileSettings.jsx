@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Camera, Loader2, CheckCircle, ChevronDown, Check, Download, Smartphone } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
@@ -37,6 +38,7 @@ const panelVariants = {
 
 export default function ProfileSettings({ isOpen, onClose }) {
   const { user, token, updateUser } = useAuth()
+  const { t } = useLanguage()
 
   const [displayName, setDisplayName] = useState(user?.displayName || '')
   const [bio, setBio]                 = useState(user?.bio || '')
@@ -391,8 +393,8 @@ export default function ProfileSettings({ isOpen, onClose }) {
                         <Smartphone size={16} />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-zinc-200 truncate">Install Aplikasi Ping!</p>
-                        <p className="text-[10px] text-zinc-400 truncate">Akses cepat layar penuh</p>
+                        <p className="text-xs font-semibold text-zinc-200 truncate">{t('installPingApp')}</p>
+                        <p className="text-[10px] text-zinc-400 truncate">{t('pwaBannerSubtitle')}</p>
                       </div>
                     </div>
                     <button

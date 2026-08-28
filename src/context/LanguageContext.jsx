@@ -215,6 +215,9 @@ const translations = {
     // Theme Modal i18n
     themeModalTitle: 'Tema & Wallpaper Chat',
     themeModalSubtitle: 'Sesuaikan warna balon chat dan gambar latar khusus room ini.',
+    livePreviewHeader: 'Pratinjau Langsung',
+    dummyAiMessage: 'Halo! Wallpaper & tema chat terlihat estetik ✨',
+    dummyUserMessage: 'Keren banget, warna balon & temanya pas! 🔥',
     presetThemesSection: 'Pilihan Tema Preset',
     customColorSection: 'Warna Balon Chat Kustom',
     wallpaperSection: 'Wallpaper Latar Chat',
@@ -223,6 +226,19 @@ const translations = {
     resetDefaultTheme: 'Reset Default',
     saveThemeChanges: 'Simpan Tema',
     noWallpaper: 'Tanpa Wallpaper',
+
+    // Theme Preset Descriptions
+    themeDescDefault: 'Tema indigo modern klasik Ping!',
+    themeDescRose: 'Nuansa romantis & hangat warna mawar',
+    themeDescEmerald: 'Sentuhan segar & menenangkan hijau zamrud',
+    themeDescNeon: 'Estetika futuristik neon pink & cyan',
+    themeDescSapphire: 'Elegan, dalam, dan fokus warna sapphire',
+    themeDescSunset: 'Nuansa hangat senja jingga keemasan',
+
+    // PWA Banner i18n
+    installPingApp: 'Install Aplikasi Ping!',
+    pwaBannerSubtitle: 'Akses cepat layar penuh',
+    laterBtn: 'Nanti',
   },
   en: {
     // App & Nav
@@ -439,6 +455,9 @@ const translations = {
     // Theme Modal i18n
     themeModalTitle: 'Chat Theme & Wallpaper',
     themeModalSubtitle: 'Customize bubble colors and background wallpaper specifically for this chat room.',
+    livePreviewHeader: 'Live Preview',
+    dummyAiMessage: 'Hello! Chat wallpaper & theme looking fresh ✨',
+    dummyUserMessage: 'Awesome, bubble colors & theme look perfect! 🔥',
     presetThemesSection: 'Preset Theme Options',
     customColorSection: 'Custom Bubble Color',
     wallpaperSection: 'Chat Wallpaper',
@@ -447,6 +466,19 @@ const translations = {
     resetDefaultTheme: 'Reset Default',
     saveThemeChanges: 'Save Theme',
     noWallpaper: 'No Wallpaper',
+
+    // Theme Preset Descriptions
+    themeDescDefault: 'Classic modern Ping! indigo theme',
+    themeDescRose: 'Warm & romantic rose petal hues',
+    themeDescEmerald: 'Fresh & calming emerald green touch',
+    themeDescNeon: 'Futuristic neon pink & cyan aesthetic',
+    themeDescSapphire: 'Elegant, deep & focused sapphire color',
+    themeDescSunset: 'Warm golden evening sunset twilight',
+
+    // PWA Banner i18n
+    installPingApp: 'Install Ping! App',
+    pwaBannerSubtitle: 'Full screen quick access',
+    laterBtn: 'Later',
   }
 }
 

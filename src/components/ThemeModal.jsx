@@ -14,6 +14,7 @@ export const PRESET_THEMES = [
     wallpaperUrl: '',
     gradient: 'from-indigo-600 to-violet-600',
     description: 'Tema indigo modern klasik Ping!',
+    descriptionKey: 'themeDescDefault',
   },
   {
     id: 'rose',
@@ -22,6 +23,7 @@ export const PRESET_THEMES = [
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(244,63,94,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(159,18,57,0.15), transparent 60%)',
     gradient: 'from-rose-500 to-pink-600',
     description: 'Nuansa romantis & hangat warna mawar',
+    descriptionKey: 'themeDescRose',
   },
   {
     id: 'emerald',
@@ -30,6 +32,7 @@ export const PRESET_THEMES = [
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(4,120,87,0.15), transparent 60%)',
     gradient: 'from-emerald-500 to-teal-600',
     description: 'Sentuhan segar & menenangkan hijau zamrud',
+    descriptionKey: 'themeDescEmerald',
   },
   {
     id: 'neon',
@@ -38,6 +41,7 @@ export const PRESET_THEMES = [
     wallpaperUrl: 'radial-gradient(circle at 20% 20%, rgba(217,70,239,0.2), transparent 45%), radial-gradient(circle at 80% 80%, rgba(6,182,212,0.2), transparent 45%)',
     gradient: 'from-fuchsia-500 via-purple-600 to-cyan-500',
     description: 'Estetika futuristik neon pink & cyan',
+    descriptionKey: 'themeDescNeon',
   },
   {
     id: 'sapphire',
@@ -46,6 +50,7 @@ export const PRESET_THEMES = [
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(37,99,235,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(30,58,138,0.22), transparent 60%)',
     gradient: 'from-blue-600 to-indigo-900',
     description: 'Elegan, dalam, dan fokus warna sapphire',
+    descriptionKey: 'themeDescSapphire',
   },
   {
     id: 'sunset',
@@ -54,6 +59,7 @@ export const PRESET_THEMES = [
     wallpaperUrl: 'radial-gradient(circle at 50% 10%, rgba(234,88,12,0.18), transparent 60%), radial-gradient(circle at 50% 90%, rgba(194,65,12,0.16), transparent 60%)',
     gradient: 'from-orange-500 to-amber-600',
     description: 'Nuansa hangat senja jingga keemasan',
+    descriptionKey: 'themeDescSunset',
   },
 ]
 
@@ -276,7 +282,7 @@ export default function ThemeModal({
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2 flex items-center gap-1.5">
                   <Sparkles size={13} className="text-indigo-400" />
-                  <span>Pratinjau Langsung</span>
+                  <span>{t('livePreviewHeader')}</span>
                 </label>
                 <div
                   className="w-full h-36 rounded-2xl border border-zinc-700/60 p-3.5 flex flex-col justify-between overflow-hidden relative shadow-inner bg-zinc-950/80 transition-all duration-300"
@@ -288,7 +294,7 @@ export default function ThemeModal({
                       AI
                     </div>
                     <div className="bg-zinc-800/90 text-zinc-100 text-xs px-3 py-1.5 rounded-2xl rounded-bl-sm border border-zinc-700/40 shadow-sm backdrop-blur-xs">
-                      Halo! Wallpaper & tema chat terlihat estetik ✨
+                      {t('dummyAiMessage')}
                     </div>
                   </div>
 
@@ -298,7 +304,7 @@ export default function ThemeModal({
                       className="text-white text-xs px-3 py-1.5 rounded-2xl rounded-br-sm shadow-md font-medium transition-colors duration-200 backdrop-blur-xs"
                       style={{ backgroundColor: bubbleColor }}
                     >
-                      Keren banget, warna balon & temanya pas! 🔥
+                      {t('dummyUserMessage')}
                     </div>
                   </div>
                 </div>
@@ -338,7 +344,7 @@ export default function ThemeModal({
                         </div>
                         <div>
                           <p className="text-xs font-bold text-zinc-200 truncate">{preset.name}</p>
-                          <p className="text-[10px] text-zinc-400 line-clamp-1">{preset.description}</p>
+                          <p className="text-[10px] text-zinc-400 line-clamp-1">{preset.descriptionKey ? t(preset.descriptionKey) : preset.description}</p>
                         </div>
                       </motion.button>
                     )
