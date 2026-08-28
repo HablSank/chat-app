@@ -26,6 +26,55 @@ self.addEventListener('message', (event) => {
   }
 })
 
+// ── Web Push Event Listener ─────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    if (event.data) {
+      data = event.data.json()
+    }
+  } catch (e) {
+    data = { title: 'Ping!', body: event.data ? event.data.text() : 'Pesan baru diterima' }
+  }
+
+  const title = data.title || 'Ping! Message'
+  const options = {
+    body: data.body || 'Anda memiliki pesan baru',
+    icon: data.icon || '/logo.png',
+    badge: data.badge || '/logo.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/',
+      conversationId: data.data?.conversationId || '',
+    },
+    actions: [
+      { action: 'open', title: 'Buka Chat' }
+    ]
+  }
+
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+// ── Notification Click Listener ─────────────────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const targetUrl = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl)
+      }
+    })
+  )
+})
+
 // Network-first strategy for navigation and HTML to ensure immediate version updates
 self.addEventListener('fetch', (event) => {
   const request = event.request

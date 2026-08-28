@@ -23,16 +23,20 @@ import { useLanguage } from '../context/LanguageContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useAutoUpdate } from '../hooks/useAutoUpdate'
 import { getApiUrl } from '../config/api'
+import { registerPushSubscription, unregisterPushSubscription } from '../utils/pushManager'
+import PWAInstallGuideModal from './PWAInstallGuideModal'
 
 export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const { token, user, updateUserPresence } = useAuth()
   const { language, setLanguage, t } = useLanguage()
-  const { isInstallable, isInstalled, promptInstall } = usePWAInstall()
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const { updateAvailable, reloadApp } = useAutoUpdate()
 
   const [activeTab, setActiveTab]             = useState('system') // 'system' | 'sound' | 'privacy' | 'security'
   const [soundMuted, setSoundMuted]           = useState(() => localStorage.getItem('ping_sound_muted') === 'true')
   const [notificationsAllowed, setNotificationsAllowed] = useState(false)
+  const [isPushLoading, setIsPushLoading]     = useState(false)
+  const [showPwaGuide, setShowPwaGuide]       = useState(false)
 
   // System update state
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
@@ -62,6 +66,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
+      setShowPwaGuide(false)
     }
   }, [isOpen])
 
@@ -82,13 +87,46 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
       return
     }
 
-    if (Notification.permission === 'granted') {
-      alert('Notifikasi desktop sudah aktif di browser ini.')
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
+    const isStandalone = (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true
+
+    // Mobile non-PWA check
+    if (isMobile && !isStandalone) {
+      if (isIOS) {
+        setShowPwaGuide(true)
+      } else {
+        const res = await promptInstall()
+        if (!res.triggered) {
+          setShowPwaGuide(true)
+        }
+      }
       return
     }
 
-    const permission = await Notification.requestPermission()
-    setNotificationsAllowed(permission === 'granted')
+    // Toggle off if already allowed
+    if (notificationsAllowed) {
+      setIsPushLoading(true)
+      await unregisterPushSubscription(token)
+      setNotificationsAllowed(false)
+      setIsPushLoading(false)
+      return
+    }
+
+    // Request permission & subscribe
+    setIsPushLoading(true)
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission === 'granted') {
+        await registerPushSubscription(token)
+        setNotificationsAllowed(true)
+      } else {
+        setNotificationsAllowed(false)
+      }
+    } catch (err) {
+      console.error('Notification activation error:', err)
+    } finally {
+      setIsPushLoading(false)
+    }
   }
 
   const handleCheckUpdate = async () => {
@@ -432,13 +470,15 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                   <button
                     type="button"
                     onClick={handleToggleNotifications}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                    disabled={isPushLoading}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50 ${
                       notificationsAllowed
                         ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
                         : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md'
                     }`}
                   >
-                    {notificationsAllowed ? t('notificationsEnabled') : t('enableNotifications')}
+                    {isPushLoading && <Loader2 size={13} className="animate-spin" />}
+                    <span>{notificationsAllowed ? t('notificationsEnabled') : t('enableNotifications')}</span>
                   </button>
                 </div>
               </motion.div>
@@ -598,6 +638,12 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
           </div>
         </motion.div>
       </div>
+
+      <PWAInstallGuideModal
+        isOpen={showPwaGuide}
+        onClose={() => setShowPwaGuide(false)}
+        isIOS={isIOS}
+      />
     </AnimatePresence>
   )
 }

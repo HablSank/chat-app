@@ -21,6 +21,7 @@ import Conversation from './models/Conversation.js'
 // Middleware
 import { protect } from './middleware/authMiddleware.js'
 import { uploadAvatar, uploadMedia, uploadMediaMulti, uploadAudio } from './config/cloudinary.js'
+import { sendWebPush, VAPID_PUBLIC_KEY } from './utils/push.js'
 
 dotenv.config()
 
@@ -212,6 +213,45 @@ app.post('/api/conversations/group-avatar', protect, uploadAvatar.single('avatar
     res.json({ avatarUrl: req.file.path })
   } catch (error) {
     console.error('Group Avatar Upload Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+// ── REST API: Web Push Subscription ─────────────────────────────────────────
+app.get('/api/push/vapid-key', (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY })
+})
+
+app.post('/api/push/subscribe', protect, async (req, res) => {
+  try {
+    const { subscription } = req.body
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ message: 'Invalid subscription object' })
+    }
+
+    const user = await User.findById(req.user._id)
+    if (!user) return res.status(404).json({ message: 'User not found' })
+
+    user.pushSubscription = subscription
+    await user.save()
+
+    res.json({ message: 'Push subscription saved successfully' })
+  } catch (error) {
+    console.error('Push Subscribe Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
+app.post('/api/push/unsubscribe', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+    if (user) {
+      user.pushSubscription = null
+      await user.save()
+    }
+    res.json({ message: 'Unsubscribed from push notifications' })
+  } catch (error) {
+    console.error('Push Unsubscribe Error:', error)
     res.status(500).json({ message: 'Server error' })
   }
 })
@@ -1862,6 +1902,41 @@ io.on('connection', (socket) => {
         ...populatedMessage.toObject(),
         conversationId: conversation._id.toString()
       })
+
+      // Send Web Push notification to offline/background recipients
+      try {
+        const senderName = populatedMessage.sender?.displayName || populatedMessage.sender?.username || 'Seseorang'
+        const pushText = populatedMessage.messageType === 'group_invite'
+          ? 'Mengundang Anda ke grup'
+          : (populatedMessage.audioUrl ? '🎵 Pesan Suara' : (populatedMessage.imageUrls?.length ? '📷 Foto' : (populatedMessage.text ? 'Pesan baru' : 'Pesan baru')))
+
+        const targetUserIds = conversation.isGroup
+          ? (conversation.participants || []).filter(p => p.toString() !== payload.from)
+          : [payload.to]
+
+        for (const targetId of targetUserIds) {
+          if (!targetId) continue
+          const targetSockets = connectedUsers.get(targetId.toString())
+          // If recipient is offline or has no active sockets in conversation room
+          if (!targetSockets || targetSockets.size === 0) {
+            const targetUser = await User.findById(targetId)
+            if (targetUser && targetUser.pushSubscription) {
+              const res = await sendWebPush(targetUser.pushSubscription, {
+                title: senderName,
+                body: pushText,
+                icon: populatedMessage.sender?.avatar || '/logo.png',
+                data: { conversationId: conversation._id.toString() },
+              })
+              if (res?.expired) {
+                targetUser.pushSubscription = null
+                await targetUser.save()
+              }
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.warn('Web push delivery error:', pushErr)
+      }
     } catch (err) {
       console.error('Error handling private message:', err)
     }
