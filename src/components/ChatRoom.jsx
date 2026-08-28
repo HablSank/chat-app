@@ -136,7 +136,7 @@ function PinnedMessageBanner({ message, decryptedText, onScrollTo, onUnpin }) {
 
 export default function ChatRoom({
   contact,
-  messages = [],
+  messages,
   onSendMessage,
   onEditMessage,
   onDeleteMessage,
@@ -155,7 +155,6 @@ export default function ChatRoom({
   currentUser,
 }) {
   const scrollRef          = useRef(null)
-  const toastTimerRef      = useRef(null)
   const [toastMessage, setToastMessage]     = useState('🚀 Feature coming soon!')
   const [showToast, setShowToast]           = useState(false)
   const [showFriendProfile, setShowFriendProfile] = useState(false)
@@ -168,29 +167,24 @@ export default function ChatRoom({
   const [searchQuery, setSearchQuery]       = useState('')
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
   const [decryptedMap, setDecryptedMap]     = useState({})
-
-  const safeMessages = Array.isArray(messages) ? messages : []
-  const safeParticipants = Array.isArray(contact?.participants) ? contact.participants : []
-  const isPending  = contact?.status === 'pending' || !!contact?.isPendingInvite
-  const isGroupInvite = !!contact?.isGroup && isPending
-  const initiatorId = contact?.initiator?._id
+  const isPending  = contact.status === 'pending'
+  const initiatorId = contact.initiator?._id
     ? contact.initiator._id.toString()
-    : (contact?.initiator ? contact.initiator.toString() : '')
+    : (contact.initiator ? contact.initiator.toString() : '')
   const currentUserId = (currentUser?.id || currentUser?._id || '').toString()
-  const isInitiator = !contact?.isGroup && isPending && initiatorId === currentUserId
-  const isReceiver = !contact?.isGroup && isPending && !isInitiator
+  const isInitiator = isPending && initiatorId === currentUserId
+  const isReceiver = isPending && !isInitiator
 
-  const pinnedMessages = safeMessages.filter(m => m?.isPinned && !m?.isDeleted)
+  const pinnedMessages = messages.filter(m => m.isPinned && !m.isDeleted)
 
   // Decrypt messages in background to enable client-side E2EE search
   useEffect(() => {
     let isMounted = true
     const decryptAll = async () => {
       const map = {}
-      for (const msg of safeMessages) {
-        if (!msg) continue
+      for (const msg of messages) {
         if (msg.text && !msg.isSystem) {
-          map[msg._id] = await decryptMessage(msg.text, contact?.conversationId)
+          map[msg._id] = await decryptMessage(msg.text, contact.conversationId)
         } else if (msg.systemText) {
           map[msg._id] = msg.systemText
         }
@@ -199,22 +193,22 @@ export default function ChatRoom({
     }
     decryptAll()
     return () => { isMounted = false }
-  }, [safeMessages, contact?.conversationId])
+  }, [messages, contact.conversationId])
 
   // Filter message matches
   const matchedMessageIds = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
     if (!q || !isSearchOpen) return []
-    return safeMessages
+    return messages
       .filter((msg) => {
-        if (!msg || msg.isDeleted) return false
+        if (msg.isDeleted) return false
         const plain = (decryptedMap[msg._id] || msg.text || '').toLowerCase()
         const senderName = (msg.sender?.displayName || msg.sender?.username || '').toLowerCase()
         const sysText = (msg.systemText || '').toLowerCase()
         return plain.includes(q) || senderName.includes(q) || sysText.includes(q)
       })
       .map((m) => m._id)
-  }, [safeMessages, decryptedMap, searchQuery, isSearchOpen])
+  }, [messages, decryptedMap, searchQuery, isSearchOpen])
 
   // Auto-scroll to active match
   useEffect(() => {
@@ -240,9 +234,7 @@ export default function ChatRoom({
     }
     setReplyingTo(null)
     setEditingMessage(null)
-  }, [safeMessages.length, contact?.id, isTyping, isSearchOpen])
-
-  if (!contact) return null
+  }, [messages.length, contact.id, isTyping, isSearchOpen])
 
   const triggerToast = (msg = '🚀 Feature coming soon!') => {
     setToastMessage(msg)
@@ -412,15 +404,14 @@ export default function ChatRoom({
           ref={scrollRef}
           className="flex-1 overflow-y-auto px-4 py-4 space-y-2"
         >
-          {safeMessages.length > 0 ? (
-            safeMessages.map((msg, index) => {
-              if (!msg) return null
-              const msgDateStr = msg.createdAt ? new Date(msg.createdAt).toDateString() : ''
-              const prevDateStr = index > 0 && safeMessages[index - 1]?.createdAt ? new Date(safeMessages[index - 1].createdAt).toDateString() : null
+          {messages.length > 0 ? (
+            messages.map((msg, index) => {
+              const msgDateStr = new Date(msg.createdAt).toDateString()
+              const prevDateStr = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null
               const isNewDay = index === 0 || msgDateStr !== prevDateStr
               const dateLabel = getDateSeparatorLabel(msg.createdAt)
 
-              const isOwn = (msg.sender?._id || msg.sender) === (currentUser?.id || currentUser?._id)
+              const isOwn = (msg.sender?._id || msg.sender) === currentUser.id
               const displayMsg = {
                 _id:       msg._id,
                 text:      msg.text,
@@ -442,14 +433,14 @@ export default function ChatRoom({
                 systemText: msg.systemText,
                 isEphemeral: msg.isEphemeral,
                 expiresAt: msg.expiresAt ? new Date(msg.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
-                timestamp: msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 isOwn,
               }
               const isSearchResult = matchedMessageIds.includes(msg._id)
               const isCurrentMatch = isSearchResult && matchedMessageIds[currentMatchIdx] === msg._id
 
               return (
-                <div key={msg._id || index} className="space-y-2">
+                <div key={msg._id} className="space-y-2">
                   {isNewDay && dateLabel && (
                     <div className="flex justify-center my-3 select-none sticky top-2 z-10">
                       <span className="bg-zinc-800/90 border border-zinc-700/60 backdrop-blur-md text-zinc-400 text-[11px] font-semibold px-3.5 py-1 rounded-full shadow-md">
@@ -464,9 +455,9 @@ export default function ChatRoom({
                     onEdit={(targetMsg) => setEditingMessage(targetMsg)}
                     onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
                     onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
-                    conversationId={contact?.conversationId}
-                    isGroup={contact?.isGroup}
-                    totalParticipants={safeParticipants.length || 2}
+                    conversationId={contact.conversationId}
+                    isGroup={contact.isGroup}
+                    totalParticipants={contact.participants?.length || 2}
                     isSearchResult={isSearchResult}
                     isCurrentMatch={isCurrentMatch}
                   />
@@ -477,13 +468,13 @@ export default function ChatRoom({
             <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-800">
                 <img
-                  src={contact?.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=avatar'}
-                  alt={contact?.name || 'Chat'}
+                  src={contact.avatar}
+                  alt={contact.name}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div>
-                <p className="text-zinc-300 font-semibold">{contact?.name || 'Chat'}</p>
+                <p className="text-zinc-300 font-semibold">{contact.name}</p>
                 <p className="text-sm text-zinc-500 mt-1">
                   Send a message to start the conversation 👋
                 </p>

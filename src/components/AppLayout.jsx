@@ -146,16 +146,13 @@ export default function AppLayout() {
     // If we are currently talking to this person (new chat started), update our selectedContact with the new ID
     setSelectedContact(prev => {
       if (prev && !prev.conversationId) {
-        const otherParticipant = (conv?.participants || []).find(p => (p?._id?.toString() || p?.toString()) !== (user?.id || user?._id)?.toString())
-        if (otherParticipant && (otherParticipant?._id?.toString() || otherParticipant?.toString()) === prev.id) {
+        const otherParticipant = conv.participants.find(p => p._id !== user.id)
+        if (otherParticipant && otherParticipant._id === prev.id) {
           return {
             ...prev,
             conversationId: conv._id,
             status: conv.status,
-            initiator: conv.initiator,
-            participants: conv.participants || [],
-            pendingMembers: conv.pendingMembers || [],
-            members: conv.participants || [],
+            initiator: conv.initiator
           }
         }
       }

@@ -28,9 +28,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
         const data = await res.json()
         if (res.ok) {
           // Filter out current user
-          const safeData = Array.isArray(data) ? data : []
-          const myId = (currentUser?.id || currentUser?._id || '').toString()
-          const filtered = safeData.filter((u) => (u._id?.toString() || u.id?.toString()) !== myId)
+          const filtered = data.filter((u) => u._id !== currentUser?.id)
           setSearchResults(filtered)
         }
       } catch (err) {
@@ -42,7 +40,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
 
     const timer = setTimeout(searchUsers, 200)
     return () => clearTimeout(timer)
-  }, [searchQuery, isOpen, token, currentUser?.id, currentUser?._id])
+  }, [searchQuery, isOpen, token, currentUser?.id])
 
   // Reset state on close
   useEffect(() => {
@@ -56,13 +54,12 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
   }, [isOpen])
 
   const toggleMember = (user) => {
-    if (!user) return
     setSelectedMembers((prev) => {
-      const exists = (prev || []).some((m) => (m._id || m.id) === (user._id || user.id))
+      const exists = prev.some((m) => m._id === user._id)
       if (exists) {
-        return (prev || []).filter((m) => (m._id || m.id) !== (user._id || user.id))
+        return prev.filter((m) => m._id !== user._id)
       } else {
-        return [...(prev || []), user]
+        return [...prev, user]
       }
     })
   }
@@ -73,7 +70,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
       setError('Please enter a group name')
       return
     }
-    if ((selectedMembers || []).length < 1) {
+    if (selectedMembers.length < 1) {
       setError('Please select at least 1 other member')
       return
     }
@@ -91,7 +88,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
         },
         body: JSON.stringify({
           groupName: groupName.trim(),
-          memberIds: (selectedMembers || []).map((m) => m._id || m.id),
+          memberIds: selectedMembers.map((m) => m._id),
           groupAvatar,
         }),
       })
@@ -101,13 +98,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
         throw new Error(data.message || 'Failed to create group')
       }
 
-      onGroupCreated?.({
-        ...data,
-        participants: data.participants || [currentUser],
-        pendingMembers: data.pendingMembers || [],
-        members: data.participants || [currentUser],
-        status: data.status || 'accepted',
-      })
+      onGroupCreated?.(data)
       onClose()
     } catch (err) {
       console.error('Error creating group:', err)
