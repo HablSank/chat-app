@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { useAuth } from '../context/AuthContext'
-import { SOCKET_URL } from '../config/api'
+import { SOCKET_URL, getApiUrl } from '../config/api'
 
 /**
  * Manages a singleton Socket.IO connection for the app lifetime.
@@ -78,12 +78,16 @@ export function useSocket({
   useEffect(() => {
     if (!user) return
 
+    // Render Cold-Start Keepalive Ping
+    fetch(getApiUrl('/api/health')).catch(() => {})
+
     const socket = io(SOCKET_URL, {
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      timeout: 10000,
     })
     socketRef.current = socket
 

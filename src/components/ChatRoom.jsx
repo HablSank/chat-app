@@ -171,17 +171,28 @@ export default function ChatRoom({
   const [localTheme, setLocalTheme]         = useState(contact?.customTheme || null)
   const [isVanishMode, setIsVanishMode]     = useState(false)
   const [isMediaSidebarOpen, setIsMediaSidebarOpen] = useState(false)
-  const [replyingTo, setReplyingTo]         = useState(null)
-  const [editingMessage, setEditingMessage] = useState(null)
   const [isSearchOpen, setIsSearchOpen]     = useState(false)
   const [searchQuery, setSearchQuery]       = useState('')
   const [currentMatchIdx, setCurrentMatchIdx] = useState(0)
   const [decryptedMap, setDecryptedMap]     = useState({})
 
+  // Phase 15.42: WhatsApp Selection Action Bar State
+  const [selectedMessages, setSelectedMessages] = useState([])
+  const [deleteTargetMessage, setDeleteTargetMessage] = useState(null) // for Delete for Me / Delete for Everyone modal
+  const [isDeletingMessage, setIsDeletingMessage] = useState(false)
+  const [selectedInfoMessage, setSelectedInfoMessage] = useState(null)
+
   // Keep localTheme in sync with contact customTheme
   useEffect(() => {
     setLocalTheme(contact?.customTheme || null)
   }, [contact?.customTheme, contact?.conversationId])
+
+  // Clear message selection when switching rooms
+  useEffect(() => {
+    setSelectedMessages([])
+    setDeleteTargetMessage(null)
+    setSelectedInfoMessage(null)
+  }, [contact?.conversationId, contact?.id])
 
   // Compute room-specific wallpaper background style
   const activeWallpaper = localTheme?.wallpaperUrl || ''
@@ -371,12 +382,87 @@ export default function ChatRoom({
     )
   }
 
-  // Format participant names for group header
-  const groupMemberNames = contact.isGroup
-    ? (contact.participants?.length > 0
-        ? contact.participants.map(p => (p._id === currentUser.id ? 'You' : p.displayName || p.username)).join(', ')
-        : 'Group')
-    : ''
+  // Action handlers for WhatsApp top action bar
+  const handleToggleSelectMessage = (msg) => {
+    setSelectedMessages((prev) => {
+      const exists = prev.some((m) => m._id === msg._id)
+      if (exists) {
+        return prev.filter((m) => m._id !== msg._id)
+      } else {
+        return [...prev, msg]
+      }
+    })
+  }
+
+  const handleReplySelected = (msg) => {
+    if (!msg) return
+    const plain = decryptedMap[msg._id] || msg.text
+    setReplyingTo({
+      _id: msg._id,
+      text: plain,
+      sender: msg.sender,
+      imageUrl: msg.imageUrl,
+      imageUrls: msg.imageUrls,
+      audioUrl: msg.audioUrl,
+    })
+    setSelectedMessages([])
+  }
+
+  const handleCopySelected = async (msg) => {
+    if (!msg) return
+    const plain = decryptedMap[msg._id] || msg.plainText || msg.text || ''
+    if (!plain) return
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(plain)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = plain
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+      triggerToast(t('copiedToast'))
+    } catch (err) {
+      console.error('Failed to copy', err)
+    }
+    setSelectedMessages([])
+  }
+
+  const handleDownloadSelected = (msg) => {
+    if (!msg) return
+    const url = msg.imageUrls?.[0] || msg.imageUrl || msg.audioUrl
+    if (!url) return
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `media_${msg._id || Date.now()}`
+    a.target = '_blank'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    triggerToast(t('download'))
+    setSelectedMessages([])
+  }
+
+  const handleDeleteSelected = (msgs) => {
+    if (!msgs || msgs.length === 0) return
+    setDeleteTargetMessage(msgs[0])
+  }
+
+  const handleConfirmDelete = async (type) => {
+    if (!deleteTargetMessage) return
+    setIsDeletingMessage(true)
+    try {
+      await onDeleteMessage?.(deleteTargetMessage._id, type)
+      setSelectedMessages([])
+      setDeleteTargetMessage(null)
+    } catch (err) {
+      console.error('Delete message error:', err)
+    } finally {
+      setIsDeletingMessage(false)
+    }
+  }
 
   return (
     <>
@@ -400,6 +486,69 @@ export default function ChatRoom({
         />
       )}
 
+      {/* Message Info Modal */}
+      {selectedInfoMessage && (
+        <MessageInfoModal
+          isOpen={!!selectedInfoMessage}
+          onClose={() => setSelectedInfoMessage(null)}
+          message={selectedInfoMessage}
+          conversationId={contact?.conversationId}
+        />
+      )}
+
+      {/* Delete Message Confirmation Modal (Delete for Me vs Delete for Everyone) */}
+      <AnimatePresence>
+        {deleteTargetMessage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-zinc-900 border border-zinc-700/80 rounded-2xl p-5 max-w-sm w-full shadow-2xl text-center space-y-4"
+            >
+              <h3 className="text-base font-bold text-zinc-100">{t('deleteMessageTitle')}</h3>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {t('deleteMessageConfirmPrompt')}
+              </p>
+
+              <div className="flex flex-col gap-2 pt-2">
+                {/* Delete for Everyone (if own message) */}
+                {((deleteTargetMessage.sender?._id || deleteTargetMessage.sender) === (currentUser?.id || currentUser?._id)) && (
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmDelete('for_everyone')}
+                    disabled={isDeletingMessage}
+                    className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold cursor-pointer transition-colors shadow-md shadow-rose-600/30 disabled:opacity-50"
+                  >
+                    {t('deleteForEveryone')}
+                  </button>
+                )}
+
+                {/* Delete for Me */}
+                <button
+                  type="button"
+                  onClick={() => handleConfirmDelete('for_me')}
+                  disabled={isDeletingMessage}
+                  className="w-full py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold cursor-pointer transition-colors border border-zinc-700/60 disabled:opacity-50"
+                >
+                  {t('deleteForMe')}
+                </button>
+
+                {/* Cancel */}
+                <button
+                  type="button"
+                  onClick={() => setDeleteTargetMessage(null)}
+                  disabled={isDeletingMessage}
+                  className="w-full py-2 px-4 rounded-xl text-zinc-400 hover:text-zinc-200 text-xs font-medium cursor-pointer transition-colors"
+                >
+                  {t('cancel')}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         key={contact.id}
         variants={isMobile ? slideInVariants : undefined}
@@ -420,7 +569,7 @@ export default function ChatRoom({
           messages={messages}
         />
 
-        {/* ── Chat Header with clean mobile-friendly dropdown menu ── */}
+        {/* ── Chat Header with WhatsApp Selection Action Bar ── */}
         <ChatHeader
           contact={contact}
           isMobile={isMobile}
@@ -439,6 +588,16 @@ export default function ChatRoom({
           onVoiceCall={() => triggerToast('🚀 Panggilan Suara segera hadir!')}
           onVideoCall={() => triggerToast('🚀 Panggilan Video segera hadir!')}
           onClearChat={() => triggerToast('🧹 Fitur Bersihkan Chat segera hadir!')}
+          selectedMessages={selectedMessages}
+          onClearSelection={() => setSelectedMessages([])}
+          onReplySelected={handleReplySelected}
+          onCopySelected={handleCopySelected}
+          onDownloadSelected={handleDownloadSelected}
+          onDeleteSelected={handleDeleteSelected}
+          onInfoSelected={(msg) => {
+            setSelectedInfoMessage(msg)
+            setSelectedMessages([])
+          }}
         />
 
         {/* ── Client-Side E2EE Message Search Bar ──────────────────────── */}
@@ -541,7 +700,7 @@ export default function ChatRoom({
         {/* ── Scrollable Message Thread ────────────────── */}
         <div
           ref={scrollRef}
-          style={wallpaperStyle}
+          style={{ ...wallpaperStyle, overflowAnchor: 'auto' }}
           className="flex-1 overflow-y-auto px-4 py-4 space-y-2 transition-all duration-300"
         >
           {safeMessages.length > 0 ? (
@@ -553,6 +712,8 @@ export default function ChatRoom({
               const dateLabel = getDateSeparatorLabel(msg.createdAt, t, language)
 
               const isOwn = (msg.sender?._id || msg.sender) === (currentUser?.id || currentUser?._id)
+              const isSelected = selectedMessages.some((m) => m._id === msg._id)
+
               const displayMsg = {
                 _id:       msg._id,
                 text:      msg.text,
@@ -597,8 +758,10 @@ export default function ChatRoom({
                     onReact={onReact}
                     onReply={(targetMsg) => setReplyingTo(targetMsg)}
                     onEdit={(targetMsg) => setEditingMessage(targetMsg)}
-                    onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
+                    onDelete={(targetMsgId) => setDeleteTargetMessage(displayMsg)}
                     onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
+                    onSelectMessage={handleToggleSelectMessage}
+                    isSelected={isSelected}
                     onJoinGroup={onJoinGroup}
                     conversationId={contact?.conversationId}
                     isGroup={contact?.isGroup}
@@ -612,24 +775,18 @@ export default function ChatRoom({
               )
             })
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-zinc-800">
-                <img
-                  src={contact?.avatar || 'https://api.dicebear.com/7.x/shapes/svg?seed=avatar'}
-                  alt={contact?.name || 'Chat'}
-                  className="w-full h-full object-cover"
-                />
+            <div className="flex flex-col items-center justify-center h-full text-center select-none py-12">
+              <div className="w-12 h-12 rounded-full bg-zinc-800/70 border border-zinc-700 flex items-center justify-center text-zinc-500 mb-3">
+                <Users size={22} />
               </div>
-              <div>
-                <p className="text-zinc-300 font-semibold">{contact?.name || 'Chat'}</p>
-                <p className="text-sm text-zinc-500 mt-1">
-                  Send a message to start the conversation 👋
-                </p>
-              </div>
+              <p className="text-sm font-semibold text-zinc-400">{t('startChatting')}</p>
+              <p className="text-xs text-zinc-500 mt-1 max-w-[240px]">
+                {contact.isGroup
+                  ? 'Kirim pesan pertama ke grup ini untuk memulai percakapan.'
+                  : 'Kirim pesan untuk memulai obrolan yang aman dan terenkripsi.'}
+              </p>
             </div>
           )}
-
-          {/* ── Typing Indicator ──────────────────────── */}
           <AnimatePresence>
             {isTyping && (
               <TypingIndicator

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Users, Pin, PinOff, Archive, ArchiveRestore, MoreVertical } from 'lucide-react'
+import { Users, Pin, PinOff, Archive, ArchiveRestore, MoreVertical, Check } from 'lucide-react'
 
 export default function ChatItem({
   contact,
@@ -11,6 +11,10 @@ export default function ChatItem({
   isArchived = false,
   onTogglePin,
   onToggleArchive,
+  // Phase 15.42: Multi-select Mode props
+  isSelectMode = false,
+  isChecked = false,
+  onToggleCheck,
 }) {
   const { name, avatar, lastMessage, timestamp, unreadCount, presence, isOnline, statusEmoji, isGroup, participantsCount, status, isPendingInvite } = contact
 
@@ -84,20 +88,40 @@ export default function ChatItem({
   return (
     <div className="relative group select-none">
       <motion.button
-        onClick={onClick}
-        onContextMenu={handleContextMenu}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchEnd}
+        onClick={(e) => {
+          if (isSelectMode) {
+            e.stopPropagation()
+            onToggleCheck?.(contact)
+          } else {
+            onClick?.(e)
+          }
+        }}
+        onContextMenu={!isSelectMode ? handleContextMenu : undefined}
+        onTouchStart={!isSelectMode ? handleTouchStart : undefined}
+        onTouchEnd={!isSelectMode ? handleTouchEnd : undefined}
+        onTouchMove={!isSelectMode ? handleTouchEnd : undefined}
         id={`chat-item-${contact.id}`}
         whileHover={{ backgroundColor: 'rgba(39,39,42,0.6)' }} // zinc-800/60
         transition={{ duration: 0.15 }}
         className={`
           w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl
           transition-colors cursor-pointer relative
-          ${isSelected ? 'bg-zinc-800' : 'bg-transparent'}
+          ${isSelected && !isSelectMode ? 'bg-zinc-800' : isChecked ? 'bg-indigo-950/40 border border-indigo-500/30' : 'bg-transparent'}
         `}
       >
+        {/* WhatsApp Multi-Select Circular Checkbox */}
+        {isSelectMode && (
+          <div
+            className={`w-5 h-5 rounded-full flex items-center justify-center transition-all flex-shrink-0 ${
+              isChecked
+                ? 'bg-indigo-600 border-2 border-indigo-400 text-white'
+                : 'border-2 border-zinc-600 hover:border-zinc-400'
+            }`}
+          >
+            {isChecked && <Check size={12} strokeWidth={3} />}
+          </div>
+        )}
+
         {/* Avatar with online dot or group badge */}
         <div className="relative flex-shrink-0">
           <img

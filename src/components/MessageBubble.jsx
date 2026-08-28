@@ -772,6 +772,9 @@ export default function MessageBubble({
   _isSearchResult = false,
   isCurrentMatch = false,
   customTheme = null,
+  // Phase 15.42: WhatsApp Selection Mode
+  onSelectMessage,
+  isSelected = false,
 }) {
   const { token } = useAuth()
   const {
@@ -800,7 +803,6 @@ export default function MessageBubble({
     systemText,
   } = message
 
-  const [showPicker, setShowPicker]             = useState(false)
   const [showMessageInfo, setShowMessageInfo]   = useState(false)
   const [lightboxSrc, setLightboxSrc]           = useState(null)
   const [decryptedText, setDecryptedText]       = useState(() => {
@@ -914,16 +916,16 @@ export default function MessageBubble({
     }
   }, [])
 
-  // ── Long-press implementation for Mobile UX ──
+  // ── Long-press / Selection for WhatsApp-Style Top Header Bar ──
   const handleTouchStart = () => {
     isLongPressRef.current = false
     timerRef.current = setTimeout(() => {
       isLongPressRef.current = true
-      setShowPicker(true)
+      onSelectMessage?.(message)
       if (navigator.vibrate) {
         try { navigator.vibrate(30) } catch {}
       }
-    }, 500)
+    }, 450)
   }
 
   const handleTouchEnd = () => {
@@ -942,7 +944,9 @@ export default function MessageBubble({
 
   const handleContextMenu = (e) => {
     e.preventDefault()
-    setShowPicker(prev => !prev)
+    if (!isDeleted) {
+      onSelectMessage?.(message)
+    }
   }
 
   const canEdit = !isDeleted && !!decryptedText && !audioUrl && allImages.length === 0
@@ -982,10 +986,14 @@ export default function MessageBubble({
         variants={bubbleVariants}
         initial="hidden"
         animate="visible"
-        className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-0.5 transition-colors duration-700 ${
-          isFlashing ? 'bg-indigo-500/20 rounded-xl' : 'bg-transparent'
+        onClick={() => {
+          if (isSelected) {
+            onSelectMessage?.(message)
+          }
+        }}
+        className={`relative flex w-full ${isOwn ? 'justify-end' : 'justify-start'} py-0.5 transition-colors duration-200 ${
+          isSelected ? 'bg-indigo-600/15 rounded-xl' : isFlashing ? 'bg-indigo-500/20 rounded-xl' : 'bg-transparent'
         }`}
-        onMouseLeave={() => setShowPicker(false)}
       >
         {/* Swipe-to-reply icon behind bubble */}
         {!isDeleted && (
@@ -1024,7 +1032,6 @@ export default function MessageBubble({
           className={`relative flex flex-col max-w-[75%] sm:max-w-[70%] gap-1 select-none touch-manipulation z-10 ${
             isOwn ? 'items-end' : 'items-start'
           }`}
-          onMouseEnter={() => setShowPicker(true)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onTouchMove={handleTouchMove}
@@ -1043,47 +1050,6 @@ export default function MessageBubble({
               </span>
             </div>
           )}
-
-          {/* Action & Emoji Picker on hover or long-press */}
-          <AnimatePresence>
-            {showPicker && !isDeleted && (
-              <ActionPicker
-                isOwn={isOwn}
-                isPinned={isPinned}
-                isDeleted={isDeleted}
-                canEdit={canEdit}
-                hasText={!!decryptedText}
-                onCopy={handleCopyText}
-                onReact={(emoji) => {
-                  onReact?.(_id, emoji)
-                  setShowPicker(false)
-                }}
-                onReply={() => {
-                  handleReplyAction()
-                  setShowPicker(false)
-                }}
-                onInfo={() => {
-                  setShowMessageInfo(true)
-                  setShowPicker(false)
-                }}
-                onEdit={() => {
-                  onEdit?.({
-                    _id,
-                    text: decryptedText,
-                  })
-                  setShowPicker(false)
-                }}
-                onDelete={() => {
-                  onDelete?.(_id)
-                  setShowPicker(false)
-                }}
-                onPin={() => {
-                  onPin?.(_id)
-                  setShowPicker(false)
-                }}
-              />
-            )}
-          </AnimatePresence>
 
           {/* Copied Feedback Toast */}
           <AnimatePresence>

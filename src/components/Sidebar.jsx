@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, LogOut, Settings, Users, User, Download, Archive, ArrowLeft, MessageSquarePlus } from 'lucide-react'
+import { Search, LogOut, Settings, Users, User, Download, Archive, ArrowLeft, MessageSquarePlus, CheckSquare, Trash2, Check, X, Loader2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 import { usePWAInstall } from '../hooks/usePWAInstall'
@@ -35,6 +35,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const toastTimerRef = useRef(null)
   const searchInputRef = useRef(null)
 
+  // Phase 15.42: WhatsApp Multi-Select Batch Actions State
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedChatIds, setSelectedChatIds] = useState([])
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false)
+
   const currentUserId = (user?.id || user?._id || '').toString()
 
   const triggerToast = (msg) => {
@@ -42,6 +47,101 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     setShowToast(true)
     clearTimeout(toastTimerRef.current)
     toastTimerRef.current = setTimeout(() => setShowToast(false), 2400)
+  }
+
+  // Toggle selection for a single chat item
+  const handleToggleCheckChat = (contact) => {
+    const convId = (contact.conversationId || contact.id || '').toString()
+    if (!convId) return
+    setSelectedChatIds((prev) =>
+      prev.includes(convId) ? prev.filter((id) => id !== convId) : [...prev, convId]
+    )
+  }
+
+  // Select all or deselect all
+  const handleToggleSelectAll = (allList) => {
+    const allIds = allList.map((c) => (c.conversationId || c._id || '').toString()).filter(Boolean)
+    if (selectedChatIds.length === allIds.length) {
+      setSelectedChatIds([])
+    } else {
+      setSelectedChatIds(allIds)
+    }
+  }
+
+  // Batch Archive / Unarchive
+  const handleBatchArchive = async () => {
+    if (selectedChatIds.length === 0 || isBatchProcessing) return
+    setIsBatchProcessing(true)
+    const shouldArchive = !isViewingArchive
+
+    try {
+      const res = await fetch(getApiUrl('/api/conversations/batch-archive'), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversationIds: selectedChatIds,
+          archive: shouldArchive,
+        }),
+      })
+
+      if (res.ok) {
+        setConversations((prev) =>
+          prev.map((c) => {
+            const cid = c._id.toString()
+            if (!selectedChatIds.includes(cid)) return c
+            let archivedBy = Array.isArray(c.archivedBy) ? [...c.archivedBy] : []
+            if (shouldArchive) {
+              if (!archivedBy.some((id) => (id?._id?.toString() || id?.toString()) === currentUserId)) {
+                archivedBy.push(currentUserId)
+              }
+            } else {
+              archivedBy = archivedBy.filter((id) => (id?._id?.toString() || id?.toString()) !== currentUserId)
+            }
+            return { ...c, archivedBy }
+          })
+        )
+        triggerToast(shouldArchive ? t('batchArchiveSuccess') : t('unarchiveSelected'))
+        setSelectedChatIds([])
+        setIsSelectMode(false)
+      }
+    } catch (err) {
+      console.error('Batch archive failed:', err)
+    } finally {
+      setIsBatchProcessing(false)
+    }
+  }
+
+  // Batch Delete
+  const handleBatchDelete = async () => {
+    if (selectedChatIds.length === 0 || isBatchProcessing) return
+    setIsBatchProcessing(true)
+
+    try {
+      const res = await fetch(getApiUrl('/api/conversations/batch-delete'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          conversationIds: selectedChatIds,
+        }),
+      })
+
+      if (res.ok) {
+        setConversations((prev) => prev.filter((c) => !selectedChatIds.includes(c._id.toString())))
+        triggerToast(t('batchDeleteSuccess'))
+        setSelectedChatIds([])
+        setIsSelectMode(false)
+      }
+    } catch (err) {
+      console.error('Batch delete failed:', err)
+    } finally {
+      setIsBatchProcessing(false)
+    }
   }
 
   // Cross-device synced toggle pin
@@ -319,8 +419,10 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   }, [query, isViewingArchive, archivedConversations, displayActiveConversations, currentUserId])
 
   const renderConversationItem = (conv) => {
+    const convId = (conv.conversationId || conv._id || '').toString()
     const isPinned = Array.isArray(conv.pinnedBy) && conv.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
     const isArchived = Array.isArray(conv.archivedBy) && conv.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+    const isChecked = selectedChatIds.includes(convId)
 
     if (conv.isGroup) {
       const isPending = (conv.pendingMembers || []).some(p => (p._id?.toString() || p.toString()) === currentUserId) || !!conv.isPendingInvite || conv.status === 'pending'
@@ -356,6 +458,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
             isArchived={isArchived}
             onTogglePin={handleTogglePin}
             onToggleArchive={handleToggleArchive}
+            isSelectMode={isSelectMode}
+            isChecked={isChecked}
+            onToggleCheck={handleToggleCheckChat}
           />
         </div>
       )
@@ -401,6 +506,9 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           isArchived={isArchived}
           onTogglePin={handleTogglePin}
           onToggleArchive={handleToggleArchive}
+          isSelectMode={isSelectMode}
+          isChecked={isChecked}
+          onToggleCheck={handleToggleCheckChat}
         />
       </div>
     )
@@ -572,7 +680,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           {isViewingArchive ? (
             <button
               type="button"
-              onClick={() => setIsViewingArchive(false)}
+              onClick={() => {
+                setIsViewingArchive(false)
+                setIsSelectMode(false)
+                setSelectedChatIds([])
+              }}
               className="flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
             >
               <ArrowLeft size={14} />
@@ -583,6 +695,34 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
               {query ? t('searchPlaceholder') : t('allChats')}
             </p>
           )}
+
+          {/* Select Mode Toggle Button */}
+          <div className="flex items-center gap-2">
+            {isSelectMode && (
+              <button
+                type="button"
+                onClick={() => handleToggleSelectAll(isViewingArchive ? archivedConversations : displayActiveConversations)}
+                className="text-[11px] font-medium text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              >
+                {selectedChatIds.length === (isViewingArchive ? archivedConversations : displayActiveConversations).length ? 'Deselect' : 'Semua'}
+              </button>
+            )}
+            <button
+              type="button"
+              id="sidebar-select-mode-toggle"
+              onClick={() => {
+                setIsSelectMode((prev) => !prev)
+                setSelectedChatIds([])
+              }}
+              className={`text-xs font-semibold px-2 py-0.5 rounded-lg transition-colors cursor-pointer ${
+                isSelectMode
+                  ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
+              }`}
+            >
+              {isSelectMode ? t('cancelSelect') : t('selectMode')}
+            </button>
+          </div>
         </div>
 
         {/* ── Scrollable List ─────────────────────── */}
@@ -624,7 +764,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
                 <motion.button
                   id="sidebar-archive-btn"
                   whileHover={{ scale: 1.01 }}
-                  onClick={() => setIsViewingArchive(true)}
+                  onClick={() => {
+                    setIsViewingArchive(true)
+                    setIsSelectMode(false)
+                    setSelectedChatIds([])
+                  }}
                   className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-zinc-300 hover:text-white transition-colors cursor-pointer mb-2 bg-zinc-800/30 border border-zinc-800"
                 >
                   <div className="flex items-center gap-3">
@@ -650,19 +794,69 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
           )}
         </div>
 
+        {/* ── WhatsApp Floating Batch Action Bar ── */}
+        <AnimatePresence>
+          {isSelectMode && selectedChatIds.length > 0 && (
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+              className="absolute bottom-4 left-3 right-3 z-40 bg-zinc-900/95 border border-indigo-500/40 rounded-2xl shadow-2xl p-3 flex items-center justify-between backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-200 pl-1">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[11px]">
+                  {selectedChatIds.length}
+                </span>
+                <span>{t('selectedCount')}</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Batch Archive button */}
+                <button
+                  type="button"
+                  id="batch-archive-action-btn"
+                  onClick={handleBatchArchive}
+                  disabled={isBatchProcessing}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors border border-zinc-700/60 disabled:opacity-50"
+                  title={isViewingArchive ? t('unarchiveSelected') : t('archiveSelected')}
+                >
+                  {isBatchProcessing ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}
+                  <span>{isViewingArchive ? t('unarchiveSelected') : t('archiveSelected')}</span>
+                </button>
+
+                {/* Batch Delete button */}
+                <button
+                  type="button"
+                  id="batch-delete-action-btn"
+                  onClick={handleBatchDelete}
+                  disabled={isBatchProcessing}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-colors shadow-md shadow-rose-600/30 disabled:opacity-50"
+                  title={t('deleteSelected')}
+                >
+                  {isBatchProcessing ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                  <span>{t('deleteSelected')}</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── Mobile Floating Action Button (FAB) for New Chat ── */}
-        <motion.button
-          type="button"
-          id="mobile-new-chat-fab"
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
-          onClick={() => setIsNewChatOpen(true)}
-          className="fixed bottom-6 right-6 z-40 sm:hidden bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-2xl flex items-center justify-center cursor-pointer shadow-indigo-600/40"
-          title={t('createNewChat')}
-          aria-label="New Chat"
-        >
-          <MessageSquarePlus size={22} />
-        </motion.button>
+        {!isSelectMode && (
+          <motion.button
+            type="button"
+            id="mobile-new-chat-fab"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setIsNewChatOpen(true)}
+            className="fixed bottom-6 right-6 z-40 sm:hidden bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-2xl flex items-center justify-center cursor-pointer shadow-indigo-600/40"
+            title={t('createNewChat')}
+            aria-label="New Chat"
+          >
+            <MessageSquarePlus size={22} />
+          </motion.button>
+        )}
       </div>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />

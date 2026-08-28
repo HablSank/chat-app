@@ -15,7 +15,13 @@ import {
   Info,
   Lock,
   Palette,
+  Reply,
+  Copy,
+  Download,
+  CheckCheck,
+  X,
 } from 'lucide-react'
+import { useLanguage } from '../context/LanguageContext'
 
 export default function ChatHeader({
   contact,
@@ -36,11 +42,24 @@ export default function ChatHeader({
   onVideoCall,
   onClearChat,
   onDeleteChat,
+  // Phase 15.42: WhatsApp Selection Action Bar Props
+  selectedMessages = [],
+  onClearSelection,
+  onReplySelected,
+  onCopySelected,
+  onDownloadSelected,
+  onDeleteSelected,
+  onInfoSelected,
 }) {
+  const { t } = useLanguage()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
   const isAccepted = contact.isGroup || contact.status === 'accepted'
+  const isSelectionMode = Array.isArray(selectedMessages) && selectedMessages.length > 0
+  const selectedMsg = isSelectionMode ? selectedMessages[0] : null
+  const hasMedia = !!(selectedMsg?.imageUrl || selectedMsg?.imageUrls?.length || selectedMsg?.audioUrl)
+  const hasText = !!(selectedMsg?.text || selectedMsg?.plainText)
 
   // Close dropdown menu when clicking outside
   useEffect(() => {
@@ -60,6 +79,95 @@ export default function ChatHeader({
   const handleMenuItemClick = (action) => {
     setIsMenuOpen(false)
     action?.()
+  }
+
+  // ── WhatsApp Selection Header Bar ──────────────────────────────────────────
+  if (isSelectionMode) {
+    return (
+      <div id="chatroom-header-selection" className="h-16 border-b border-indigo-900/60 bg-indigo-950/90 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between flex-shrink-0 z-30 transition-all">
+        {/* Left: Back Arrow (clears selection) + Count */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            id="clear-message-selection-btn"
+            onClick={onClearSelection}
+            className="text-indigo-200 hover:text-white p-1.5 -ml-1 rounded-full hover:bg-indigo-900/60 transition-colors cursor-pointer"
+            title="Batal pilih"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex items-center gap-1.5 text-white font-semibold text-base sm:text-lg">
+            <span>{selectedMessages.length}</span>
+            <span className="text-xs text-indigo-300 font-normal">{t('selectedCount')}</span>
+          </div>
+        </div>
+
+        {/* Right: Quick Action Icons */}
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Reply (if single selection) */}
+          {selectedMessages.length === 1 && (
+            <button
+              type="button"
+              id="header-reply-btn"
+              onClick={() => onReplySelected?.(selectedMsg)}
+              className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
+              title={t('reply')}
+            >
+              <Reply size={18} />
+            </button>
+          )}
+
+          {/* Copy (if has text) */}
+          {hasText && (
+            <button
+              type="button"
+              id="header-copy-btn"
+              onClick={() => onCopySelected?.(selectedMsg)}
+              className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
+              title={t('copy')}
+            >
+              <Copy size={18} />
+            </button>
+          )}
+
+          {/* Direct Download Icon (if media) */}
+          {hasMedia && (
+            <button
+              type="button"
+              id="header-download-btn"
+              onClick={() => onDownloadSelected?.(selectedMsg)}
+              className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
+              title={t('directDownload')}
+            >
+              <Download size={18} />
+            </button>
+          )}
+
+          {/* Delete Icon */}
+          <button
+            type="button"
+            id="header-delete-btn"
+            onClick={() => onDeleteSelected?.(selectedMessages)}
+            className="p-2 text-indigo-200 hover:text-rose-400 hover:bg-rose-500/20 rounded-full transition-colors cursor-pointer"
+            title={t('delete')}
+          >
+            <Trash2 size={18} />
+          </button>
+
+          {/* Message Info option in 3-dot dropdown if own message */}
+          {selectedMessages.length === 1 && selectedMsg?.isOwn && (
+            <button
+              type="button"
+              onClick={() => onInfoSelected?.(selectedMsg)}
+              className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
+              title={t('messageDetails')}
+            >
+              <Info size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

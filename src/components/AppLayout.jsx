@@ -627,12 +627,24 @@ export default function AppLayout() {
     }
   }
 
-  const handleDeleteMessage = async (messageId) => {
+  const handleDeleteMessage = async (messageId, type = 'for_everyone') => {
     try {
-      await fetch(getApiUrl(`/api/messages/${messageId}`), {
+      const url = getApiUrl(`/api/messages/${messageId}?type=${type}`)
+      const res = await fetch(url, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       })
+      if (res.ok && type === 'for_me' && selectedContact?.conversationId) {
+        // Optimistically remove message from requester's view
+        setChatMessages((prev) => {
+          const convId = selectedContact.conversationId
+          if (!prev[convId]) return prev
+          return {
+            ...prev,
+            [convId]: prev[convId].filter((m) => m._id !== messageId),
+          }
+        })
+      }
     } catch (err) {
       console.error('Failed to delete message', err)
     }

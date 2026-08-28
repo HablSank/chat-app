@@ -18,6 +18,7 @@ import {
   Palette,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
 import ImageCropperModal from './ImageCropperModal'
@@ -31,6 +32,7 @@ export default function GroupInfoModal({
   onOpenTheme,
 }) {
   const { user: currentUser, token } = useAuth()
+  const { t } = useLanguage()
   const [groupName, setGroupName] = useState(contact?.groupName || contact?.name || '')
   const [isEditingName, setIsEditingName] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -168,10 +170,10 @@ export default function GroupInfoModal({
   const handleToggleAdminRole = (member, isCurrentlyAdmin) => {
     const memberName = member.displayName || member.username
     const action = isCurrentlyAdmin ? 'revoke' : 'grant'
-    const title = isCurrentlyAdmin ? 'Dismiss as Admin?' : 'Make Group Admin?'
+    const title = isCurrentlyAdmin ? t('dismissAdminConfirmTitle') : t('makeAdminConfirmTitle')
     const message = isCurrentlyAdmin
-      ? `Are you sure you want to dismiss ${memberName} as a group admin?`
-      : `Are you sure you want to make ${memberName} a group admin? They will be able to add/remove members and manage group settings.`
+      ? `${t('dismissAdminConfirmMsg')} ${memberName}?`
+      : `${t('makeAdminConfirmMsg')} ${memberName}?`
 
     setConfirmModal({
       title,
@@ -203,8 +205,8 @@ export default function GroupInfoModal({
   // ── Remove Member ──
   const handleRemoveMember = (member) => {
     setConfirmModal({
-      title: 'Remove Member?',
-      message: `Are you sure you want to remove ${member.displayName || member.username} from this group?`,
+      title: t('removeMemberConfirmTitle'),
+      message: `${t('removeMemberConfirmMsg')} (${member.displayName || member.username})?`,
       isDanger: true,
       onConfirm: async () => {
         try {
@@ -267,8 +269,8 @@ export default function GroupInfoModal({
   // ── Leave Group ──
   const handleLeaveGroup = () => {
     setConfirmModal({
-      title: 'Leave Group?',
-      message: 'Are you sure you want to leave this group? You will no longer be able to send or receive messages in it.',
+      title: t('leaveGroupConfirmTitle'),
+      message: t('leaveGroupConfirmMsg'),
       isDanger: true,
       onConfirm: async () => {
         try {
@@ -296,54 +298,51 @@ export default function GroupInfoModal({
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
           />
 
-          {/* Modal Box */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-            className="relative w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] z-10"
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 28 }}
+            className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[85vh]"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/90 flex-shrink-0">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/80 backdrop-blur-md">
               <div className="flex items-center gap-2">
-                <Users size={18} className="text-indigo-400" />
-                <h2 className="text-base font-semibold text-zinc-100">Group Info</h2>
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                  <Users size={16} />
+                </div>
+                <h3 className="font-bold text-zinc-100 text-sm">{t('groupSettings')}</h3>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="w-8 h-8 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-full text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
-            {/* Error Notification */}
-            {error && (
-              <div className="mx-6 mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl flex items-center justify-between">
-                <span>{error}</span>
-                <button onClick={() => setError('')} className="text-red-400 hover:text-red-200">
-                  <X size={14} />
-                </button>
-              </div>
-            )}
+            {/* Modal Scrollable Content */}
+            <div className="p-5 overflow-y-auto space-y-5 flex-1">
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs rounded-xl text-center">
+                  {error}
+                </div>
+              )}
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Group Avatar & Name Header Card */}
-              <div className="flex flex-col items-center text-center p-5 bg-zinc-950/50 border border-zinc-800/80 rounded-2xl relative">
+              {/* Group Avatar & Info Hero */}
+              <div className="flex flex-col items-center text-center">
                 <input
-                  ref={avatarInputRef}
                   type="file"
+                  ref={avatarInputRef}
                   accept="image/*"
                   onChange={handleAvatarChange}
                   className="hidden"
@@ -361,14 +360,14 @@ export default function GroupInfoModal({
                       onClick={() => avatarInputRef.current?.click()}
                       disabled={isUploadingAvatar}
                       className="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-xs transition-opacity cursor-pointer"
-                      title="Change group avatar"
+                      title={t('changeGroupAvatar')}
                     >
                       {isUploadingAvatar ? (
                         <Loader2 size={20} className="animate-spin" />
                       ) : (
                         <>
                           <Camera size={18} className="mb-0.5" />
-                          <span className="text-[10px] font-medium">Change</span>
+                          <span className="text-[10px] font-medium">{t('change')}</span>
                         </>
                       )}
                     </button>
@@ -412,7 +411,7 @@ export default function GroupInfoModal({
                         type="button"
                         onClick={() => setIsEditingName(true)}
                         className="text-zinc-400 hover:text-indigo-300 p-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
-                        title="Edit group name"
+                        title={t('edit')}
                       >
                         <Pencil size={14} />
                       </button>
@@ -421,7 +420,7 @@ export default function GroupInfoModal({
                 )}
 
                 <p className="text-xs text-zinc-400 mt-1 font-medium">
-                  Group • {participants.length} {participants.length === 1 ? 'member' : 'members'}
+                  {participants.length} {t('selectedMembersLabel')}
                 </p>
 
                 {onOpenTheme && (
@@ -436,12 +435,12 @@ export default function GroupInfoModal({
                     <div className="flex items-center gap-2.5">
                       <Palette size={16} className="text-pink-400 flex-shrink-0" />
                       <div>
-                        <p className="text-xs font-semibold text-zinc-100">Tema & Wallpaper Grup</p>
-                        <p className="text-[10px] text-zinc-400">Ubah warna balon dan background chat</p>
+                        <p className="text-xs font-semibold text-zinc-100">{t('chatAppearance')}</p>
+                        <p className="text-[10px] text-zinc-400">{t('appearanceDesc')}</p>
                       </div>
                     </div>
                     <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/20">
-                      Ubah
+                      {t('change')}
                     </span>
                   </button>
                 )}
@@ -451,7 +450,7 @@ export default function GroupInfoModal({
               <div>
                 <div className="flex items-center justify-between mb-3 px-1">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                    Participants ({participants.length})
+                    {t('selectedMembersLabel')} ({participants.length})
                   </h4>
                   {isAdmin && !isAddingMembers && (
                     <button
@@ -460,7 +459,7 @@ export default function GroupInfoModal({
                       className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <UserPlus size={14} />
-                      <span>Add Members</span>
+                      <span>{t('addMembers')}</span>
                     </button>
                   )}
                 </div>
@@ -469,14 +468,14 @@ export default function GroupInfoModal({
                 {isAddingMembers ? (
                   <div className="p-4 bg-zinc-950/60 border border-indigo-500/30 rounded-2xl space-y-3 mb-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-indigo-300">Add New Members</span>
+                      <span className="text-xs font-semibold text-indigo-300">{t('addMembersLabel')}</span>
                       <button
                         type="button"
                         onClick={() => {
                           setIsAddingMembers(false)
                           setSelectedNewMembers([])
                         }}
-                        className="text-zinc-400 hover:text-zinc-200"
+                        className="text-zinc-400 hover:text-zinc-200 cursor-pointer"
                       >
                         <X size={14} />
                       </button>
@@ -488,7 +487,7 @@ export default function GroupInfoModal({
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search users to add..."
+                        placeholder={t('searchMembersPlaceholder')}
                         className="w-full pl-9 pr-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-xl text-xs text-zinc-100 placeholder-zinc-500 outline-none focus:border-indigo-500/60"
                       />
                     </div>
@@ -497,7 +496,7 @@ export default function GroupInfoModal({
                       {isSearching ? (
                         <div className="py-4 text-center text-xs text-zinc-500 flex items-center justify-center gap-1.5">
                           <Loader2 size={12} className="animate-spin" />
-                          <span>Searching...</span>
+                          <span>{t('checkingUpdates')}</span>
                         </div>
                       ) : searchResults.length > 0 ? (
                         searchResults.map((user) => {
@@ -526,7 +525,7 @@ export default function GroupInfoModal({
                         })
                       ) : (
                         <div className="py-3 text-center text-[11px] text-zinc-500">
-                          {searchQuery ? 'No users found' : 'Type to search users'}
+                          {searchQuery ? t('noUsersFoundPrompt') : t('searchEmptyPrompt')}
                         </div>
                       )}
                     </div>
@@ -538,18 +537,18 @@ export default function GroupInfoModal({
                           setIsAddingMembers(false)
                           setSelectedNewMembers([])
                         }}
-                        className="px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                        className="px-3 py-1 text-xs text-zinc-400 hover:text-zinc-200 cursor-pointer"
                       >
-                        Cancel
+                        {t('cancel')}
                       </button>
                       <button
                         type="button"
                         onClick={handleAddMembersSubmit}
                         disabled={selectedNewMembers.length === 0 || isSubmittingAdd}
-                        className="px-3.5 py-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5"
+                        className="px-3.5 py-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer"
                       >
                         {isSubmittingAdd ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
-                        <span>Add ({selectedNewMembers.length})</span>
+                        <span>{t('addMembers')} ({selectedNewMembers.length})</span>
                       </button>
                     </div>
                   </div>
@@ -604,7 +603,7 @@ export default function GroupInfoModal({
                                 type="button"
                                 onClick={() => handleToggleAdminRole(member, false)}
                                 className="p-1.5 text-zinc-400 hover:text-amber-300 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                                title="Make Group Admin"
+                                title={t('makeAdminConfirmTitle')}
                               >
                                 <Crown size={15} />
                               </button>
@@ -613,7 +612,7 @@ export default function GroupInfoModal({
                                 type="button"
                                 onClick={() => handleToggleAdminRole(member, true)}
                                 className="p-1.5 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                                title="Dismiss as Admin"
+                                title={t('dismissAdminConfirmTitle')}
                               >
                                 <ShieldOff size={15} />
                               </button>
@@ -622,7 +621,7 @@ export default function GroupInfoModal({
                               type="button"
                               onClick={() => handleRemoveMember(member)}
                               className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                              title="Remove from group"
+                              title={t('removeMemberConfirmTitle')}
                             >
                               <UserMinus size={15} />
                             </button>
@@ -639,7 +638,7 @@ export default function GroupInfoModal({
                     <div className="flex items-center justify-between mb-2.5 px-1">
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
                         <Clock size={13} />
-                        <span>Pending Invites ({pendingMembers.length})</span>
+                        <span>{t('pendingInvites')} ({pendingMembers.length})</span>
                       </h4>
                     </div>
                     <div className="space-y-1.5">
@@ -662,11 +661,11 @@ export default function GroupInfoModal({
                                 <p className="text-xs font-semibold text-zinc-300 truncate">
                                   {pName}
                                 </p>
-                                <p className="text-[10px] text-amber-400/80">Menunggu konfirmasi</p>
+                                <p className="text-[10px] text-amber-400/80">{t('pendingStatus')}</p>
                               </div>
                             </div>
                             <span className="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] font-semibold flex-shrink-0">
-                              Invited
+                              {t('invited')}
                             </span>
                           </div>
                         )
@@ -684,7 +683,7 @@ export default function GroupInfoModal({
                   className="w-full py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
                 >
                   <LogOut size={16} />
-                  <span>Exit Group</span>
+                  <span>{t('leaveGroup')}</span>
                 </button>
               </div>
             </div>
@@ -718,7 +717,7 @@ export default function GroupInfoModal({
                       onClick={() => setConfirmModal(null)}
                       className="px-4 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
                     >
-                      Cancel
+                      {t('cancel')}
                     </button>
                     <button
                       type="button"
@@ -729,7 +728,7 @@ export default function GroupInfoModal({
                           : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
                       }`}
                     >
-                      Confirm
+                      {t('confirm')}
                     </button>
                   </div>
                 </motion.div>
