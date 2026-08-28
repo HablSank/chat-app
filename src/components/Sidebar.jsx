@@ -49,6 +49,11 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     const convId = (contact.conversationId || contact.id || '').toString()
     if (!convId || !currentUserId) return
 
+    if (contact.isArchived || isViewingArchive) {
+      triggerToast('⚠️ Chat yang diarsipkan tidak dapat disematkan')
+      return
+    }
+
     try {
       const res = await fetch(getApiUrl(`/api/conversations/${convId}/pin`), {
         method: 'PATCH',
@@ -169,14 +174,15 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   // Search users
   useEffect(() => {
     const searchUsers = async () => {
-      if (!query.trim()) {
+      const raw = query.trim().replace(/^@/, '')
+      if (!raw) {
         setSearchResults([])
         setIsSearching(false)
         return
       }
       setIsSearching(true)
       try {
-        const res = await fetch(getApiUrl(`/api/users/search?q=${encodeURIComponent(query)}`), {
+        const res = await fetch(getApiUrl(`/api/users/search?q=${encodeURIComponent(raw)}`), {
           headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()

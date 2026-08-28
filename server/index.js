@@ -259,19 +259,9 @@ app.post('/api/push/unsubscribe', protect, async (req, res) => {
 // ── REST API: Users ─────────────────────────────────────────────────────────
 app.get('/api/users/search', protect, async (req, res) => {
   try {
-    const keyword = req.query.q
-      ? {
-          username: {
-            $regex: req.query.q,
-            $options: 'i',
-          },
-        }
-      : {}
+    const rawQuery = (req.query.q || '').trim().replace(/^@/, '')
 
-    // Exclude current user from search
-    const users = await User.find({ ...keyword, _id: { $ne: req.user._id } }).select('-password')
-    
-    // Find accepted 1-on-1 conversations for current user
+    // Find accepted 1-on-1 conversations for current user to determine friends
     const acceptedConvs = await Conversation.find({
       participants: req.user._id,
       status: 'accepted',
@@ -281,6 +271,24 @@ app.get('/api/users/search', protect, async (req, res) => {
     const acceptedFriendIds = new Set(
       acceptedConvs.flatMap(c => c.participants.map(p => p.toString())).filter(id => id !== req.user._id.toString())
     )
+
+    let users = []
+    if (rawQuery) {
+      // Search matching username or displayName (excluding current user)
+      const keyword = {
+        _id: { $ne: req.user._id },
+        $or: [
+          { username: { $regex: rawQuery, $options: 'i' } },
+          { displayName: { $regex: rawQuery, $options: 'i' } },
+        ],
+      }
+      users = await User.find(keyword).select('-password')
+    } else {
+      // If no query provided, return existing accepted friends by default
+      users = await User.find({
+        _id: { $in: Array.from(acceptedFriendIds) }
+      }).select('-password')
+    }
 
     const sanitizedUsers = users.map(u => {
       const isAccepted = acceptedFriendIds.has(u._id.toString())

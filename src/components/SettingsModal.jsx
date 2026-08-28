@@ -315,9 +315,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     <button
                       type="button"
                       onClick={reloadApp}
-                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                      className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-2 cursor-pointer transition-all active:scale-95"
                     >
-                      <RotateCw size={13} className="animate-spin" />
+                      <RotateCw size={13} className="animate-spin text-emerald-400" />
                       <span>{t('checkUpdates')}</span>
                     </button>
                   ) : (
@@ -325,12 +325,12 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                       type="button"
                       onClick={handleCheckUpdate}
                       disabled={isCheckingUpdate}
-                      className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                      className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                     >
                       {isCheckingUpdate ? (
-                        <Loader2 size={13} className="animate-spin" />
+                        <Loader2 size={13} className="animate-spin text-zinc-400" />
                       ) : (
-                        <RotateCw size={13} />
+                        <RotateCw size={13} className="text-zinc-400" />
                       )}
                       <span>{isCheckingUpdate ? t('checkingUpdates') : t('checkUpdates')}</span>
                     </button>
@@ -359,9 +359,9 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     <button
                       type="button"
                       onClick={promptInstall}
-                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                      className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
                     >
-                      <Download size={13} />
+                      <Download size={13} className="text-zinc-400" />
                       <span>{t('installNow')}</span>
                     </button>
                   ) : (

@@ -219,7 +219,7 @@ export default function ChatHeader({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -4 }}
               transition={{ type: 'spring', stiffness: 450, damping: 28 }}
-              className="absolute right-0 top-10 w-56 sm:w-60 bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-xl py-1.5 z-50 overflow-hidden"
+              className="chat-dropdown-menu absolute right-0 top-10 w-56 sm:w-60 bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-xl py-1.5 z-50 overflow-hidden"
             >
               {/* 1. Search */}
               <button

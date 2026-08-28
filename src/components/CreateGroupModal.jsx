@@ -26,21 +26,17 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
 
   const fileInputRef = useRef(null)
 
-  // Search users dynamically only on active search
+  // Load friends by default on open, or search users dynamically on input
   useEffect(() => {
     if (!isOpen) return
 
-    const trimmed = searchQuery.trim()
-    if (!trimmed) {
-      setSearchResults([])
-      setIsSearching(false)
-      return
-    }
+    const trimmed = searchQuery.trim().replace(/^@/, '')
 
     const searchUsers = async () => {
       setIsSearching(true)
       try {
-        const res = await fetch(getApiUrl(`/api/users/search?q=${encodeURIComponent(trimmed)}`), {
+        const queryParam = trimmed ? `?q=${encodeURIComponent(trimmed)}` : ''
+        const res = await fetch(getApiUrl(`/api/users/search${queryParam}`), {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await res.json()
@@ -56,7 +52,7 @@ export default function CreateGroupModal({ isOpen, onClose, onGroupCreated }) {
       }
     }
 
-    const timer = setTimeout(searchUsers, 250)
+    const timer = setTimeout(searchUsers, trimmed ? 250 : 0)
     return () => clearTimeout(timer)
   }, [searchQuery, isOpen, token, currentUser?.id])
 

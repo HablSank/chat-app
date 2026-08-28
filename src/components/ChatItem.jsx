@@ -208,26 +208,28 @@ export default function ChatItem({
                 top: `${menuPos.y}px`,
                 left: `${menuPos.x}px`,
               }}
-              className="fixed bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 min-w-[170px] backdrop-blur-xl z-50 text-xs font-medium space-y-0.5"
+              className="chat-context-menu fixed bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl p-1.5 min-w-[170px] backdrop-blur-xl z-50 text-xs font-medium space-y-0.5"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                type="button"
-                onClick={(e) => handleActionClick(e, onTogglePin)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer text-left"
-              >
-                {isPinned ? (
-                  <>
-                    <PinOff size={14} className="text-zinc-400" />
-                    <span>Lepas Sematan</span>
-                  </>
-                ) : (
-                  <>
-                    <Pin size={14} className="text-indigo-400" />
-                    <span>Sematkan Chat</span>
-                  </>
-                )}
-              </button>
+              {!isArchived && (
+                <button
+                  type="button"
+                  onClick={(e) => handleActionClick(e, onTogglePin)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-zinc-200 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer text-left"
+                >
+                  {isPinned ? (
+                    <>
+                      <PinOff size={14} className="text-zinc-400" />
+                      <span>Lepas Sematan</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pin size={14} className="text-indigo-400" />
+                      <span>Sematkan Chat</span>
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={(e) => handleActionClick(e, onToggleArchive)}

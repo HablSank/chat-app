@@ -166,4 +166,37 @@
     color: #0f172a !important;
     border-color: #cbd5e1 !important;
   }
+
+  /* Dropdown Menus & Popovers */
+  html.light .chat-dropdown-menu,
+  html.light-theme .chat-dropdown-menu,
+  html.light .chat-context-menu,
+  html.light-theme .chat-context-menu {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  html.light .chat-dropdown-menu button,
+  html.light-theme .chat-dropdown-menu button,
+  html.light .chat-context-menu button,
+  html.light-theme .chat-context-menu button {
+    color: #0f172a !important;
+  }
+
+  html.light .chat-dropdown-menu button:hover,
+  html.light-theme .chat-dropdown-menu button:hover,
+  html.light .chat-context-menu button:hover,
+  html.light-theme .chat-context-menu button:hover {
+    background-color: #f1f5f9 !important;
+  }
+
+  /* Date Separator Pill */
+  html.light .date-separator-pill,
+  html.light-theme .date-separator-pill {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  }
 }

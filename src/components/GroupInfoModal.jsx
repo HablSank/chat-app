@@ -61,14 +61,16 @@ export default function GroupInfoModal({
     }
   }, [contact, isOpen])
 
-  // Search users to add
+  // Search users to add (load friends by default, or search on query)
   useEffect(() => {
     if (!isAddingMembers) return
+
+    const trimmed = searchQuery.trim().replace(/^@/, '')
 
     const searchUsers = async () => {
       setIsSearching(true)
       try {
-        const queryParam = searchQuery.trim() ? `?q=${encodeURIComponent(searchQuery.trim())}` : ''
+        const queryParam = trimmed ? `?q=${encodeURIComponent(trimmed)}` : ''
         const res = await fetch(getApiUrl(`/api/users/search${queryParam}`), {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -86,7 +88,7 @@ export default function GroupInfoModal({
       }
     }
 
-    const timer = setTimeout(searchUsers, 200)
+    const timer = setTimeout(searchUsers, trimmed ? 200 : 0)
     return () => clearTimeout(timer)
   }, [searchQuery, isAddingMembers, token, participants])
 

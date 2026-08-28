@@ -564,7 +564,7 @@ export default function ChatRoom({
                 <div key={msg._id || index} className="space-y-2">
                   {isNewDay && dateLabel && (
                     <div className="flex justify-center my-3 select-none sticky top-2 z-10">
-                      <span className="bg-zinc-800/90 border border-zinc-700/60 backdrop-blur-md text-zinc-400 text-[11px] font-semibold px-3.5 py-1 rounded-full shadow-md">
+                      <span className="date-separator-pill bg-zinc-800/90 border border-zinc-700/60 backdrop-blur-md text-zinc-400 text-[11px] font-semibold px-3.5 py-1 rounded-full shadow-md">
                         {dateLabel}
                       </span>
                     </div>
