@@ -627,12 +627,20 @@ export default function AppLayout() {
     }
   }
 
-  const handleDeleteMessage = async (messageId) => {
+  const handleDeleteMessage = async (messageId, deleteForEveryone = true) => {
     try {
-      await fetch(getApiUrl(`/api/messages/${messageId}`), {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      if (deleteForEveryone) {
+        await fetch(getApiUrl(`/api/messages/${messageId}`), {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      } else {
+        await fetch(getApiUrl(`/api/messages/${messageId}/delete-for-me`), {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        setMessages(prev => prev.filter(m => m._id !== messageId))
+      }
     } catch (err) {
       console.error('Failed to delete message', err)
     }

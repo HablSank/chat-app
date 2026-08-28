@@ -18,6 +18,7 @@ import {
   Palette,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useLanguage } from '../context/LanguageContext'
 import { getApiUrl } from '../config/api'
 import { compressImage } from '../utils/imageCompressor'
 import ImageCropperModal from './ImageCropperModal'
@@ -30,6 +31,7 @@ export default function GroupInfoModal({
   onGroupLeft,
   onOpenTheme,
 }) {
+  const { t } = useLanguage()
   const { user: currentUser, token } = useAuth()
   const [groupName, setGroupName] = useState(contact?.groupName || contact?.name || '')
   const [isEditingName, setIsEditingName] = useState(false)
@@ -317,7 +319,7 @@ export default function GroupInfoModal({
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/90 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Users size={18} className="text-indigo-400" />
-                <h2 className="text-base font-semibold text-zinc-100">Group Info</h2>
+                <h2 className="text-base font-semibold text-zinc-100">{t('groupInfo')}</h2>
               </div>
               <button
                 type="button"
@@ -684,7 +686,7 @@ export default function GroupInfoModal({
                   className="w-full py-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
                 >
                   <LogOut size={16} />
-                  <span>Exit Group</span>
+                  <span>{t('leaveGroup')}</span>
                 </button>
               </div>
             </div>
@@ -718,7 +720,7 @@ export default function GroupInfoModal({
                       onClick={() => setConfirmModal(null)}
                       className="px-4 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors cursor-pointer"
                     >
-                      Cancel
+                      {t('cancel')}
                     </button>
                     <button
                       type="button"
@@ -729,7 +731,7 @@ export default function GroupInfoModal({
                           : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/20'
                       }`}
                     >
-                      Confirm
+                      {t('deleteSelected') || 'Confirm'}
                     </button>
                   </div>
                 </motion.div>

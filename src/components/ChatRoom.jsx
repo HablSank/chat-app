@@ -597,7 +597,7 @@ export default function ChatRoom({
                     onReact={onReact}
                     onReply={(targetMsg) => setReplyingTo(targetMsg)}
                     onEdit={(targetMsg) => setEditingMessage(targetMsg)}
-                    onDelete={(targetMsgId) => onDeleteMessage?.(targetMsgId)}
+                    onDelete={(targetMsgId, deleteForEveryone) => onDeleteMessage?.(targetMsgId, deleteForEveryone)}
                     onPin={(targetMsgId) => onPinMessage?.(targetMsgId)}
                     onJoinGroup={onJoinGroup}
                     conversationId={contact?.conversationId}
