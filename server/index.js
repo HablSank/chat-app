@@ -364,15 +364,17 @@ async function sendDirectMessageGroupInvite(inviterUser, targetUserId, group) {
     })
 
     if (!dmConv) {
+      // Phase 15.21: New conversation between strangers starts as pending message request
       dmConv = new Conversation({
         isGroup: false,
         participants: [inviterUser._id, targetUserId],
         initiator: inviterUser._id,
-        status: 'accepted',
+        status: 'pending',
       })
       await dmConv.save()
     } else if (dmConv.status === 'rejected') {
-      dmConv.status = 'accepted'
+      dmConv.status = 'pending'
+      dmConv.initiator = inviterUser._id
       await dmConv.save()
     }
 
@@ -399,6 +401,7 @@ async function sendDirectMessageGroupInvite(inviterUser, targetUserId, group) {
 
     const populatedDm = await Conversation.findById(dmConv._id)
       .populate('participants', '-password')
+      .populate('initiator', '-password')
       .populate('lastMessage')
 
     const msgPayload = {
@@ -453,6 +456,7 @@ app.get('/api/conversations', protect, async (req, res) => {
     })
       .populate('participants', '-password')
       .populate('members', '-password')
+      .populate('initiator', '-password')
       .populate('groupAdmin', '-password')
       .populate('groupAdmins', '-password')
       .populate('lastMessage')

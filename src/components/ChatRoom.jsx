@@ -488,6 +488,7 @@ export default function ChatRoom({
                     onJoinGroup={onJoinGroup}
                     conversationId={contact?.conversationId}
                     isGroup={contact?.isGroup}
+                    isPendingConversation={!contact?.isGroup && isPending}
                     totalParticipants={safeParticipants.length || 2}
                     isSearchResult={isSearchResult}
                     isCurrentMatch={isCurrentMatch}

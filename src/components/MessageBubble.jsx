@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useRef, useEffect } from 'react'
-import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check } from 'lucide-react'
+import { Timer, Play, Pause, Reply, Pin, PinOff, Pencil, Trash2, Ban, Info, Loader2, Users, Check, Lock } from 'lucide-react'
 import Lightbox from './Lightbox'
 import MessageInfoModal from './MessageInfoModal'
 import { decryptMessage } from '../utils/crypto'
@@ -452,7 +452,7 @@ function ReactionBubbles({ reactions, onReact }) {
 }
 
 // ── WhatsApp-Style Group Invite Card ──────────────────────────────────────────
-function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, token }) {
+function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, isPendingConversation, token }) {
   const [isJoining, setIsJoining] = useState(false)
   const [hasJoined, setHasJoined] = useState(false)
 
@@ -460,8 +460,12 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, token }) {
   const groupName = inviteData?.groupName || 'Group'
   const groupAvatar = inviteData?.groupAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(groupName)}`
 
+  // Phase 15.21: Lock [Gabung Grup] button for recipient when 1-on-1 conversation is pending message request
+  const isLocked = !isOwn && !!isPendingConversation
+
   const handleJoin = async (e) => {
     e.stopPropagation()
+    if (isLocked) return
     if (!groupId) return
     setIsJoining(true)
     try {
@@ -488,7 +492,11 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, token }) {
   return (
     <div
       onClick={handleJoin}
-      className={`p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
+      className={`p-3.5 rounded-2xl border transition-all select-none ${
+        isLocked
+          ? 'cursor-not-allowed opacity-90'
+          : 'cursor-pointer'
+      } ${
         isOwn
           ? 'bg-indigo-950/60 border-indigo-500/30 text-white shadow-lg shadow-indigo-950/40 hover:bg-indigo-950/80'
           : 'bg-zinc-900/90 border-zinc-700/60 text-zinc-100 shadow-xl hover:bg-zinc-850'
@@ -520,15 +528,23 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, token }) {
 
       <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2">
         <p className="text-[11px] text-zinc-400">
-          {isOwn ? 'Undangan Anda terkirim' : 'Ketuk untuk bergabung'}
+          {isOwn
+            ? 'Undangan Anda terkirim'
+            : isLocked
+            ? 'Terima pesan terlebih dahulu'
+            : 'Ketuk untuk bergabung'}
         </p>
         <motion.button
           type="button"
           onClick={handleJoin}
-          disabled={isJoining}
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          className="px-4 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-500/30 cursor-pointer disabled:opacity-50"
+          disabled={isJoining || isLocked}
+          whileHover={!isLocked ? { scale: 1.03 } : {}}
+          whileTap={!isLocked ? { scale: 0.97 } : {}}
+          className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md ${
+            isLocked
+              ? 'bg-zinc-700/60 text-zinc-400 cursor-not-allowed opacity-75 border border-zinc-600/30 shadow-none'
+              : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-500/30 cursor-pointer'
+          } disabled:opacity-50`}
         >
           {isJoining ? (
             <>
@@ -539,6 +555,11 @@ function GroupInviteCard({ inviteData, text, isOwn, onJoinGroup, token }) {
             <>
               <Check size={13} />
               <span>Buka Grup</span>
+            </>
+          ) : isLocked ? (
+            <>
+              <Lock size={12} className="opacity-70" />
+              <span>Gabung Grup</span>
             </>
           ) : (
             <>
@@ -563,6 +584,7 @@ export default function MessageBubble({
   onJoinGroup,
   conversationId,
   isGroup,
+  isPendingConversation = false,
   totalParticipants,
   isSearchResult = false,
   isCurrentMatch = false,
@@ -906,6 +928,7 @@ export default function MessageBubble({
                   text={decryptedText || text}
                   isOwn={isOwn}
                   onJoinGroup={onJoinGroup}
+                  isPendingConversation={isPendingConversation}
                   token={token}
                 />
               ) : (
