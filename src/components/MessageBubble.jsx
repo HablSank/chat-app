@@ -443,6 +443,7 @@ function ActionPicker({
   isDeleted,
   canEdit,
 }) {
+  const { t } = useLanguage()
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.85, y: 4 }}
@@ -482,7 +483,7 @@ function ActionPicker({
           whileHover={{ scale: 1.15 }}
           whileTap={{ scale: 0.9 }}
           className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Reply"
+          title={t('reply')}
         >
           <Reply size={15} />
         </motion.button>
@@ -499,7 +500,7 @@ function ActionPicker({
           whileHover={{ scale: 1.15 }}
           whileTap={{ scale: 0.9 }}
           className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Salin Teks"
+          title={t('copy')}
         >
           <Copy size={14} />
         </motion.button>
@@ -518,7 +519,7 @@ function ActionPicker({
           className={`p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer ${
             isPinned ? 'text-indigo-400 hover:text-indigo-300' : 'text-zinc-400 hover:text-zinc-200'
           }`}
-          title={isPinned ? 'Unpin message' : 'Pin message'}
+          title={isPinned ? t('unpin') : t('pin')}
         >
           {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
         </motion.button>
@@ -535,7 +536,7 @@ function ActionPicker({
           whileHover={{ scale: 1.15 }}
           whileTap={{ scale: 0.9 }}
           className="text-zinc-400 hover:text-indigo-300 p-1.5 rounded-full hover:bg-zinc-700/60 transition-colors cursor-pointer"
-          title="Message info"
+          title={t('messageOptions')}
         >
           <Info size={14} />
         </motion.button>

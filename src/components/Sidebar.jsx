@@ -172,7 +172,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     if (!convId || !currentUserId) return
 
     if (contact.isArchived || isViewingArchive) {
-      triggerToast('⚠️ Chat yang diarsipkan tidak dapat disematkan')
+      triggerToast(t('archivedPinBlockedToast'))
       return
     }
 
@@ -196,7 +196,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         setConversations(prev => prev.map(c => c._id.toString() === data._id.toString() ? updatedObj : c))
 
         const isNowPinned = Array.isArray(data.pinnedBy) && data.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
-        triggerToast(isNowPinned ? '📌 Chat disematkan ke atas' : '📌 Sematan chat dilepas')
+        triggerToast(isNowPinned ? t('chatPinnedToast') : t('chatUnpinnedToast'))
       } else {
         triggerToast(`⚠️ ${data.message || 'Gagal mengubah sematan chat'}`)
       }
@@ -241,7 +241,7 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
         setConversations(prev => prev.map(c => c._id.toString() === data._id.toString() ? updatedObj : c))
 
         const isNowArchived = Array.isArray(data.archivedBy) && data.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
-        triggerToast(isNowArchived ? '📦 Chat berhasil diarsipkan' : '📦 Chat dipindahkan dari arsip')
+        triggerToast(isNowArchived ? t('chatArchivedToast') : t('chatUnarchivedToast'))
       } else {
         triggerToast(`⚠️ ${data.message || 'Gagal mengubah arsip chat'}`)
       }

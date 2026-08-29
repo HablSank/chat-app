@@ -179,7 +179,7 @@ export default function ChatItem({
                   size={12}
                   className="text-indigo-400 transform rotate-45"
                   fill="currentColor"
-                  title="Disematkan"
+                  title={t('pinnedChats')}
                 />
               )}
               {timestamp && (
