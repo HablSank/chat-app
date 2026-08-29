@@ -746,6 +746,20 @@ export default function ChatRoom({
           selectedMessages={selectedMessages}
           onClearSelection={() => setSelectedMessages([])}
           onReplySelected={handleReplySelected}
+          onEditSelected={(msg) => {
+            if (!msg) return
+            const plain = decryptedMap[msg._id] || msg.text
+            setEditingMessage({
+              _id: msg._id,
+              text: plain,
+            })
+            setSelectedMessages([])
+          }}
+          onPinSelected={(msg) => {
+            if (!msg?._id) return
+            onPinMessage?.(msg._id)
+            setSelectedMessages([])
+          }}
           onCopySelected={handleCopySelected}
           onDownloadSelected={handleDownloadSelected}
           onDeleteSelected={handleDeleteSelected}

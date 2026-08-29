@@ -20,6 +20,9 @@ import {
   Download,
   CheckCheck,
   X,
+  Pin,
+  PinOff,
+  Pencil,
 } from 'lucide-react'
 import { useLanguage } from '../context/LanguageContext'
 
@@ -46,6 +49,8 @@ export default function ChatHeader({
   selectedMessages = [],
   onClearSelection,
   onReplySelected,
+  onEditSelected,
+  onPinSelected,
   onCopySelected,
   onDownloadSelected,
   onDeleteSelected,
@@ -74,6 +79,18 @@ export default function ChatHeader({
   const hasCopyableContent = isSelectionMode && selectedMessages.some(
     (m) => !!(m?.text || m?.plainText || m?.systemText || m?.imageUrl || m?.imageUrls?.length)
   )
+
+  // Edit action available ONLY when EXACTLY 1 own, non-deleted text message without media is selected
+  const canEditSelected = selectedMessages.length === 1 &&
+    selectedMsg?.isOwn &&
+    !selectedMsg?.isDeleted &&
+    !selectedMsg?.audioUrl &&
+    !(selectedMsg?.imageUrl || selectedMsg?.imageUrls?.length) &&
+    !!(selectedMsg?.text || selectedMsg?.plainText)
+
+  // Pin/Unpin available when EXACTLY 1 non-deleted message is selected
+  const canPinSelected = selectedMessages.length === 1 && !selectedMsg?.isDeleted
+  const isSelectedMsgPinned = !!selectedMsg?.isPinned
 
   // Close dropdown menu when clicking outside
   useEffect(() => {
@@ -128,6 +145,32 @@ export default function ChatHeader({
               title={t('reply')}
             >
               <Reply size={18} />
+            </button>
+          )}
+
+          {/* Edit (if single own text message) */}
+          {canEditSelected && (
+            <button
+              type="button"
+              id="header-edit-btn"
+              onClick={() => onEditSelected?.(selectedMsg)}
+              className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
+              title={t('editMessage')}
+            >
+              <Pencil size={18} />
+            </button>
+          )}
+
+          {/* Pin / Unpin (if single message) */}
+          {canPinSelected && (
+            <button
+              type="button"
+              id="header-pin-btn"
+              onClick={() => onPinSelected?.(selectedMsg)}
+              className="p-2 text-indigo-200 hover:text-white hover:bg-indigo-900/60 rounded-full transition-colors cursor-pointer"
+              title={isSelectedMsgPinned ? t('unpin') : t('pin')}
+            >
+              {isSelectedMsgPinned ? <PinOff size={18} /> : <Pin size={18} />}
             </button>
           )}
 
