@@ -553,24 +553,48 @@ export default function ChatRoom({
     setSelectedMessages([])
   }
 
-  const handleDownloadSelected = (target) => {
+  // Robust Blob-based Media Downloader (matching MessageBubble image frame logic)
+  const downloadSingleMedia = async (url, fileName) => {
+    if (!url) return
+    try {
+      const response = await fetch(url)
+      const blob = await response.blob()
+      const blobUrl = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = fileName || 'ping-attachment.jpg'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(blobUrl)
+    } catch (err) {
+      console.warn('Blob download fallback:', err)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName || 'ping-attachment.jpg'
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    }
+  }
+
+  const handleDownloadSelected = async (target) => {
     const msgs = Array.isArray(target) ? target : [target].filter(Boolean)
     if (msgs.length === 0) return
 
-    msgs.forEach((msg, idx) => {
+    let count = 0
+    for (let idx = 0; idx < msgs.length; idx++) {
+      const msg = msgs[idx]
       const urls = msg.imageUrls?.length ? msg.imageUrls : [msg.imageUrl || msg.audioUrl].filter(Boolean)
-      urls.forEach((url, subIdx) => {
-        setTimeout(() => {
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `media_${msg._id || Date.now()}_${subIdx + 1}`
-          a.target = '_blank'
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-        }, (idx + subIdx) * 200)
-      })
-    })
+      for (let subIdx = 0; subIdx < urls.length; subIdx++) {
+        const url = urls[subIdx]
+        const ext = url.includes('.mp3') || url.includes('.webm') || url.includes('.ogg') ? 'webm' : 'jpg'
+        const fileName = `ping-media-${msg._id || Date.now()}-${subIdx + 1}.${ext}`
+        await downloadSingleMedia(url, fileName)
+        count++
+      }
+    }
 
     triggerToast(t('directDownload'))
     setSelectedMessages([])

@@ -83,6 +83,19 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
     setIsBatchProcessing(true)
     const shouldArchive = !isViewingArchive
 
+    if (shouldArchive) {
+      const hasPinnedChat = conversations.some(c =>
+        selectedChatIds.includes(c._id?.toString()) &&
+        Array.isArray(c.pinnedBy) &&
+        c.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+      )
+      if (hasPinnedChat) {
+        triggerToast(t('pinnedArchiveBlockedToast'))
+        setIsBatchProcessing(false)
+        return
+      }
+    }
+
     try {
       const res = await fetch(getApiUrl('/api/conversations/batch-archive'), {
         method: 'PATCH',
@@ -196,6 +209,17 @@ export default function Sidebar({ selectedId, onSelect, refreshTrigger }) {
   const handleToggleArchive = async (contact) => {
     const convId = (contact.conversationId || contact.id || '').toString()
     if (!convId || !currentUserId) return
+
+    // Find conversation object to check pinned status
+    const conv = conversations.find(c => c._id?.toString() === convId)
+    const isCurrentlyPinned = Array.isArray(conv?.pinnedBy) && conv.pinnedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+    const isCurrentlyArchived = Array.isArray(conv?.archivedBy) && conv.archivedBy.some(p => (p?._id?.toString() || p?.toString()) === currentUserId)
+
+    // Rule: Must unpin first before archiving
+    if (!isCurrentlyArchived && isCurrentlyPinned) {
+      triggerToast(t('pinnedArchiveBlockedToast'))
+      return
+    }
 
     try {
       const res = await fetch(getApiUrl(`/api/conversations/${convId}/archive`), {

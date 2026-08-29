@@ -215,6 +215,7 @@ const translations = {
     chatArchivedToast: '📦 Chat berhasil diarsipkan',
     chatUnarchivedToast: '📦 Chat dipindahkan dari arsip',
     archivedPinBlockedToast: '⚠️ Chat yang diarsipkan tidak dapat disematkan',
+    pinnedArchiveBlockedToast: '⚠️ Lepas sematan (unpin) chat terlebih dahulu sebelum mengarsipkan',
 
     // Theme Modal i18n
     themeModalTitle: 'Tema & Wallpaper Chat',
@@ -467,6 +468,7 @@ const translations = {
     chatArchivedToast: '📦 Chat archived successfully',
     chatUnarchivedToast: '📦 Chat unarchived',
     archivedPinBlockedToast: '⚠️ Archived chats cannot be pinned',
+    pinnedArchiveBlockedToast: '⚠️ Please unpin this chat before archiving',
 
     // Theme Modal i18n
     themeModalTitle: 'Chat Theme & Wallpaper',

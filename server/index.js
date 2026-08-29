@@ -1211,11 +1211,15 @@ app.patch('/api/conversations/:id/archive', protect, async (req, res) => {
     if (isAlreadyArchived) {
       conversation.archivedBy = conversation.archivedBy.filter(id => (id?._id?.toString() || id?.toString()) !== userIdStr)
     } else {
-      conversation.archivedBy.push(req.user._id)
-      // If archiving, unpin from user's pinnedBy
-      if (conversation.pinnedBy) {
-        conversation.pinnedBy = conversation.pinnedBy.filter(id => (id?._id?.toString() || id?.toString()) !== userIdStr)
+      // Check if conversation is currently pinned by user
+      const isPinned = Array.isArray(conversation.pinnedBy) && conversation.pinnedBy.some(id => (id?._id?.toString() || id?.toString()) === userIdStr)
+      if (isPinned) {
+        return res.status(400).json({
+          message: 'Lepas sematan (unpin) chat terlebih dahulu sebelum mengarsipkan.',
+          code: 'PINNED_ARCHIVE_BLOCKED',
+        })
       }
+      conversation.archivedBy.push(req.user._id)
     }
 
     await conversation.save()
