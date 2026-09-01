@@ -56,6 +56,11 @@ const translations = {
     notificationsBlocked: 'Notifikasi Diblokir Browser',
     enableNotifications: 'Aktifkan Notifikasi',
     testSound: 'Tes Suara',
+    notificationBlockedAlertTitle: 'Notifikasi Diblokir oleh Browser',
+    notificationBlockedAlertDesc: 'Anda sebelumnya telah memblokir izin notifikasi untuk situs ini. Untuk mengaktifkannya kembali:',
+    unblockStep1: '1. Ketuk ikon gembok / setelan situs (🔒) di sebelah kiri bilah URL browser.',
+    unblockStep2: '2. Buka "Izin" atau "Setelan situs" lalu ubah "Notifikasi" menjadi Izinkan (Allow).',
+    unblockStep3: '3. Muat ulang (refresh) halaman aplikasi.',
 
     // Privacy & Appearance Tab
     privacySettings: 'Pengaturan Privasi & Tampilan',
@@ -308,6 +313,11 @@ const translations = {
     notificationsBlocked: 'Notifications Blocked in Browser',
     enableNotifications: 'Enable Notifications',
     testSound: 'Test Sound',
+    notificationBlockedAlertTitle: 'Notifications Blocked in Browser',
+    notificationBlockedAlertDesc: 'You previously blocked notifications for this site. To re-enable:',
+    unblockStep1: '1. Click the lock / tune icon (🔒) on the left side of the browser URL address bar.',
+    unblockStep2: '2. Go to "Permissions" or "Site settings" and change "Notifications" to Allow.',
+    unblockStep3: '3. Reload (refresh) the app page.',
 
     // Privacy & Appearance Tab
     privacySettings: 'Privacy & Appearance Settings',

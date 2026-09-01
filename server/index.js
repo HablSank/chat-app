@@ -2158,7 +2158,9 @@ io.on('connection', (socket) => {
               const res = await sendWebPush(targetUser.pushSubscription, {
                 title: senderName,
                 body: pushText,
-                icon: populatedMessage.sender?.avatar || '/logo.png',
+                icon: populatedMessage.sender?.avatar || '/icon-192x192.png',
+                badge: '/icon-192x192.png',
+                url: `/#/chat/${conversation._id.toString()}`,
                 data: { conversationId: conversation._id.toString() },
               })
               if (res?.expired) {

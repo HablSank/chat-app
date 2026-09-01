@@ -40,11 +40,13 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Ping! Message'
   const options = {
     body: data.body || 'Anda memiliki pesan baru',
-    icon: data.icon || '/logo.png',
-    badge: data.badge || '/logo.png',
-    vibrate: [100, 50, 100],
+    icon: data.icon || '/icon-192x192.png',
+    badge: data.badge || '/icon-192x192.png',
+    tag: 'ping-message-' + (data.data?.conversationId || Date.now()),
+    renotify: true,
+    vibrate: [200, 100, 200],
     data: {
-      url: data.url || '/',
+      url: data.url || (data.data?.conversationId ? `/#/chat/${data.data.conversationId}` : '/'),
       conversationId: data.data?.conversationId || '',
     },
     actions: [

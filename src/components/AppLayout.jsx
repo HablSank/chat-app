@@ -8,6 +8,8 @@ import { useLanguage } from '../context/LanguageContext'
 import { encryptMessage, decryptMessage } from '../utils/crypto'
 import { playSendSound, playReceiveSound } from '../utils/sound'
 import { getApiUrl } from '../config/api'
+import { registerPushSubscription } from '../utils/pushManager'
+import InAppToast from './InAppToast'
 
 // ── Empty-state illustration when no chat is selected (Mobile & Desktop) ──
 function NoChatSelected() {
@@ -471,6 +473,15 @@ export default function AppLayout() {
     return () => mq.removeEventListener('change', update)
   }, [])
 
+  // Auto-sync Push Subscription if permission was already granted (e.g. Mobile PWA launch)
+  useEffect(() => {
+    if (token && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      registerPushSubscription(token).catch((err) => {
+        console.warn('Auto push subscription sync skipped/failed:', err)
+      })
+    }
+  }, [token])
+
   // Handle mobile browser/hardware back button (History API)
   useEffect(() => {
     const handlePopState = () => {
@@ -882,13 +893,11 @@ export default function AppLayout() {
         {/* Floating In-App Toast Banner (Mobile) */}
         <AnimatePresence>
           {inAppToast && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="fixed top-4 left-4 right-4 z-50 bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-md p-3 flex items-center gap-3 cursor-pointer hover:border-indigo-500/50 transition-colors"
-              onClick={() => {
+            <InAppToast
+              toast={inAppToast}
+              className="top-4 left-4 right-4"
+              onClose={() => setInAppToast(null)}
+              onOpen={() => {
                 const targetConvId = inAppToast.conversationId
                 setInAppToast(null)
                 if (targetConvId) {
@@ -902,27 +911,7 @@ export default function AppLayout() {
                   joinPrivateRoom(targetConvId)
                 }
               }}
-            >
-              <img
-                src={inAppToast.senderAvatar}
-                alt={inAppToast.senderName}
-                className="w-10 h-10 rounded-full object-cover bg-zinc-800 flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-zinc-100 truncate">{inAppToast.senderName}</p>
-                <p className="text-xs text-zinc-400 truncate">{inAppToast.preview}</p>
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setInAppToast(null)
-                }}
-                className="text-zinc-500 hover:text-zinc-300 p-1 rounded-lg"
-              >
-                ✕
-              </button>
-            </motion.div>
+            />
           )}
         </AnimatePresence>
       </div>
@@ -970,16 +959,14 @@ export default function AppLayout() {
         </AnimatePresence>
       </div>
 
-      {/* Floating In-App Toast Banner */}
+      {/* Floating In-App Toast Banner (Desktop) */}
       <AnimatePresence>
         {inAppToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="fixed top-4 right-4 sm:right-6 z-50 max-w-sm w-[90%] bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-md p-3 flex items-center gap-3 cursor-pointer hover:border-indigo-500/50 transition-colors"
-            onClick={() => {
+          <InAppToast
+            toast={inAppToast}
+            className="top-4 right-4 sm:right-6 max-w-sm w-[90%]"
+            onClose={() => setInAppToast(null)}
+            onOpen={() => {
               const targetConvId = inAppToast.conversationId
               setInAppToast(null)
               if (targetConvId) {
@@ -993,27 +980,7 @@ export default function AppLayout() {
                 joinPrivateRoom(targetConvId)
               }
             }}
-          >
-            <img
-              src={inAppToast.senderAvatar}
-              alt={inAppToast.senderName}
-              className="w-10 h-10 rounded-full object-cover bg-zinc-800 flex-shrink-0"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-zinc-100 truncate">{inAppToast.senderName}</p>
-              <p className="text-xs text-zinc-400 truncate">{inAppToast.preview}</p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                setInAppToast(null)
-              }}
-              className="text-zinc-500 hover:text-zinc-300 p-1 rounded-lg"
-            >
-              ✕
-            </button>
-          </motion.div>
+          />
         )}
       </AnimatePresence>
     </div>

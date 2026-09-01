@@ -40,6 +40,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const [activeTab, setActiveTab]             = useState('system') // 'system' | 'sound' | 'privacy' | 'security'
   const [soundMuted, setSoundMuted]           = useState(() => localStorage.getItem('ping_sound_muted') === 'true')
   const [notificationsAllowed, setNotificationsAllowed] = useState(false)
+  const [notificationsBlocked, setNotificationsBlocked] = useState(false)
   const [isPushLoading, setIsPushLoading]     = useState(false)
   const [showPwaGuide, setShowPwaGuide]       = useState(false)
 
@@ -63,6 +64,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       setNotificationsAllowed(Notification.permission === 'granted')
+      setNotificationsBlocked(Notification.permission === 'denied')
     }
   }, [isOpen])
 
@@ -92,6 +94,11 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
   const handleToggleNotifications = async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
       alert('Browser Anda tidak mendukung push notifications.')
+      return
+    }
+
+    if (Notification.permission === 'denied') {
+      setNotificationsBlocked(true)
       return
     }
 
@@ -127,6 +134,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
       if (permission === 'granted') {
         await registerPushSubscription(token)
         setNotificationsAllowed(true)
+        setNotificationsBlocked(false)
+      } else if (permission === 'denied') {
+        setNotificationsAllowed(false)
+        setNotificationsBlocked(true)
       } else {
         setNotificationsAllowed(false)
       }
@@ -464,31 +475,59 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                   </div>
                 </div>
 
-                {/* Desktop Push Notifications */}
-                <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
-                      <Bell size={16} />
+                {/* Push Notifications Card */}
+                <div className="p-4 rounded-2xl bg-zinc-950/60 border border-zinc-800 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
+                        <Bell size={16} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-zinc-100">{t('desktopNotifications')}</p>
+                        <p className="text-[11px] text-zinc-400 mt-0.5">{t('desktopNotificationsDesc')}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-zinc-100">{t('desktopNotifications')}</p>
-                      <p className="text-[11px] text-zinc-400 mt-0.5">{t('desktopNotificationsDesc')}</p>
-                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleToggleNotifications}
+                      disabled={isPushLoading}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50 ${
+                        notificationsBlocked
+                          ? 'bg-rose-500/15 border border-rose-500/30 text-rose-300'
+                          : notificationsAllowed
+                          ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
+                          : 'bg-gray-800 hover:bg-gray-700 text-gray-200 border border-zinc-700/60 shadow-sm active:scale-95'
+                      }`}
+                    >
+                      {isPushLoading && <Loader2 size={13} className="animate-spin" />}
+                      <span>
+                        {notificationsBlocked
+                          ? t('notificationsBlocked')
+                          : notificationsAllowed
+                          ? t('notificationsEnabled')
+                          : t('enableNotifications')}
+                      </span>
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleToggleNotifications}
-                    disabled={isPushLoading}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50 ${
-                      notificationsAllowed
-                        ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
-                        : 'bg-gray-800 hover:bg-gray-700 text-gray-200 border border-zinc-700/60 shadow-sm active:scale-95'
-                    }`}
-                  >
-                    {isPushLoading && <Loader2 size={13} className="animate-spin" />}
-                    <span>{notificationsAllowed ? t('notificationsEnabled') : t('enableNotifications')}</span>
-                  </button>
+                  {/* Browser Blocked Explanatory Banner */}
+                  {notificationsBlocked && (
+                    <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl text-[11px] text-rose-200 space-y-1.5 animate-fadeIn">
+                      <p className="font-bold flex items-center gap-1.5 text-rose-300">
+                        <span>🔒</span>
+                        <span>{t('notificationBlockedAlertTitle')}</span>
+                      </p>
+                      <p className="text-rose-300/80 leading-relaxed">
+                        {t('notificationBlockedAlertDesc')}
+                      </p>
+                      <div className="bg-black/40 p-2 rounded-lg space-y-1 text-[10.5px] font-mono text-zinc-300 border border-rose-500/20">
+                        <p>{t('unblockStep1')}</p>
+                        <p>{t('unblockStep2')}</p>
+                        <p>{t('unblockStep3')}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}
