@@ -26,6 +26,31 @@ cloudinary.config({
   api_secret: apiSecret,
 })
 
+const ALLOWED_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'webp', 'gif',
+  'pdf', 'doc', 'docx', 'txt',
+  'mp3', 'wav', 'webm', 'ogg', 'm4a', 'aac', 'mp4'
+])
+
+const BLOCKED_EXTENSIONS = new Set([
+  'exe', 'bat', 'cmd', 'sh', 'php', 'js', 'html', 'htm', 'jar', 'vbs', 'scr', 'msi', 'com', 'pif'
+])
+
+const fileFilter = (req, file, cb) => {
+  const originalName = file.originalname || ''
+  const ext = originalName.split('.').pop()?.toLowerCase() || ''
+
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    return cb(new Error(`File extension .${ext} is strictly prohibited for security reasons.`))
+  }
+
+  if (ext && !ALLOWED_EXTENSIONS.has(ext)) {
+    return cb(new Error(`Unsupported file type .${ext}. Only safe media and document formats are permitted.`))
+  }
+
+  cb(null, true)
+}
+
 // Storage for user avatars
 const avatarStorage = new CloudinaryStorage({
   cloudinary,
@@ -41,7 +66,7 @@ const mediaStorage = new CloudinaryStorage({
   cloudinary,
   params: {
     folder: 'chat-app-media',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'doc', 'docx', 'txt'],
   },
 })
 
@@ -55,10 +80,32 @@ const audioStorage = new CloudinaryStorage({
   },
 })
 
-export const uploadAvatar = multer({ storage: avatarStorage })
-export const uploadMedia = multer({ storage: mediaStorage })
-export const uploadMediaMulti = multer({ storage: mediaStorage })
-export const uploadAudio = multer({ storage: audioStorage })
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+
+export const uploadAvatar = multer({
+  storage: avatarStorage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+})
+
+export const uploadMedia = multer({
+  storage: mediaStorage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+})
+
+export const uploadMediaMulti = multer({
+  storage: mediaStorage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+})
+
+export const uploadAudio = multer({
+  storage: audioStorage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+})
+
 export const upload = uploadAvatar // fallback export
 
 export default cloudinary

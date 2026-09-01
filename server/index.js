@@ -9,6 +9,9 @@ import jwt from 'jsonwebtoken'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import compression from 'compression'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import mongoSanitize from 'express-mongo-sanitize'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,13 +31,72 @@ dotenv.config()
 const app = express()
 const httpServer = createServer(app)
 
-// Enable Gzip HTTP compression for fast tunnel responses
+// ── Security Hardening Middlewares ───────────────────────────────────────────
+// 1. Helmet: Set secure HTTP response headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Handled per-deployment/PWA requirements
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+)
+
+// 2. Data Sanitization against NoSQL query injection
+app.use(mongoSanitize())
+
+// 3. Enable Gzip HTTP compression
 app.use(compression())
 
-// Middleware setup - Permissive CORS for Cloudflare / Serveo tunnels & dynamic origins
+// 4. Rate Limiting: Global limiter (200 reqs / 15 mins)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests from this IP, please try again after 15 minutes' },
+})
+app.use('/api/', globalLimiter)
+
+// 5. Rate Limiting: Strict Auth limiter for login/register (15 attempts / 15 mins)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many authentication attempts, please try again after 15 minutes' },
+})
+app.use('/api/auth/login', authLimiter)
+app.use('/api/auth/register', authLimiter)
+
+// 6. Strict CORS Configuration
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:5173',
+  'https://piing-chat-app-server.onrender.com',
+  process.env.CLIENT_URL,
+].filter(Boolean)
+
 app.use(
   cors({
-    origin: true, // Echo request origin (allows credentials & any tunnel domain)
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl) or if origin is in whitelist or is tunnel
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.trycloudflare.com') ||
+        origin.endsWith('.serveo.net') ||
+        origin.endsWith('.loca.lt') ||
+        origin.endsWith('.netlify.app') ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com')
+      ) {
+        callback(null, true)
+      } else {
+        callback(new Error('Blocked by CORS policy'))
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

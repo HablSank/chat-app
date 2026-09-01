@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify'
+
 // ── Client-Side Encryption Utility (Web Crypto API - AES-GCM) ─────────────────
 const APP_SALT = 'ping_e2ee_secret_salt_v1'
 
@@ -172,4 +174,18 @@ export async function decryptMessage(text, conversationId) {
     console.warn('Decryption failed, displaying raw text:', err)
     return text
   }
+}
+
+/**
+ * Sanitizes user input / rich content strings against XSS attacks using DOMPurify
+ * @param {string} dirtyString
+ * @returns {string}
+ */
+export function sanitizeText(dirtyString) {
+  if (!dirtyString || typeof dirtyString !== 'string') return dirtyString || ''
+  if (typeof window === 'undefined') return dirtyString
+  return DOMPurify.sanitize(dirtyString, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'code', 'pre', 'span'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+  })
 }
