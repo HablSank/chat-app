@@ -37,20 +37,23 @@ self.addEventListener('push', (event) => {
     data = { title: 'Ping!', body: event.data ? event.data.text() : 'Pesan baru diterima' }
   }
 
+  const convId = data.conversationId || data.data?.conversationId || ''
   const title = data.title || 'Ping! Message'
   const options = {
     body: data.body || 'Anda memiliki pesan baru',
     icon: data.icon || '/icon-192x192.png',
-    badge: data.badge || '/icon-192x192.png',
-    tag: 'ping-message-' + (data.data?.conversationId || Date.now()),
+    badge: data.badge || '/ping.png',
+    tag: convId ? `conv-${convId}` : 'ping-message-' + Date.now(),
     renotify: true,
     vibrate: [200, 100, 200],
     data: {
-      url: data.url || (data.data?.conversationId ? `/#/chat/${data.data.conversationId}` : '/'),
-      conversationId: data.data?.conversationId || '',
+      url: data.url || (convId ? `/#/chat/${convId}` : '/'),
+      conversationId: convId,
+      messageId: data.messageId || data.data?.messageId || '',
     },
     actions: [
-      { action: 'open', title: 'Buka Chat' }
+      { action: 'open', title: 'Buka Chat' },
+      { action: 'mark_read', title: 'Tandai Dibaca' }
     ]
   }
 
@@ -61,12 +64,31 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
+  const action = event.action
+  const convId = event.notification.data?.conversationId
   const targetUrl = event.notification.data?.url || '/'
 
+  // If user clicked "Tandai Dibaca" (mark_read action button)
+  if (action === 'mark_read' && convId) {
+    event.waitUntil(
+      fetch(`/api/messages/read/${convId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }).catch((err) => {
+        console.warn('Failed to mark message as read from push action:', err)
+      })
+    )
+    return
+  }
+
+  // If user clicked "Buka Chat" or tapped the notification body directly
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       for (const client of windowClients) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client && targetUrl) {
+            client.navigate(targetUrl)
+          }
           return client.focus()
         }
       }

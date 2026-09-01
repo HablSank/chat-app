@@ -1603,6 +1603,46 @@ app.post('/api/conversations/:id/decline-invite', protect, handleDeclineGroupInv
 app.post('/api/conversations/:id/decline-group', protect, handleDeclineGroupInvite)
 app.post('/api/conversations/:id/reject-group', protect, handleDeclineGroupInvite)
 
+// ── REST API: Mark Conversation Messages as Read (Used by Service Worker Actions) ──
+app.post('/api/messages/read/:conversationId', protect, async (req, res) => {
+  try {
+    const conversationId = req.params.conversationId
+    const readerId = req.user._id
+    const now = new Date()
+
+    const readerUser = await User.findById(readerId).select('username displayName avatar')
+
+    await Message.updateMany(
+      {
+        conversationId,
+        sender: { $ne: readerId },
+        'readBy.user': { $ne: readerId }
+      },
+      {
+        $set: { status: 'read' },
+        $push: { readBy: { user: readerId, readAt: now } }
+      }
+    )
+
+    io.to(conversationId.toString()).emit('chat:messages_read', {
+      conversationId,
+      readerId: readerId.toString(),
+      reader: readerUser ? {
+        _id: readerUser._id.toString(),
+        username: readerUser.username,
+        displayName: readerUser.displayName,
+        avatar: readerUser.avatar,
+      } : null,
+      readAt: now,
+    })
+
+    res.json({ success: true, message: 'Messages marked as read' })
+  } catch (error) {
+    console.error('Mark Read Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 // ── REST API: Get Message Info (Read By & Delivered To) ──────────────────────
 app.get('/api/messages/:id/info', protect, async (req, res) => {
   try {
@@ -2159,9 +2199,15 @@ io.on('connection', (socket) => {
                 title: senderName,
                 body: pushText,
                 icon: populatedMessage.sender?.avatar || '/icon-192x192.png',
-                badge: '/icon-192x192.png',
+                badge: '/ping.png',
+                conversationId: conversation._id.toString(),
+                messageId: populatedMessage._id.toString(),
                 url: `/#/chat/${conversation._id.toString()}`,
-                data: { conversationId: conversation._id.toString() },
+                data: {
+                  url: `/#/chat/${conversation._id.toString()}`,
+                  conversationId: conversation._id.toString(),
+                  messageId: populatedMessage._id.toString(),
+                },
               })
               if (res?.expired) {
                 targetUser.pushSubscription = null
