@@ -27,17 +27,21 @@ export async function registerPushSubscription(token) {
   }
 
   try {
-    // 1. Get VAPID public key from server
-    const keyRes = await fetch(getApiUrl('/api/push/vapid-key'))
-    const { publicKey } = await keyRes.json()
-    if (!publicKey) throw new Error('VAPID public key not found')
+    // 1. Get VAPID public key (from env or server)
+    let vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY
+    if (!vapidPublicKey) {
+      const keyRes = await fetch(getApiUrl('/api/push/vapid-key'))
+      const keyData = await keyRes.json()
+      vapidPublicKey = keyData.publicKey
+    }
+    if (!vapidPublicKey) throw new Error('VAPID public key not found')
 
     // 2. Ensure service worker is ready
     const registration = await navigator.serviceWorker.ready
     if (!registration) throw new Error('Service Worker registration not ready')
 
     // 3. Subscribe with PushManager
-    const convertedVapidKey = urlBase64ToUint8Array(publicKey)
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey)
     let subscription = await registration.pushManager.getSubscription()
 
     if (!subscription) {
@@ -47,8 +51,8 @@ export async function registerPushSubscription(token) {
       })
     }
 
-    // 4. Send subscription to server
-    const subRes = await fetch(getApiUrl('/api/push/subscribe'), {
+    // 4. Send subscription to server (/api/users/push-subscribe and /api/push/subscribe)
+    const subRes = await fetch(getApiUrl('/api/users/push-subscribe'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

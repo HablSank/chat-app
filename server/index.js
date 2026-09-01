@@ -386,6 +386,23 @@ app.put('/api/users/presence', protect, async (req, res) => {
   }
 })
 
+// ── REST API: Save Web Push Subscription ─────────────────────────────────────
+app.post('/api/users/push-subscribe', protect, async (req, res) => {
+  try {
+    const { subscription } = req.body
+    const user = await User.findById(req.user._id)
+    if (!user) return res.status(404).json({ message: 'User not found' })
+
+    user.pushSubscription = subscription || null
+    await user.save()
+
+    res.json({ success: true, message: 'Push subscription updated' })
+  } catch (error) {
+    console.error('Push Subscribe Error:', error)
+    res.status(500).json({ message: 'Server error' })
+  }
+})
+
 
 // ── REST API: Get User Profile by ID (Friend Profile) ─────────────────────
 app.get('/api/users/:id', protect, async (req, res) => {
