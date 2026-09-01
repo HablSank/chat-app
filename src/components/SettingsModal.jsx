@@ -511,11 +511,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenThemeModal }) {
                     </button>
                   </div>
 
-                  {/* Sync Delay Explanatory Helper Note */}
-                  <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                    {t('notificationSyncDelayNote')}
-                  </p>
-
                   {/* Browser Blocked Explanatory Banner */}
                   {notificationsBlocked && (
                     <div className="p-3 bg-rose-950/40 border border-rose-500/30 rounded-xl text-[11px] text-rose-200 space-y-1.5 animate-fadeIn">

@@ -29,10 +29,8 @@ export async function sendWebPush(subscription, payload) {
     const stringifiedPayload = JSON.stringify({
       title: payload.title || 'Ping! Message',
       body: payload.body || 'You have a new message',
-      icon: payload.icon || '/icon-192x192.png',
-      badge: payload.badge || '/ping.png',
-      conversationId: payload.conversationId || payload.data?.conversationId || '',
-      messageId: payload.messageId || payload.data?.messageId || '',
+      icon: payload.icon || '/logo.png',
+      badge: payload.badge || '/logo.png',
       url: payload.url || '/',
       data: payload.data || {},
     })

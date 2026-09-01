@@ -61,7 +61,6 @@ const translations = {
     unblockStep1: '1. Ketuk ikon gembok / setelan situs (🔒) di sebelah kiri bilah URL browser.',
     unblockStep2: '2. Buka "Izin" atau "Setelan situs" lalu ubah "Notifikasi" menjadi Izinkan (Allow).',
     unblockStep3: '3. Muat ulang (refresh) halaman aplikasi.',
-    notificationSyncDelayNote: 'Catatan: Setelah mengizinkan notifikasi, butuh beberapa detik hingga perangkat tersinkronisasi sepenuhnya.',
 
     // Privacy & Appearance Tab
     privacySettings: 'Pengaturan Privasi & Tampilan',
@@ -319,7 +318,6 @@ const translations = {
     unblockStep1: '1. Click the lock / tune icon (🔒) on the left side of the browser URL address bar.',
     unblockStep2: '2. Go to "Permissions" or "Site settings" and change "Notifications" to Allow.',
     unblockStep3: '3. Reload (refresh) the app page.',
-    notificationSyncDelayNote: 'Note: After granting notification permission, it takes a few moments to fully sync your device.',
 
     // Privacy & Appearance Tab
     privacySettings: 'Privacy & Appearance Settings',
