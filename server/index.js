@@ -31,44 +31,7 @@ dotenv.config()
 const app = express()
 const httpServer = createServer(app)
 
-// ── Security Hardening Middlewares ───────────────────────────────────────────
-// 1. Helmet: Set secure HTTP response headers
-app.use(
-  helmet({
-    contentSecurityPolicy: false, // Handled per-deployment/PWA requirements
-    crossOriginEmbedderPolicy: false,
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
-  })
-)
-
-// 2. Data Sanitization against NoSQL query injection
-app.use(mongoSanitize())
-
-// 3. Enable Gzip HTTP compression
-app.use(compression())
-
-// 4. Rate Limiting: Global limiter (200 reqs / 15 mins)
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many requests from this IP, please try again after 15 minutes' },
-})
-app.use('/api/', globalLimiter)
-
-// 5. Rate Limiting: Strict Auth limiter for login/register (15 attempts / 15 mins)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many authentication attempts, please try again after 15 minutes' },
-})
-app.use('/api/auth/login', authLimiter)
-app.use('/api/auth/register', authLimiter)
-
-// 6. Strict CORS Configuration
+// ── 1. CORS Configuration (MUST BE FIRST TO HANDLE PREFLIGHT OPTIONS) ─────────
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -102,7 +65,44 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 )
+
+// ── 2. Helmet: Set secure HTTP response headers (Cross-Origin friendly) ──────
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+  })
+)
+
+// ── 3. Data Sanitization against NoSQL injection (Scoped to Auth routes) ─────
+app.use('/api/auth', mongoSanitize())
+
+// ── 4. Compression & JSON Body Parser ────────────────────────────────────────
+app.use(compression())
 app.use(express.json({ limit: '10mb' }))
+
+// ── 5. Rate Limiting ─────────────────────────────────────────────────────────
+// Global limiter (300 reqs / 15 mins)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests from this IP, please try again after 15 minutes' },
+})
+app.use('/api/', globalLimiter)
+
+// Strict Auth limiter for login/register (15 attempts / 15 mins)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many authentication attempts, please try again after 15 minutes' },
+})
+app.use('/api/auth/login', authLimiter)
+app.use('/api/auth/register', authLimiter)
 
 const io = new Server(httpServer, {
   cors: {
